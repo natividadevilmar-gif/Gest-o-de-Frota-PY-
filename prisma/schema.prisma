@@ -1,0 +1,177 @@
+// Gestão de Frota PY: modelo de dados do MVP.
+// Valores em USD, sem IVA. Cada transportadora (Cliente) só enxerga os próprios dados.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Plano {
+  BASICO
+  GESTAO
+  VIDEO
+}
+
+enum Papel {
+  ADMIN // equipe interna da Gestão de Frota PY
+  GESTOR // gestor da transportadora
+  OPERADOR // lança despesas e viagens, não altera cadastros
+}
+
+enum Idioma {
+  pt
+  es
+}
+
+enum CategoriaDespesa {
+  DIESEL
+  PNEUS
+  MANUTENCAO
+  PEDAGIO
+  OUTROS
+}
+
+enum Gatilho {
+  KM
+  DATA
+  FALHA
+}
+
+model Cliente {
+  id            String     @id @default(cuid())
+  nome          String
+  ruc           String?
+  cidade        String
+  idioma        Idioma     @default(pt)
+  // Dias desde o vencimento da mensalidade mais antiga em aberto (0 = em dia).
+  diasEmAtraso  Int        @default(0)
+  criadoEm      DateTime   @default(now())
+  usuarios      Usuario[]
+  caminhoes     Caminhao[]
+  motoristas    Motorista[]
+}
+
+model Usuario {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  nome      String
+  senhaHash String
+  papel     Papel
+  clienteId String?
+  cliente   Cliente? @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  criadoEm  DateTime @default(now())
+}
+
+model Motorista {
+  id        String     @id @default(cuid())
+  clienteId String
+  cliente   Cliente    @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  nome      String
+  documento String?
+  caminhoes Caminhao[]
+}
+
+model Caminhao {
+  id                String   @id @default(cuid())
+  clienteId         String
+  cliente           Cliente  @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  placa             String
+  modelo            String
+  ano               Int?
+  plano             Plano    @default(BASICO)
+  // Consumo de referência do modelo (manual ou média da frota), em km/l.
+  consumoRefKmL     Float
+  odometroKm        Int      @default(0)
+  // Identificador do equipamento na plataforma de rastreamento.
+  rastreadorId      String?
+  motoristaId       String?
+  motorista         Motorista? @relation(fields: [motoristaId], references: [id], onDelete: SetNull)
+  // Custos fixos mensais que entram no custo por km.
+  salarioMotorista  Float    @default(0)
+  seguroMensal      Float    @default(0)
+  depreciacaoMensal Float    @default(0)
+  despesas          Despesa[]
+  telemetria        TelemetriaDia[]
+  revisoes          ItemRevisao[]
+  viagens           Viagem[]
+  criadoEm          DateTime @default(now())
+
+  @@unique([clienteId, placa])
+}
+
+model Despesa {
+  id          String           @id @default(cuid())
+  caminhaoId  String
+  caminhao    Caminhao         @relation(fields: [caminhaoId], references: [id], onDelete: Cascade)
+  data        DateTime         @db.Date
+  categoria   CategoriaDespesa
+  valorUsd    Float
+  // Só para DIESEL: litros abastecidos, comparados com o consumo medido pela CAN.
+  litros      Float?
+  descricao   String?
+  criadoEm    DateTime         @default(now())
+
+  @@index([caminhaoId, data])
+}
+
+model TelemetriaDia {
+  id                 String   @id @default(cuid())
+  caminhaoId         String
+  caminhao           Caminhao @relation(fields: [caminhaoId], references: [id], onDelete: Cascade)
+  data               DateTime @db.Date
+  km                 Float
+  // Litros consumidos lidos da rede CAN (null quando o equipamento não lê CAN).
+  litrosCan          Float?
+  odometroKm         Int
+  marchaLentaPct     Float    @default(0)
+  excessosVelocidade Int      @default(0)
+  frenagensBruscas   Int      @default(0)
+  rpmAltoPct         Float    @default(0)
+
+  @@unique([caminhaoId, data])
+}
+
+model ItemRevisao {
+  id            String    @id @default(cuid())
+  caminhaoId    String
+  caminhao      Caminhao  @relation(fields: [caminhaoId], references: [id], onDelete: Cascade)
+  nome          String
+  gatilho       Gatilho
+  intervaloKm   Int?
+  ultimoKm      Int?
+  vencimento    DateTime? @db.Date
+  intervaloDias Int?
+  resolvido     Boolean   @default(false)
+  servicos      ServicoRevisao[]
+}
+
+model ServicoRevisao {
+  id         String      @id @default(cuid())
+  itemId     String
+  item       ItemRevisao @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  data       DateTime    @db.Date
+  odometroKm Int
+  custoUsd   Float
+  observacao String?
+}
+
+model Viagem {
+  id           String   @id @default(cuid())
+  caminhaoId   String
+  caminhao     Caminhao @relation(fields: [caminhaoId], references: [id], onDelete: Cascade)
+  data         DateTime @db.Date
+  origem       String
+  destino      String
+  carga        String
+  toneladas    Float
+  freteUsd     Float
+  kmCarregado  Float
+  kmVazio      Float
+  criadoEm     DateTime @default(now())
+
+  @@index([caminhaoId, data])
+}

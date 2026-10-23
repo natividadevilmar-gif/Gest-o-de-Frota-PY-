@@ -1,0 +1,211 @@
+// Cálculos do módulo próprio: custo por km, consumo, revisões, margem e cobrança.
+// Funções puras, sem banco, para serem testadas e reutilizadas nas telas e nos relatórios.
+
+export type Plano = "BASICO" | "GESTAO" | "VIDEO";
+
+export const PRECO_MENSAL: Record<Plano, number> = { BASICO: 16, GESTAO: 28, VIDEO: 52 };
+export const NOME_PLANO: Record<Plano, string> = { BASICO: "Básico", GESTAO: "Gestão", VIDEO: "Vídeo" };
+const ORDEM_PLANO: Plano[] = ["BASICO", "GESTAO", "VIDEO"];
+
+export type Modulo = "painel" | "caminhoes" | "custos" | "consumo" | "revisoes" | "viagens" | "video";
+
+const PLANO_MINIMO: Record<Modulo, Plano> = {
+  painel: "BASICO",
+  caminhoes: "BASICO",
+  custos: "GESTAO",
+  consumo: "GESTAO",
+  revisoes: "GESTAO",
+  viagens: "GESTAO",
+  video: "VIDEO",
+};
+
+export function planoPermite(plano: Plano, modulo: Modulo): boolean {
+  return ORDEM_PLANO.indexOf(plano) >= ORDEM_PLANO.indexOf(PLANO_MINIMO[modulo]);
+}
+
+export function planoMinimo(modulo: Modulo): Plano {
+  return PLANO_MINIMO[modulo];
+}
+
+// ---- Custo por km ----
+
+export type CustosMes = {
+  variaveis: { categoria: string; valorUsd: number }[];
+  salarioMotorista: number;
+  seguroMensal: number;
+  depreciacaoMensal: number;
+};
+
+export function composicaoCusto(c: CustosMes): Record<string, number> {
+  const out: Record<string, number> = {
+    Diesel: 0,
+    Pneus: 0,
+    Manutenção: 0,
+    Pedágio: 0,
+    Outros: 0,
+    Motorista: c.salarioMotorista,
+    Seguro: c.seguroMensal,
+    Depreciação: c.depreciacaoMensal,
+  };
+  const nome: Record<string, string> = {
+    DIESEL: "Diesel",
+    PNEUS: "Pneus",
+    MANUTENCAO: "Manutenção",
+    PEDAGIO: "Pedágio",
+    OUTROS: "Outros",
+  };
+  for (const d of c.variaveis) out[nome[d.categoria] ?? "Outros"] += d.valorUsd;
+  return out;
+}
+
+export function custoTotal(c: CustosMes): number {
+  return Object.values(composicaoCusto(c)).reduce((a, b) => a + b, 0);
+}
+
+/** Custo do mês dividido pelo km rodado medido pelo GPS. Null quando o caminhão não rodou. */
+export function custoPorKm(custoTotalUsd: number, km: number): number | null {
+  return km > 0 ? custoTotalUsd / km : null;
+}
+
+// ---- Consumo ----
+
+export function kmPorLitro(km: number, litros: number | null): number | null {
+  return litros && litros > 0 ? km / litros : null;
+}
+
+/** Diferença percentual entre litros abastecidos e litros consumidos medidos pela CAN. */
+export function desvioCombustivelPct(litrosAbastecidos: number, litrosCan: number | null): number | null {
+  if (!litrosCan || litrosCan <= 0) return null;
+  return ((litrosAbastecidos - litrosCan) / litrosCan) * 100;
+}
+
+export const LIMITE_DESVIO_PCT = 3;
+
+export function suspeitaDesvio(desvioPct: number | null): boolean {
+  return desvioPct !== null && desvioPct > LIMITE_DESVIO_PCT;
+}
+
+/** Percentual acima (positivo) ou abaixo (negativo) do consumo de referência do modelo. */
+export function comparacaoReferenciaPct(kmL: number | null, refKmL: number): number | null {
+  return kmL === null || refKmL <= 0 ? null : (kmL / refKmL - 1) * 100;
+}
+
+/** Litros gastos a mais do que gastaria rodando na referência do modelo. */
+export function litrosExcedentes(km: number, litros: number | null, refKmL: number): number {
+  if (!litros || refKmL <= 0) return 0;
+  return Math.max(0, litros - km / refKmL);
+}
+
+// ---- Revisões ----
+
+export type ItemRevisaoEntrada =
+  | { gatilho: "KM"; intervaloKm: number; ultimoKm: number }
+  | { gatilho: "DATA"; vencimento: Date }
+  | { gatilho: "FALHA"; resolvido: boolean };
+
+export type SituacaoRevisao = "vencida" | "proxima" | "em_dia";
+
+export type StatusRevisao = {
+  situacao: SituacaoRevisao;
+  /** Km que faltam (negativo = passou). Só para gatilho KM. */
+  kmRestantes?: number;
+  /** Dias que faltam (negativo = venceu). Só para gatilho DATA. */
+  diasRestantes?: number;
+  /** Quanto do intervalo já foi usado, de 0 a 1. */
+  usoIntervalo: number;
+  venceAosKm?: number;
+};
+
+export const AVISO_KM = 1000;
+export const AVISO_DIAS = 15;
+const DIA_MS = 86_400_000;
+
+export function statusRevisao(item: ItemRevisaoEntrada, odometroKm: number, hoje: Date): StatusRevisao {
+  if (item.gatilho === "FALHA") {
+    return { situacao: item.resolvido ? "em_dia" : "vencida", usoIntervalo: item.resolvido ? 0 : 1 };
+  }
+  if (item.gatilho === "DATA") {
+    const dias = Math.round((inicioDoDia(item.vencimento) - inicioDoDia(hoje)) / DIA_MS);
+    return {
+      situacao: dias < 0 ? "vencida" : dias <= AVISO_DIAS ? "proxima" : "em_dia",
+      diasRestantes: dias,
+      usoIntervalo: clamp01(1 - dias / 90),
+    };
+  }
+  const venceAosKm = item.ultimoKm + item.intervaloKm;
+  const resto = venceAosKm - odometroKm;
+  return {
+    situacao: resto < 0 ? "vencida" : resto <= AVISO_KM ? "proxima" : "em_dia",
+    kmRestantes: resto,
+    venceAosKm,
+    usoIntervalo: clamp01((odometroKm - item.ultimoKm) / item.intervaloKm),
+  };
+}
+
+// ---- Viagens ----
+
+export type Margem = { kmTotal: number; custoUsd: number; margemUsd: number; margemPct: number | null };
+
+/** Frete recebido menos custo por km vezes a distância total, incluindo o retorno vazio. */
+export function margemViagem(freteUsd: number, kmCarregado: number, kmVazio: number, custoKm: number): Margem {
+  const kmTotal = kmCarregado + kmVazio;
+  const custoUsd = kmTotal * custoKm;
+  const margemUsd = freteUsd - custoUsd;
+  return { kmTotal, custoUsd, margemUsd, margemPct: freteUsd > 0 ? (margemUsd / freteUsd) * 100 : null };
+}
+
+/** Menor frete por tonelada que cobre o custo da viagem. */
+export function freteMinimoPorTonelada(toneladas: number, kmCarregado: number, kmVazio: number, custoKm: number): number | null {
+  return toneladas > 0 ? ((kmCarregado + kmVazio) * custoKm) / toneladas : null;
+}
+
+// ---- Cobrança (visão interna) ----
+
+export const DIAS_PARA_BLOQUEIO = 15;
+
+export type SituacaoPagamento = "em_dia" | "atrasado" | "bloqueado";
+
+export function situacaoPagamento(diasEmAtraso: number): SituacaoPagamento {
+  if (diasEmAtraso <= 0) return "em_dia";
+  return diasEmAtraso > DIAS_PARA_BLOQUEIO ? "bloqueado" : "atrasado";
+}
+
+export function mensalidadeTotal(planos: Plano[]): number {
+  return planos.reduce((a, p) => a + PRECO_MENSAL[p], 0);
+}
+
+// ---- utilidades ----
+
+function inicioDoDia(d: Date): number {
+  return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+}
+
+function clamp01(n: number): number {
+  return Math.max(0, Math.min(1, n));
+}
+
+/** Primeiro dia do mês (UTC) e primeiro dia do mês seguinte, a partir de "AAAA-MM". */
+export function intervaloMes(mes: string): { inicio: Date; fim: Date } {
+  const m = /^(\d{4})-(\d{2})$/.exec(mes);
+  if (!m) throw new Error(`Mês inválido: ${mes}`);
+  const ano = Number(m[1]);
+  const idx = Number(m[2]) - 1;
+  return { inicio: new Date(Date.UTC(ano, idx, 1)), fim: new Date(Date.UTC(ano, idx + 1, 1)) };
+}
+
+/**
+ * Fração do mês já decorrida, para ratear os custos fixos mensais num mês em andamento.
+ * Conta os dias completos antes de hoje (a telemetria chega com um dia de atraso).
+ * Meses passados valem 1; meses futuros, 0.
+ */
+export function fracaoMes(mes: string, hoje = new Date()): number {
+  const { inicio, fim } = intervaloMes(mes);
+  const dia = Date.UTC(hoje.getUTCFullYear(), hoje.getUTCMonth(), hoje.getUTCDate());
+  if (dia >= fim.getTime()) return 1;
+  if (dia <= inicio.getTime()) return 0;
+  return (dia - inicio.getTime()) / (fim.getTime() - inicio.getTime());
+}
+
+export function mesAtual(hoje = new Date()): string {
+  return `${hoje.getUTCFullYear()}-${String(hoje.getUTCMonth() + 1).padStart(2, "0")}`;
+}
