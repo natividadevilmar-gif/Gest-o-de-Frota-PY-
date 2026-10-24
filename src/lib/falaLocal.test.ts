@@ -44,6 +44,13 @@ IVA 10% 195.000`);
   it("sem linha de total usa o maior valor", () => {
     expect(lerNotaLocal("Restaurante El Paso\nAlmuerzo 45.000\nGaseosa 8.000\nGs").valor).toBe(45000);
   });
+  it("fatura com o total numa caixa, longe do rótulo", () => {
+    const texto = require("node:fs").readFileSync(__dirname + "/__fixtures__/fatura-sanepar.txt", "utf8");
+    expect(lerNotaLocal(texto, new Date("2026-10-24T12:00:00Z"))).toMatchObject({ valor: 471.65, moeda: "BRL", data: "2026-10-23" });
+  });
+  it("total na linha de baixo do rótulo", () => {
+    expect(lerNotaLocal("TOTAL A PAGAR\nR$ 471,65\nConsumo 254,94\nLeitura 01160").valor).toBe(471.65);
+  });
   it("nota argentina em pesos", () => {
     expect(lerNotaLocal("Gomeria Ruta 14\nCUIT 30-12345678-9\nReparacion cubierta\nTOTAL $ 25.500,00")).toMatchObject({ categoria: "PNEUS", valor: 25500, moeda: "ARS" });
   });

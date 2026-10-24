@@ -88,26 +88,46 @@ function dinheiro(txt: string): number {
  * acha tipo, total, moeda, litros, data e estabelecimento. Heurística simples:
  * o total é o maior valor das linhas com "total"; sem elas, o maior valor da nota.
  */
-export function lerNotaLocal(texto: string): NotaLida {
+export function lerNotaLocal(texto: string, hoje = new Date()): NotaLida {
   const linhas = texto.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
   const t = texto.toLowerCase();
-  const categoria = CATEGORIAS.find(([, re]) => re.test(t))?.[0] ?? "OUTROS";
+  // Em fatura, "abastecimento" costuma ser de água; só conta como combustível se houver litros.
+  const tCat = /litro|\blts?\b/.test(t) ? t : t.replace(/abasteci\w*/g, "");
+  const categoria = CATEGORIAS.find(([, re]) => re.test(tCat))?.[0] ?? "OUTROS";
   const moeda: Moeda | null = /\b(u\$s|usd|d[oó]lares)\b/.test(t) ? "USD"
     : /r\$|\breais\b|\bcnpj\b/.test(t) ? "BRL"
     : /\b(cuit|ars|argentina)\b/.test(t) ? "ARS"
     : /\b(gs\.?|guaran[ií]e?s?|ruc|timbrado|asunci[oó]n)\b|₲/.test(t) ? "PYG"
     : null;
 
-  const valoresDa = (l: string) => (NAO_E_VALOR.test(l) || /\d{2}[/-]\d{2}[/-]\d{2,4}|\d{2}:\d{2}/.test(l) ? [] : (l.match(NUM_DINHEIRO) ?? []).map(dinheiro));
-  const totais = linhas.filter((l) => /total/i.test(l) && !/sub\s*-?total/i.test(l)).flatMap(valoresDa);
-  const todos = linhas.flatMap((l) => (/litros?|\blts?\b/i.test(l) ? [] : valoresDa(l)));
+  const brutos = (l: string) => (NAO_E_VALOR.test(l) || /\d{2}[/-]\d{2}[/-]\d{2,4}|\d{2}:\d{2}/.test(l) ? [] : (l.match(NUM_DINHEIRO) ?? []));
+  const valoresDa = (l: string) => brutos(l).map(dinheiro);
+  // "TOTAL A PAGAR" costuma vir numa linha e o valor na de baixo (faturas com caixas).
+  const ehTotal = (l: string) => /total|a\s*pagar|importe|monto/i.test(l) && !/sub\s*-?total|total\s*iz/i.test(l);
+  const totais = linhas.flatMap((l, i) => {
+    if (!ehTotal(l)) return [];
+    const v = valoresDa(l);
+    if (v.length) return v;
+    // Só olha a linha de baixo quando o rótulo fecha a linha ("TOTAL A PAGAR", "Total:").
+    return /(total|pagar|importe|monto)[\s:|.]*$/i.test(l) ? valoresDa(linhas[i + 1] ?? "") : [];
+  });
+  // Valores com centavos (471,65) ou milhar (2.145.000) valem mais que números soltos (leituras, CEP, matrícula).
+  const candidatos = linhas.flatMap((l) => (/litros?|\blts?\b/i.test(l) ? [] : brutos(l)));
+  const fortes = candidatos.filter((c) => /,\d{2}$|\d\.\d{3}/.test(c) && !/\s/.test(c));
+  const todos = (fortes.length ? fortes : candidatos).map(dinheiro);
   const lista = totais.length ? totais : todos;
   const valor = lista.length ? Math.max(...lista) : null;
 
   const ml = /(\d+(?:[.,]\d+)?)\s*(?:l|lt|lts|litros?)\b/i.exec(texto);
-  const litros = ml ? Number(ml[1].replace(",", ".")) : null;
-  const md = /(\d{2})[/-](\d{2})[/-](\d{4}|\d{2})/.exec(texto);
-  const data = md ? `${md[3].length === 2 ? `20${md[3]}` : md[3]}-${md[2]}-${md[1]}` : null;
+  const ml2 = ml ? Number(ml[1].replace(",", ".")) : 0;
+  // Um tanque de caminhão não passa de ~1.500 litros: acima disso é outro número lido errado.
+  const litros = ml2 > 0 && ml2 <= 2000 ? ml2 : null;
+  // Data do gasto: a mais recente que não está no futuro (o vencimento da fatura fica depois de hoje).
+  const datas = [...texto.matchAll(/(\d{2})[/-](\d{2})[/-](\d{4}|\d{2})\b/g)]
+    .map((m) => `${m[3].length === 2 ? `20${m[3]}` : m[3]}-${m[2]}-${m[1]}`)
+    .filter((d) => !Number.isNaN(Date.parse(d)));
+  const hojeIso = hoje.toISOString().slice(0, 10);
+  const data = datas.filter((d) => d <= hojeIso).sort().at(-1) ?? null;
   const posto = linhas.find((l) => /[a-záéíóúç]{3,}/i.test(l) && !/\d{3,}/.test(l))?.slice(0, 80) ?? null;
   return { categoria, valor, moeda, litros, data, posto };
 }
