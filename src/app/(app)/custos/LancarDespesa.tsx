@@ -183,7 +183,7 @@ export function LancarDespesa({ caminhoes, hoje, cotacao, idioma, leituraAtiva }
     const proxima: Etapa | null =
       !(Number(c.valor) > 0) ? "valor"
       : COMBUSTIVEL.includes(c.categoria) && !(Number(c.litros) > 0) && !feitas.has("litros") ? "litros"
-      : !c.odometroKm && !feitas.has("km") ? "km"
+      : COMBUSTIVEL.includes(c.categoria) && !c.odometroKm && !feitas.has("km") ? "km"
       : !c.descricao && !feitas.has("descricao") ? "descricao"
       : null;
     if (!proxima) {
@@ -369,8 +369,8 @@ export function LancarDespesa({ caminhoes, hoje, cotacao, idioma, leituraAtiva }
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-      <label htmlFor="tipoTopo" className="tipo-topo">Tipo da despesa
-        <select id="tipoTopo" value={f.categoria} onChange={(e) => { tipoEscolhido.current = true; set("categoria", e.target.value); }}>
+      <label htmlFor="categoria" className="tipo-topo">Tipo da despesa
+        <select id="categoria" value={f.categoria} onChange={(e) => { tipoEscolhido.current = true; set("categoria", e.target.value); }}>
           {Object.entries(TIPO).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
         </select>
       </label>
@@ -455,17 +455,7 @@ export function LancarDespesa({ caminhoes, hoje, cotacao, idioma, leituraAtiva }
           </select>
         </label>
         <label htmlFor="data">Data<input id="data" name="data" type="date" value={f.data} onChange={(e) => set("data", e.target.value)} required /></label>
-        <label htmlFor="categoria">Tipo
-          <select id="categoria" name="categoria" value={f.categoria} onChange={(e) => { tipoEscolhido.current = true; fluxo.current.tipoDito = true; set("categoria", e.target.value); }}>
-            <option value="DIESEL">Combustível: diesel</option>
-            <option value="ARLA32">Combustível: Arla 32</option>
-            <option value="ALIMENTACAO">Alimentação</option>
-            <option value="PEDAGIO">Pedágio</option>
-            <option value="MANUTENCAO">Manutenção</option>
-            <option value="PNEUS">Borracharia</option>
-            <option value="OUTROS">Outros</option>
-          </select>
-        </label>
+        <input type="hidden" name="categoria" value={f.categoria} />
         <label htmlFor="moeda">Moeda
           <select id="moeda" name="moeda" value={f.moeda} onChange={(e) => set("moeda", e.target.value)}>
             <option value="PYG">Guaranis (₲)</option>
