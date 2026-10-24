@@ -123,10 +123,10 @@ export async function viagensCliente(clienteId: string, mes: string, ind: Indica
 }
 
 /** Despesas do mês, com o km/l medido pelo método do tanque cheio nos abastecimentos de diesel. */
-export async function lancamentosMes(clienteId: string, mes: string, caminhoes: Set<string>) {
+export async function lancamentosMes(clienteId: string, mes: string, caminhoes: Set<string>, usuarioId?: string) {
   const { inicio, fim } = intervaloMes(mes);
   const despesas = await db.despesa.findMany({
-    where: { caminhao: { clienteId }, data: { gte: inicio, lt: fim } },
+    where: { caminhao: { clienteId }, data: { gte: inicio, lt: fim }, ...(usuarioId ? { usuarioId } : {}) },
     include: { caminhao: { select: { placa: true } } },
     omit: { recibo: true },
     orderBy: [{ data: "desc" }, { criadoEm: "desc" }],

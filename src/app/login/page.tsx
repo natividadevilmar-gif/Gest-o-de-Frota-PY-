@@ -19,11 +19,11 @@ export default function Login() {
         <h1>Entrar</h1>
         <form action={acao}>
           <label htmlFor="email">
-            E-mail
-            <input id="email" name="email" type="email" autoComplete="username" defaultValue={estado?.email} key={estado?.email} required />
+            E-mail ou celular
+            <input id="email" name="email" type="text" autoComplete="username" autoCapitalize="none" defaultValue={estado?.email} key={estado?.email} required />
           </label>
           <label htmlFor="senha">
-            Senha
+            Senha ou PIN
             <input id="senha" name="senha" type="password" autoComplete="current-password" required />
           </label>
           {estado && <p className="msg bad" role="alert">{estado.erro}</p>}

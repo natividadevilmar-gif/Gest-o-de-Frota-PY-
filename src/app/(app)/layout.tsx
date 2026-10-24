@@ -11,6 +11,7 @@ const MODULOS: { m: Modulo; href: string; rotulo: string }[] = [
   { m: "painel", href: "/painel", rotulo: "Painel" },
   { m: "custos", href: "/despesas", rotulo: "Lançar despesa" },
   { m: "caminhoes", href: "/caminhoes", rotulo: "Caminhões e planos" },
+  { m: "caminhoes", href: "/motoristas", rotulo: "Acesso dos motoristas" },
   { m: "custos", href: "/custos", rotulo: "Custo por km" },
   { m: "consumo", href: "/consumo", rotulo: "Consumo e motoristas" },
   { m: "revisoes", href: "/revisoes", rotulo: "Revisões" },
@@ -24,7 +25,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     : [];
   const libera = (m: Modulo) => planos.some((p) => planoPermite(p, m));
 
-  const itens: ItemNav[] = MODULOS.map((x, i) => ({
+  const itens: ItemNav[] = (sessao.papel === "MOTORISTA" ? MODULOS.filter((x) => x.href === "/despesas") : MODULOS).map((x, i) => ({
     href: x.href,
     rotulo: x.rotulo,
     grupo: i === 0 ? "Frota" : undefined,

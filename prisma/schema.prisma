@@ -20,6 +20,7 @@ enum Papel {
   ADMIN // equipe interna da Gestão de Frota PY
   GESTOR // gestor da transportadora
   OPERADOR // lança despesas e viagens, não altera cadastros
+  MOTORISTA // entra com celular e PIN e só lança despesas do próprio caminhão
 }
 
 enum Idioma {
@@ -67,6 +68,10 @@ model Usuario {
   papel     Papel
   clienteId String?
   cliente   Cliente? @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  // Só para papel MOTORISTA: o motorista dono deste acesso.
+  motoristaId String?    @unique
+  motorista   Motorista? @relation(fields: [motoristaId], references: [id], onDelete: Cascade)
+  despesas    Despesa[]
   criadoEm  DateTime @default(now())
 }
 
@@ -77,6 +82,7 @@ model Motorista {
   nome      String
   documento String?
   caminhoes Caminhao[]
+  acesso    Usuario?
 }
 
 model Caminhao {
@@ -134,6 +140,9 @@ model Despesa {
   reciboTipo  String?
   // Como foi lançado: "manual", "foto" ou "audio".
   origem      String           @default("manual")
+  // Quem lançou (motoristas veem só os próprios lançamentos).
+  usuarioId   String?
+  usuario     Usuario?         @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
   criadoEm    DateTime         @default(now())
 
   @@index([caminhaoId, data])

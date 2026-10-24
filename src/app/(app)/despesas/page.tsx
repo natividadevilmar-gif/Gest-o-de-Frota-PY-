@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Placa, PlanoNecessario, SeletorMes } from "@/components/ui";
-import { clienteAtual, podeEditarCadastros } from "@/lib/acesso";
+import { clienteAtual, motoristaDaSessao, podeEditarCadastros } from "@/lib/acesso";
 import { SIMBOLO, type Moeda } from "@/lib/cambio";
 import { cotacaoDoDia } from "@/lib/cotacao";
 import { db } from "@/lib/db";
@@ -14,18 +14,25 @@ import { LancarDespesa } from "../custos/LancarDespesa";
 export default async function Despesas({ searchParams }: { searchParams: Promise<{ mes?: string }> }) {
   const { sessao, cliente } = await clienteAtual();
   const mes = mesValido((await searchParams).mes, mesAtual());
-  const caminhoes = (await db.caminhao.findMany({ where: { clienteId: cliente.id }, orderBy: { placa: "asc" }, select: { id: true, placa: true, plano: true } }))
-    .filter((c) => planoPermite(c.plano, "custos"));
+  const motoristaId = await motoristaDaSessao(sessao);
+  const caminhoes = (await db.caminhao.findMany({
+    where: { clienteId: cliente.id, ...(motoristaId !== null ? { motoristaId } : {}) },
+    orderBy: { placa: "asc" },
+    select: { id: true, placa: true, plano: true },
+  })).filter((c) => planoPermite(c.plano, "custos"));
+  if (caminhoes.length === 0 && motoristaId !== null) {
+    return <><h1>Lançar despesa</h1><div className="card"><p className="note">Nenhum caminhão seu está liberado para lançar despesas. Fale com o gestor da frota.</p></div></>;
+  }
   if (caminhoes.length === 0) return <PlanoNecessario modulo="custos" titulo="Lançar despesas" />;
   const cotacao = await cotacaoDoDia();
-  const lancamentos = await lancamentosMes(cliente.id, mes, new Set(caminhoes.map((c) => c.id)));
+  const lancamentos = await lancamentosMes(cliente.id, mes, new Set(caminhoes.map((c) => c.id)), motoristaId !== null ? sessao.usuarioId : undefined);
   const pode = podeEditarCadastros(sessao);
 
   return (
     <>
       <div className="card-h">
         <h1>Lançar despesa</h1>
-        <Link className="btn" href={`/custos?mes=${mes}`}>Ver relatório de custos</Link>
+        {motoristaId === null && <Link className="btn" href={`/custos?mes=${mes}`}>Ver relatório de custos</Link>}
       </div>
 
       <div className="card">

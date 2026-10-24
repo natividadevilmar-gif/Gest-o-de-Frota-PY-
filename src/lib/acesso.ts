@@ -48,6 +48,13 @@ export async function clienteAtual() {
   return { ...r, cliente: r.cliente };
 }
 
+/** Para o papel MOTORISTA: id do motorista vinculado ao login (null para os demais). */
+export async function motoristaDaSessao(s: Sessao): Promise<string | null> {
+  if (s.papel !== "MOTORISTA") return null;
+  const u = await db.usuario.findUnique({ where: { id: s.usuarioId }, select: { motoristaId: true } });
+  return u?.motoristaId ?? "";
+}
+
 export function podeEditarCadastros(s: Sessao) {
   return s.papel === "ADMIN" || s.papel === "GESTOR";
 }

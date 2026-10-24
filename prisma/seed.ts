@@ -65,6 +65,12 @@ async function main() {
 
     for (const f of FROTA) {
       const motorista = await db.motorista.create({ data: { clienteId: cliente.id, nome: f.motorista } });
+      if (f === FROTA[0]) {
+        // Acesso de demonstração do motorista: celular 0981123456, PIN 123456.
+        await db.usuario.create({
+          data: { email: "0981123456", nome: f.motorista, senhaHash: await bcrypt.hash("123456", 10), papel: "MOTORISTA", clienteId: cliente.id, motoristaId: motorista.id },
+        });
+      }
       const cam = await db.caminhao.create({
         data: {
           clienteId: cliente.id,
@@ -142,7 +148,7 @@ async function main() {
       });
     }
   }
-  console.log("Dados de exemplo criados. Logins (senha frota2026): admin@gestaodefrota.com.py, gestor@avmtruck.com.py");
+  console.log("Dados de exemplo criados. Logins (senha frota2026): admin@gestaodefrota.com.py, gestor@avmtruck.com.py; motorista: 0981123456, PIN 123456");
 }
 
 main().finally(() => db.$disconnect());

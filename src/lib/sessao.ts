@@ -7,7 +7,7 @@ const DURACAO_S = 60 * 60 * 12;
 export type Sessao = {
   usuarioId: string;
   nome: string;
-  papel: "ADMIN" | "GESTOR" | "OPERADOR";
+  papel: "ADMIN" | "GESTOR" | "OPERADOR" | "MOTORISTA";
   clienteId: string | null;
 };
 

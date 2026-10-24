@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { clienteAtual, podeEditarCadastros } from "@/lib/acesso";
+import { clienteAtual, motoristaDaSessao, podeEditarCadastros } from "@/lib/acesso";
 import { paraUsd, taxa, type Moeda } from "@/lib/cambio";
 import { cotacaoDoDia } from "@/lib/cotacao";
 import { db } from "@/lib/db";
@@ -33,13 +33,14 @@ export type Resultado = { ok: boolean; msg: string } | null;
 const COMBUSTIVEL = new Set(["DIESEL", "ARLA32"]);
 
 export async function lancarDespesa(_: Resultado, form: FormData): Promise<Resultado> {
-  const { cliente } = await clienteAtual();
+  const { sessao, cliente } = await clienteAtual();
   const p = despesa.safeParse(Object.fromEntries(form));
   if (!p.success) return { ok: false, msg: "Confira caminhão, data, tipo e valor." };
   const d = p.data;
   const combustivel = COMBUSTIVEL.has(d.categoria);
   if (d.categoria === "DIESEL" && !d.litros) return { ok: false, msg: "Para diesel, informe os litros abastecidos." };
-  const cam = await db.caminhao.findFirst({ where: { id: d.caminhaoId, clienteId: cliente.id } });
+  const motoristaId = await motoristaDaSessao(sessao);
+  const cam = await db.caminhao.findFirst({ where: { id: d.caminhaoId, clienteId: cliente.id, ...(motoristaId !== null ? { motoristaId } : {}) } });
   if (!cam) return { ok: false, msg: "Caminhão não encontrado." };
 
   const cot = await cotacaoDoDia();
@@ -62,6 +63,7 @@ export async function lancarDespesa(_: Resultado, form: FormData): Promise<Resul
       tanqueCheio: combustivel && d.tanqueCheio,
       descricao: d.descricao ?? null,
       origem: d.origem,
+      usuarioId: sessao.usuarioId,
       recibo,
       reciboTipo: recibo ? "image/jpeg" : null,
     },
