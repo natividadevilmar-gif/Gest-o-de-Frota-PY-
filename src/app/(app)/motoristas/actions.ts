@@ -24,7 +24,11 @@ export async function criarAcesso(_: Resultado, form: FormData): Promise<Resulta
   const p = acesso.safeParse(Object.fromEntries(form));
   if (!p.success) return { ok: false, msg: "Confira: celular só com números (com DDD) e PIN de 6 a 8 dígitos." };
   const d = p.data;
-  if (await db.usuario.findUnique({ where: { email: d.celular } })) return { ok: false, msg: "Esse celular já tem acesso." };
+  const dono = await db.usuario.findUnique({ where: { email: d.celular } });
+  if (dono) {
+    const onde = dono.clienteId === cliente.id ? dono.nome : `um motorista de outra transportadora`;
+    return { ok: false, msg: `O celular ${d.celular} já é o login de ${onde}. Cada motorista precisa de um celular diferente.` };
+  }
 
   let motoristaId = d.motoristaId;
   if (motoristaId === "novo") {
@@ -33,7 +37,7 @@ export async function criarAcesso(_: Resultado, form: FormData): Promise<Resulta
   }
   const mot = await db.motorista.findFirst({ where: { id: motoristaId, clienteId: cliente.id }, include: { acesso: true } });
   if (!mot) return { ok: false, msg: "Motorista não encontrado." };
-  if (mot.acesso) return { ok: false, msg: `${mot.nome} já tem acesso.` };
+  if (mot.acesso) return { ok: false, msg: `${mot.nome} já tem acesso, com o celular ${mot.acesso.email}. Para mudar, use Remover acesso na lista abaixo e crie de novo.` };
   if (d.caminhaoId) await db.caminhao.updateMany({ where: { id: d.caminhaoId, clienteId: cliente.id }, data: { motoristaId: mot.id } });
 
   await db.usuario.create({

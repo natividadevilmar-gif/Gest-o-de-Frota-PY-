@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { criarAcesso } from "./actions";
 
 type Props = {
@@ -11,6 +11,11 @@ type Props = {
 export function NovoAcesso({ motoristas, caminhoes }: Props) {
   const [r, acao, enviando] = useActionState(criarAcesso, null);
   const [quem, setQuem] = useState(motoristas[0]?.id ?? "novo");
+  // Depois de criar, o motorista sai da lista: volta a seleção para um que ainda não tem acesso.
+  const primeiro = motoristas[0]?.id ?? "novo";
+  useEffect(() => {
+    if (quem !== "novo" && !motoristas.some((m) => m.id === quem)) setQuem(primeiro);
+  }, [motoristas, quem, primeiro]);
   return (
     <form className="form" action={acao} key={r?.ok ? r.msg : "form"}>
       <label htmlFor="motoristaId">Motorista
