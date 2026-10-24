@@ -17,6 +17,11 @@ describe("fala sem a Claude API", () => {
   it("borracharia em dólares", () => {
     expect(lerFalaLocal("borracharia 120 dólares")).toMatchObject({ categoria: "PNEUS", valor: 120, moeda: "USD" });
   });
+  it("soma milhões e milhares ditos em sequência", () => {
+    expect(lerFalaLocal("diesel 300 litros 2 milhões 145 mil").valor).toBe(2_145_000);
+    expect(lerFalaLocal("dois milhões e 500 mil").valor).toBe(2_500_000);
+    expect(lerFalaLocal("1 milhão 200 mil 500").valor).toBe(1_200_500);
+  });
   it("só o valor", () => {
     expect(lerFalaLocal("85000")).toMatchObject({ categoria: "OUTROS", valor: 85000, moeda: null });
   });

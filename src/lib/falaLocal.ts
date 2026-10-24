@@ -35,13 +35,22 @@ function numero(txt: string): number {
 /** Lista os valores ditos, já com "mil", "milhões" e "e meio" aplicados. */
 function valores(t: string): { v: number; fim: number }[] {
   const re = /(\d[\d.,]*|\b(?:um|uma|un|uno|dois|duas|dos|tres|três|quatro|cuatro|cinco|seis|sete|siete|oito|ocho|nove|nueve|dez|diez|cem|cien)\b)\s*(milh[õo]es|milh[ãa]o|millones|mill[oó]n|mil)?(\s+e\s+meio|\s+y\s+medio)?/g;
-  const out: { v: number; fim: number }[] = [];
+  const out: { v: number; fim: number; mult: number }[] = [];
   for (const m of t.matchAll(re)) {
     let v = /\d/.test(m[1]) ? numero(m[1].replace(/[.,]$/, "")) : UNIDADES[m[1]];
     if (!Number.isFinite(v)) continue;
     const mult = m[2] ? (m[2].startsWith("mil") && m[2].length === 3 ? 1000 : 1_000_000) : 1;
     if (m[3]) v += 0.5;
-    out.push({ v: v * mult, fim: (m.index ?? 0) + m[0].length });
+    const inicio = m.index ?? 0;
+    const ant = out[out.length - 1];
+    // "2 milhões 145 mil" e "dois milhões e quinhentos mil" somam num só valor.
+    if (ant && ant.mult > mult && v * mult < ant.mult && /^\s*(e|y)?\s*$/.test(t.slice(ant.fim, inicio))) {
+      ant.v += v * mult;
+      ant.fim = inicio + m[0].length;
+      ant.mult = mult;
+      continue;
+    }
+    out.push({ v: v * mult, fim: inicio + m[0].length, mult });
   }
   return out;
 }

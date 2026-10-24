@@ -27,6 +27,24 @@ type Reconhecimento = {
 type JanelaComVoz = Window & { SpeechRecognition?: new () => Reconhecimento; webkitSpeechRecognition?: new () => Reconhecimento };
 
 const COMBUSTIVEL = ["DIESEL", "ARLA32"];
+type Etapa = "valor" | "tipo" | "litros" | "km" | "descricao";
+const PERGUNTA: Record<Etapa, string> = {
+  valor: "Qual foi o valor?",
+  tipo: "Qual o tipo? Diesel, alimentação, pedágio, manutenção ou borracharia?",
+  litros: "Quantos litros?",
+  km: "Qual a quilometragem do caminhão?",
+  descricao: "Quer falar uma descrição?",
+};
+const DICA: Record<Etapa, string> = {
+  valor: "Ex.: “45 mil”, “120 dólares”",
+  tipo: "Ex.: “pedágio”",
+  litros: "Ex.: “300”",
+  km: "Ex.: “452 mil 800”. Ou toque em Pular.",
+  descricao: "Ex.: “troca de pneu dianteiro”. Ou toque em Pular.",
+};
+const TIPO: Record<string, string> = {
+  DIESEL: "Diesel", ARLA32: "Arla 32", ALIMENTACAO: "Alimentação", PEDAGIO: "Pedágio", MANUTENCAO: "Manutenção", PNEUS: "Borracharia", OUTROS: "Outros",
+};
 const CASAS: Record<Moeda, number> = { USD: 2, PYG: 0, BRL: 2, ARS: 2 };
 
 /** Lê o texto da nota no próprio celular (Tesseract, arquivos servidos em /ocr). */
@@ -63,6 +81,12 @@ export function LancarDespesa({ caminhoes, hoje, cotacao, idioma, leituraAtiva }
   const [ouvindo, setOuvindo] = useState(false);
   const reconhecimento = useRef<Reconhecimento | null>(null);
   const arquivo = useRef<HTMLInputElement>(null);
+  const formulario = useRef<HTMLFormElement>(null);
+  const [resumo, setResumo] = useState(false);
+  const [ouvido, setOuvido] = useState<string | null>(null);
+  // Assistente de voz: pergunta, uma etapa por vez, o que faltou na primeira frase.
+  const [etapa, setEtapa] = useState<Etapa | null>(null);
+  const fluxo = useRef({ voz: false, tipoDito: false, feitas: new Set<Etapa>() });
 
   const vazio = {
     caminhaoId: caminhoes[0]?.id ?? "",
@@ -84,6 +108,8 @@ export function LancarDespesa({ caminhoes, hoje, cotacao, idioma, leituraAtiva }
   const [frase, setFrase] = useState("");
 
   const set = (campo: keyof typeof vazio, v: string | boolean) => setF((x) => ({ ...x, [campo]: v }));
+  const atual = useRef(f);
+  atual.current = f;
   const combustivel = COMBUSTIVEL.includes(f.categoria);
 
   // Litros × preço preenche o valor, até o usuário digitar o valor por conta própria.
@@ -100,6 +126,10 @@ export function LancarDespesa({ caminhoes, hoje, cotacao, idioma, leituraAtiva }
       setRecibo(null);
       setOrigem("manual");
       setFrase("");
+      setResumo(false);
+      setOuvido(null);
+      setEtapa(null);
+      fluxo.current = { voz: false, tipoDito: false, feitas: new Set() };
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [r]);
@@ -123,7 +153,100 @@ export function LancarDespesa({ caminhoes, hoje, cotacao, idioma, leituraAtiva }
     }));
     setValorManual(Boolean(c.valor));
     setOrigem(de);
-    setAviso("Confira os campos e toque em Lançar.");
+    setAviso(null);
+    if (c.categoria !== "OUTROS" || leituraAtiva) fluxo.current.tipoDito = true;
+    if (de === "audio" && fluxo.current.voz) {
+      // O estado do formulário só atualiza no próximo render; calcula a próxima etapa com os campos novos.
+      const x = atual.current;
+      seguir({
+        valor: c.valor ? String(c.valor) : x.valor,
+        categoria: c.categoria === "OUTROS" && !leituraAtiva ? x.categoria : c.categoria,
+        litros: c.litros ? String(c.litros) : x.litros,
+        odometroKm: c.odometroKm ? String(c.odometroKm) : x.odometroKm,
+        descricao: c.descricao ?? x.descricao,
+      });
+    } else setResumo(true);
+  }
+
+  /** Decide a próxima pergunta do assistente de voz, ou mostra o resumo para lançar. */
+  function seguir(c: { valor: string; categoria: string; litros: string; odometroKm: string; descricao: string }) {
+    const feitas = fluxo.current.feitas;
+    const proxima: Etapa | null =
+      !(Number(c.valor) > 0) ? "valor"
+      : !fluxo.current.tipoDito ? "tipo"
+      : COMBUSTIVEL.includes(c.categoria) && !(Number(c.litros) > 0) && !feitas.has("litros") ? "litros"
+      : !c.odometroKm && !feitas.has("km") ? "km"
+      : !c.descricao && !feitas.has("descricao") ? "descricao"
+      : null;
+    if (!proxima) {
+      setEtapa(null);
+      setResumo(true);
+      falarTexto("Confira e toque em lançar.");
+      return;
+    }
+    perguntar(proxima);
+  }
+
+  function perguntar(e: Etapa, repetir = false) {
+    setEtapa(e);
+    setResumo(false);
+    const texto = (repetir ? "Não entendi. " : "") + PERGUNTA[e];
+    setAviso(null);
+    falarTexto(texto, () => ouvir(e));
+  }
+
+  /** Fala a pergunta em voz alta (quando o celular permite) e depois começa a ouvir. */
+  function falarTexto(texto: string, depois?: () => void) {
+    const sintese = typeof window !== "undefined" ? window.speechSynthesis : undefined;
+    if (!sintese || typeof SpeechSynthesisUtterance === "undefined") return void (depois && setTimeout(depois, 300));
+    sintese.cancel();
+    const u = new SpeechSynthesisUtterance(texto);
+    u.lang = idioma === "es" ? "es-PY" : "pt-BR";
+    let foi = false;
+    const seguirUmaVez = () => { if (!foi) { foi = true; depois?.(); } };
+    u.onend = seguirUmaVez;
+    u.onerror = seguirUmaVez;
+    sintese.speak(u);
+    if (depois) setTimeout(seguirUmaVez, 1500 + texto.length * 60);
+  }
+
+  /** Resposta a uma etapa do assistente. */
+  function responder(e: Etapa, texto: string) {
+    const t = texto.trim().toLowerCase();
+    const pular = /^(pular|pula|n[aã]o|nada|sem|nenhum[a]?|sin|no|ninguno)\b/.test(t);
+    const l = lerFalaLocal(texto);
+    const x = { ...atual.current };
+    fluxo.current.feitas.add(e);
+    if (e === "valor") {
+      if (!l.valor) return perguntar(e, true);
+      x.valor = String(l.valor);
+      if (l.moeda) x.moeda = l.moeda;
+      if (l.categoria !== "OUTROS") { x.categoria = l.categoria; fluxo.current.tipoDito = true; }
+      setValorManual(true);
+    } else if (e === "tipo") {
+      if (l.categoria === "OUTROS" && !/\boutr[oa]s?\b|\botros?\b/.test(t)) return perguntar(e, true);
+      x.categoria = l.categoria;
+      fluxo.current.tipoDito = true;
+    } else if (e === "litros") {
+      const n = l.litros ?? l.valor;
+      if (!pular && !n) return perguntar(e, true);
+      if (n) x.litros = String(n);
+    } else if (e === "km") {
+      const n = l.valor ?? l.litros;
+      if (!pular && !n) return perguntar(e, true);
+      if (n) x.odometroKm = String(Math.round(n));
+    } else if (!pular) x.descricao = texto.trim().slice(0, 200);
+    setF(x);
+    seguir(x);
+  }
+
+  function cancelarAssistente() {
+    reconhecimento.current?.stop();
+    window.speechSynthesis?.cancel();
+    setEtapa(null);
+    setOuvindo(false);
+    fluxo.current.voz = false;
+    setAviso(null);
   }
 
   async function aoEscolherFoto(e: React.ChangeEvent<HTMLInputElement>) {
@@ -163,7 +286,7 @@ export function LancarDespesa({ caminhoes, hoje, cotacao, idioma, leituraAtiva }
     if (!texto.trim()) return;
     if (!leituraAtiva) {
       const l = lerFalaLocal(texto);
-      if (!l.valor) return setAviso(`Ouvi “${texto}”, mas não entendi o valor. Fale de novo ou digite.`);
+      if (!l.valor && !fluxo.current.voz) return setAviso(`Não entendi o valor em “${texto}”. Tente de novo.`);
       aplicar({ ok: true, caminhaoId: null, campos: { ...l, precoLitro: null, posto: null, data: null, odometroKm: null, placa: null, descricao: null } }, "audio");
       return;
     }
@@ -171,33 +294,55 @@ export function LancarDespesa({ caminhoes, hoje, cotacao, idioma, leituraAtiva }
     iniciarLeitura(async () => aplicar(await lerDespesaAction({ texto }), "audio"));
   }
 
+  /** Começa uma despesa nova por voz. */
   function falar() {
     if (ouvindo) return reconhecimento.current?.stop();
+    fluxo.current = { voz: true, tipoDito: false, feitas: new Set() };
+    // Despesa nova: limpa os campos, mantendo caminhão, data e moeda.
+    const limpo = { ...vazio, caminhaoId: atual.current.caminhaoId, data: atual.current.data, moeda: atual.current.moeda };
+    atual.current = limpo;
+    setF(limpo);
+    setValorManual(false);
+    setRecibo(null);
+    setOrigem("audio");
+    setResumo(false);
+    setOuvido(null);
+    ouvir(null);
+  }
+
+  function ouvir(e: Etapa | null) {
     const w = window as JanelaComVoz;
     const Classe = w.SpeechRecognition ?? w.webkitSpeechRecognition;
     if (!Classe) {
-      setAviso("Este navegador não reconhece voz. Toque no campo “ou escreva”, use o microfone do teclado e depois toque em Preencher.");
-      document.getElementById("frase")?.focus();
+      setEtapa(null);
+      setAviso("Este navegador não reconhece voz. Abra “Prefere digitar a frase?”, use o microfone do teclado e toque em Preencher.");
       return;
     }
     const rec = new Classe();
     rec.lang = idioma === "es" ? "es-PY" : "pt-BR";
     rec.interimResults = false;
-    rec.onresult = (e) => {
-      const texto = Array.from(e.results).map((x) => x[0].transcript).join(" ");
+    let ouviu = false;
+    rec.onresult = (ev) => {
+      ouviu = true;
+      const texto = Array.from(ev.results).map((x) => x[0].transcript).join(" ");
+      setOuvido(texto);
+      if (e) return responder(e, texto);
       setFrase(texto);
       lerFrase(texto);
     };
-    rec.onerror = (e) => {
-      if (e.error === "not-allowed" || e.error === "service-not-allowed") {
-        setAviso("O microfone não foi liberado. Use o microfone do teclado no campo “ou escreva” e toque em Preencher.");
-        document.getElementById("frase")?.focus();
-      } else setAviso("Não ouvi direito. Tente de novo.");
+    rec.onerror = (ev) => {
+      if (ev.error === "not-allowed" || ev.error === "service-not-allowed") {
+        setEtapa(null);
+        setAviso("O microfone não foi liberado. Abra “Prefere digitar a frase?” e use o microfone do teclado.");
+      }
     };
-    rec.onend = () => setOuvindo(false);
+    rec.onend = () => {
+      setOuvindo(false);
+      if (!ouviu) setAviso(e ? "Não ouvi. Toque em “Responder” e fale de novo." : "Não ouvi nada. Toque no microfone e fale de novo.");
+    };
     reconhecimento.current = rec;
     setOuvindo(true);
-    setAviso("Pode falar. Ex.: “diesel, 300 litros a 7.150 guaranis, posto Copetrol”");
+    if (!e) setAviso("Pode falar agora…");
     rec.start();
   }
 
@@ -213,29 +358,68 @@ export function LancarDespesa({ caminhoes, hoje, cotacao, idioma, leituraAtiva }
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       <div className="captura">
-        <button type="button" className="pri" onClick={() => arquivo.current?.click()} disabled={lendo}>
-          Tirar foto da nota
+        <button type="button" className={`grande ${ouvindo ? "gravando" : "pri"}`} onClick={falar} disabled={lendo} aria-pressed={ouvindo}>
+          <span aria-hidden="true">🎤</span> {ouvindo ? "Ouvindo… toque para parar" : "Falar a despesa"}
+        </button>
+        <button type="button" className="grande" onClick={() => arquivo.current?.click()} disabled={lendo}>
+          <span aria-hidden="true">📷</span> Foto da nota
         </button>
         <input ref={arquivo} type="file" accept="image/*" capture="environment" hidden onChange={aoEscolherFoto} />
-        <button type="button" onClick={falar} disabled={lendo} aria-pressed={ouvindo} className={ouvindo ? "gravando" : ""}>
-          {ouvindo ? "Parar" : "Falar a despesa"}
-        </button>
+      </div>
+      {r?.ok && !etapa && !resumo && !ouvindo && (
+        <div className="confirma ok" role="status">
+          <div><b>Lançado:</b> {r.msg}</div>
+          <button type="button" className="pri grande" onClick={falar}>🎤 Falar a próxima despesa</button>
+        </div>
+      )}
+      {!ouvindo && !resumo && !etapa && <p className="note">Fale assim: “<b>pedágio 45 mil</b>”, “<b>almoço 60 mil guaranis</b>” ou “<b>diesel 300 litros 2 milhões 145 mil</b>”.</p>}
+      {ouvido && <p className="note">Ouvi: “{ouvido}”</p>}
+      {etapa && (
+        <div className="confirma" role="group" aria-label="Assistente de voz">
+          <div>
+            <b>{PERGUNTA[etapa]}</b>
+            <br /><small className="muted">{ouvindo ? "Ouvindo…" : DICA[etapa]}</small>
+          </div>
+          <div className="form">
+            {!ouvindo && <button type="button" className="pri grande" onClick={() => ouvir(etapa)}>🎤 Responder</button>}
+            {(etapa === "km" || etapa === "descricao" || etapa === "litros") && <button type="button" onClick={() => responder(etapa, "pular")}>Pular</button>}
+            <button type="button" onClick={cancelarAssistente}>Cancelar</button>
+          </div>
+        </div>
+      )}
+      {(aviso || lendo) && <p className="msg info" role="status">{aviso ?? "Lendo…"}</p>}
+      {resumo && !lendo && (
+        <div className="confirma" role="group" aria-label="Confirmar despesa">
+          <div>
+            <b>{TIPO[f.categoria] ?? f.categoria}</b> · {SIMBOLO[f.moeda]} {num(valorNum, CASAS[f.moeda])}
+            {emUsd !== null && f.moeda !== "USD" && <> · USD {num(emUsd, 2)}</>}
+            {f.litros && <> · {f.litros} l</>}
+            {f.odometroKm && <> · {num(Number(f.odometroKm))} km</>}
+            {f.descricao && <> · {f.descricao}</>}
+            <br /><small className="muted">{caminhoes.find((c) => c.id === f.caminhaoId)?.placa} · {f.data.split("-").reverse().join("/")}</small>
+          </div>
+          <div className="form">
+            <button type="button" className="pri grande" disabled={enviando || !(valorNum > 0)} onClick={() => formulario.current?.requestSubmit()}>Lançar</button>
+            <button type="button" onClick={() => { setResumo(false); document.getElementById("valor")?.focus(); }}>Corrigir</button>
+          </div>
+        </div>
+      )}
+      <details className="digitar">
+        <summary>Prefere digitar a frase?</summary>
         <form
           className="form"
           onSubmit={(e) => {
             e.preventDefault();
             lerFrase(frase);
           }}
-          style={{ flex: 1 }}
         >
           <label htmlFor="frase" style={{ flex: 1 }}>
-            ou escreva
-            <input id="frase" value={frase} onChange={(e) => setFrase(e.target.value)} placeholder="Pedágio 45 mil guaranis em Coronel Oviedo" style={{ width: "100%" }} />
+            Frase
+            <input id="frase" value={frase} onChange={(e) => setFrase(e.target.value)} placeholder="Pedágio 45 mil guaranis" style={{ width: "100%" }} />
           </label>
           <button type="submit" disabled={lendo || !frase.trim()}>Preencher</button>
         </form>
-      </div>
-      {(aviso || lendo) && <p className="msg info" role="status">{lendo ? "Lendo…" : aviso}</p>}
+      </details>
       {recibo && (
         <div className="recibo-previa">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -244,7 +428,7 @@ export function LancarDespesa({ caminhoes, hoje, cotacao, idioma, leituraAtiva }
         </div>
       )}
 
-      <form className="form" action={acao}>
+      <form className="form" action={acao} ref={formulario}>
         <input type="hidden" name="origem" value={origem} />
         {recibo && <input type="hidden" name="recibo" value={recibo} />}
         <label htmlFor="caminhaoId">Caminhão
@@ -254,7 +438,7 @@ export function LancarDespesa({ caminhoes, hoje, cotacao, idioma, leituraAtiva }
         </label>
         <label htmlFor="data">Data<input id="data" name="data" type="date" value={f.data} onChange={(e) => set("data", e.target.value)} required /></label>
         <label htmlFor="categoria">Tipo
-          <select id="categoria" name="categoria" value={f.categoria} onChange={(e) => set("categoria", e.target.value)}>
+          <select id="categoria" name="categoria" value={f.categoria} onChange={(e) => { fluxo.current.tipoDito = true; set("categoria", e.target.value); }}>
             <option value="DIESEL">Combustível: diesel</option>
             <option value="ARLA32">Combustível: Arla 32</option>
             <option value="ALIMENTACAO">Alimentação</option>
