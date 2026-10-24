@@ -144,9 +144,18 @@ async function main() {
     ] as const;
     for (const v of viagens) {
       await db.viagem.create({
-        data: { caminhaoId: await placa(v[0]), origem: v[1], destino: v[2], carga: v[3], toneladas: v[4], freteUsd: v[5], kmCarregado: v[6], kmVazio: v[7], data: dia(v[8]) },
+        data: {
+          caminhaoId: await placa(v[0]), origem: v[1], destino: v[2], carga: v[3], toneladas: v[4], freteUsd: v[5], kmCarregado: v[6], kmVazio: v[7], data: dia(v[8]),
+          embarcador: { Soja: "Cooperativa Colonias Unidas", Milho: "Agrofértil S.A.", Fertilizante: "Fertilizantes del Este" }[v[3] as string] ?? "Distribuidora Monday",
+          precoTonelada: Math.round((v[5] / v[4]) * 100) / 100,
+          recebido: v[8] < -4,
+          vencimento: dia(v[8] + 15),
+        },
       });
     }
+    await db.caixaInicial.create({
+      data: { clienteId: cliente.id, mes: `${hoje.getUTCFullYear()}-${String(hoje.getUTCMonth() + 1).padStart(2, "0")}`, valorOriginal: 25000, valorUsd: 25000, observacao: "Banco + dinheiro no escritório" },
+    });
   }
   console.log("Dados de exemplo criados. Logins (senha frota2026): admin@gestaodefrota.com.py, gestor@avmtruck.com.py; motorista: 0981123456, PIN 123456");
 }

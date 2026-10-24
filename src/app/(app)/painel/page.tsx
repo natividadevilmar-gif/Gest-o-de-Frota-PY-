@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Kpi, Placa } from "@/components/ui";
 import { clienteAtual } from "@/lib/acesso";
-import { indicadoresFrota, revisoesCliente, totaisFrota, viagensCliente } from "@/lib/dados";
+import { caixaMes, indicadoresFrota, revisoesCliente, totaisFrota, viagensCliente } from "@/lib/dados";
 import { num, usd, nomeMes } from "@/lib/formato";
 import { mesAtual, NOME_PLANO, planoPermite } from "@/lib/indicadores";
 
@@ -15,6 +15,7 @@ export default async function Painel() {
   const viagens = (await viagensCliente(cliente.id, mes, ind)).filter((v) => v.margem);
   const frete = viagens.reduce((a, v) => a + v.freteUsd, 0);
   const margem = viagens.reduce((a, v) => a + (v.margem?.margemUsd ?? 0), 0);
+  const caixa = await caixaMes(cliente.id, mes);
 
   type Alerta = { sev: "bad" | "warn" | "info"; titulo: string; detalhe: string; href: string };
   const alertas: Alerta[] = [
@@ -53,7 +54,17 @@ export default async function Painel() {
     <>
       <div className="card-h">
         <h1>Painel de {nomeMes(mes)}</h1>
-        <Link className="btn pri" href="/despesas">+ Lançar despesa</Link>
+        <div className="acoes-painel">
+          <Link className="btn pri" href="/despesas">+ Lançar despesa</Link>
+          <Link className="btn pri" href="/fretes#novo">+ Lançar frete</Link>
+          <Link className="btn" href="/caixa">Caixa inicial</Link>
+        </div>
+      </div>
+      <div className="grid g4">
+        <Kpi rotulo="Caixa inicial" valor={caixa.inicial ? usd(caixa.inicialUsd) : "–"} sub={caixa.inicial ? `${nomeMes(mes)}` : <Link href="/caixa">informar caixa inicial</Link>} />
+        <Kpi rotulo="Fretes recebidos" valor={usd(caixa.recebidos)} sub={`${usd(caixa.aReceber)} a receber`} />
+        <Kpi rotulo="Despesas do mês" valor={usd(caixa.gastos + caixa.extras)} sub="lançadas na frota" />
+        <Kpi rotulo="Saldo em caixa" valor={usd(caixa.saldo)} sub="caixa + recebidos − despesas" />
       </div>
       {temGestao ? (
         <div className="grid g4">

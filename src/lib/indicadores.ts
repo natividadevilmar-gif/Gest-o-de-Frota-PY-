@@ -195,9 +195,9 @@ export function statusRevisao(item: ItemRevisaoEntrada, odometroKm: number, hoje
 export type Margem = { kmTotal: number; custoUsd: number; margemUsd: number; margemPct: number | null };
 
 /** Frete recebido menos custo por km vezes a distância total, incluindo o retorno vazio. */
-export function margemViagem(freteUsd: number, kmCarregado: number, kmVazio: number, custoKm: number): Margem {
+export function margemViagem(freteUsd: number, kmCarregado: number, kmVazio: number, custoKm: number, extrasUsd = 0): Margem {
   const kmTotal = kmCarregado + kmVazio;
-  const custoUsd = kmTotal * custoKm;
+  const custoUsd = kmTotal * custoKm + extrasUsd;
   const margemUsd = freteUsd - custoUsd;
   return { kmTotal, custoUsd, margemUsd, margemPct: freteUsd > 0 ? (margemUsd / freteUsd) * 100 : null };
 }

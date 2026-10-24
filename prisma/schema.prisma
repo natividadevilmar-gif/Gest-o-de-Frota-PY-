@@ -45,36 +45,37 @@ enum Gatilho {
 }
 
 model Cliente {
-  id            String     @id @default(cuid())
-  nome          String
-  ruc           String?
-  cidade        String
-  idioma        Idioma     @default(pt)
+  id           String         @id @default(cuid())
+  nome         String
+  ruc          String?
+  cidade       String
+  idioma       Idioma         @default(pt)
   // País de origem (ISO 3166, duas letras): define as cores da plataforma para o cliente.
-  pais          String     @default("PY")
+  pais         String         @default("PY")
   // Dias desde o vencimento da mensalidade mais antiga em aberto (0 = em dia).
-  diasEmAtraso  Int        @default(0)
-  criadoEm      DateTime   @default(now())
-  usuarios      Usuario[]
-  caminhoes     Caminhao[]
-  motoristas    Motorista[]
+  diasEmAtraso Int            @default(0)
+  criadoEm     DateTime       @default(now())
+  usuarios     Usuario[]
+  caminhoes    Caminhao[]
+  motoristas   Motorista[]
+  caixas       CaixaInicial[]
 }
 
 model Usuario {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  nome      String
-  senhaHash String
-  papel     Papel
-  clienteId String?
-  cliente   Cliente? @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  id          String     @id @default(cuid())
+  email       String     @unique
+  nome        String
+  senhaHash   String
+  papel       Papel
+  clienteId   String?
+  cliente     Cliente?   @relation(fields: [clienteId], references: [id], onDelete: Cascade)
   // Idioma escolhido pelo próprio usuário (null = idioma do cliente).
   idioma      Idioma?
   // Só para papel MOTORISTA: o motorista dono deste acesso.
   motoristaId String?    @unique
   motorista   Motorista? @relation(fields: [motoristaId], references: [id], onDelete: Cascade)
   despesas    Despesa[]
-  criadoEm  DateTime @default(now())
+  criadoEm    DateTime   @default(now())
 }
 
 model Motorista {
@@ -85,42 +86,43 @@ model Motorista {
   documento String?
   caminhoes Caminhao[]
   acesso    Usuario?
+  viagens   Viagem[]
 }
 
 model Caminhao {
-  id                String   @id @default(cuid())
+  id                String          @id @default(cuid())
   clienteId         String
-  cliente           Cliente  @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  cliente           Cliente         @relation(fields: [clienteId], references: [id], onDelete: Cascade)
   placa             String
   modelo            String
   ano               Int?
-  plano             Plano    @default(BASICO)
+  plano             Plano           @default(BASICO)
   // Consumo de referência do modelo (manual ou média da frota), em km/l.
   consumoRefKmL     Float
-  odometroKm        Int      @default(0)
+  odometroKm        Int             @default(0)
   // Identificador do equipamento na plataforma de rastreamento.
   rastreadorId      String?
   motoristaId       String?
-  motorista         Motorista? @relation(fields: [motoristaId], references: [id], onDelete: SetNull)
+  motorista         Motorista?      @relation(fields: [motoristaId], references: [id], onDelete: SetNull)
   // Custos fixos mensais que entram no custo por km.
-  salarioMotorista  Float    @default(0)
-  seguroMensal      Float    @default(0)
-  depreciacaoMensal Float    @default(0)
+  salarioMotorista  Float           @default(0)
+  seguroMensal      Float           @default(0)
+  depreciacaoMensal Float           @default(0)
   despesas          Despesa[]
   telemetria        TelemetriaDia[]
   revisoes          ItemRevisao[]
   viagens           Viagem[]
-  criadoEm          DateTime @default(now())
+  criadoEm          DateTime        @default(now())
 
   @@unique([clienteId, placa])
 }
 
 model Despesa {
-  id          String           @id @default(cuid())
-  caminhaoId  String
-  caminhao    Caminhao         @relation(fields: [caminhaoId], references: [id], onDelete: Cascade)
-  data        DateTime         @db.Date
-  categoria   CategoriaDespesa
+  id            String           @id @default(cuid())
+  caminhaoId    String
+  caminhao      Caminhao         @relation(fields: [caminhaoId], references: [id], onDelete: Cascade)
+  data          DateTime         @db.Date
+  categoria     CategoriaDespesa
   // Valor sempre gravado em USD. Quando lançado em guaranis ou reais, guardamos
   // o valor original e a cotação usada na conversão.
   valorUsd      Float
@@ -129,23 +131,23 @@ model Despesa {
   cotacao       Float?
   // Abastecimento (DIESEL e ARLA32): litros, preço e posto. Os litros de diesel
   // são comparados com o consumo medido pela CAN.
-  litros      Float?
-  precoLitro  Float?
-  posto       String?
+  litros        Float?
+  precoLitro    Float?
+  posto         String?
   // Odômetro no abastecimento e se completou o tanque: permite medir km/l
   // entre dois tanques cheios em caminhões sem leitura CAN.
-  odometroKm  Int?
-  tanqueCheio Boolean          @default(false)
-  descricao   String?
+  odometroKm    Int?
+  tanqueCheio   Boolean          @default(false)
+  descricao     String?
   // Foto do recibo (JPEG reduzido no celular antes do envio).
-  recibo      Bytes?
-  reciboTipo  String?
+  recibo        Bytes?
+  reciboTipo    String?
   // Como foi lançado: "manual", "foto" ou "audio".
-  origem      String           @default("manual")
+  origem        String           @default("manual")
   // Quem lançou (motoristas veem só os próprios lançamentos).
-  usuarioId   String?
-  usuario     Usuario?         @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
-  criadoEm    DateTime         @default(now())
+  usuarioId     String?
+  usuario       Usuario?         @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
+  criadoEm      DateTime         @default(now())
 
   @@index([caminhaoId, data])
 }
@@ -168,16 +170,16 @@ model TelemetriaDia {
 }
 
 model ItemRevisao {
-  id            String    @id @default(cuid())
+  id            String           @id @default(cuid())
   caminhaoId    String
-  caminhao      Caminhao  @relation(fields: [caminhaoId], references: [id], onDelete: Cascade)
+  caminhao      Caminhao         @relation(fields: [caminhaoId], references: [id], onDelete: Cascade)
   nome          String
   gatilho       Gatilho
   intervaloKm   Int?
   ultimoKm      Int?
-  vencimento    DateTime? @db.Date
+  vencimento    DateTime?        @db.Date
   intervaloDias Int?
-  resolvido     Boolean   @default(false)
+  resolvido     Boolean          @default(false)
   servicos      ServicoRevisao[]
 }
 
@@ -192,26 +194,57 @@ model ServicoRevisao {
 }
 
 model Viagem {
-  id           String   @id @default(cuid())
-  caminhaoId   String
-  caminhao     Caminhao @relation(fields: [caminhaoId], references: [id], onDelete: Cascade)
-  data         DateTime @db.Date
-  origem       String
-  destino      String
-  carga        String
-  toneladas    Float
-  freteUsd     Float
-  kmCarregado  Float
-  kmVazio      Float
-  criadoEm     DateTime @default(now())
+  id              String     @id @default(cuid())
+  caminhaoId      String
+  caminhao        Caminhao   @relation(fields: [caminhaoId], references: [id], onDelete: Cascade)
+  data            DateTime   @db.Date
+  origem          String
+  destino         String
+  carga           String
+  toneladas       Float
+  freteUsd        Float
+  kmCarregado     Float
+  kmVazio         Float
+  // Detalhes do frete. Origem/destino são as cidades; os países ficam em ISO de duas letras.
+  embarcador      String?
+  paisOrigem      String     @default("PY")
+  paisDestino     String     @default("PY")
+  moeda           String     @default("USD")
+  valorOriginal   Float?
+  precoTonelada   Float?
+  motoristaId     String?
+  motorista       Motorista? @relation(fields: [motoristaId], references: [id], onDelete: SetNull)
+  dataEntrega     DateTime?  @db.Date
+  documento       String?
+  // Aduana, despachante, balança, chapa: custos só desta viagem, em USD, fora do custo por km.
+  custosExtrasUsd Float      @default(0)
+  recebido        Boolean    @default(false)
+  vencimento      DateTime?  @db.Date
+  observacao      String?
+  criadoEm        DateTime   @default(now())
 
   @@index([caminhaoId, data])
+}
+
+// Dinheiro em caixa no começo do mês, para o saldo: caixa inicial + fretes recebidos − despesas.
+model CaixaInicial {
+  id            String   @id @default(cuid())
+  clienteId     String
+  cliente       Cliente  @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  mes           String
+  moeda         String   @default("USD")
+  valorOriginal Float
+  valorUsd      Float
+  observacao    String?
+  atualizadoEm  DateTime @updatedAt
+
+  @@unique([clienteId, mes])
 }
 
 // Cotação do dia usada para converter despesas lançadas em moeda local.
 model Cotacao {
   id        String   @id @default(cuid())
-  data      DateTime @db.Date @unique
+  data      DateTime @unique @db.Date
   pygPorUsd Float
   brlPorUsd Float
   arsPorUsd Float?

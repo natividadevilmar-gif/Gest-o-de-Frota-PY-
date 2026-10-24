@@ -112,13 +112,13 @@ export async function viagensCliente(clienteId: string, mes: string, ind: Indica
   const { inicio, fim } = intervaloMes(mes);
   const viagens = await db.viagem.findMany({
     where: { caminhao: { clienteId }, data: { gte: inicio, lt: fim } },
-    include: { caminhao: { select: { id: true, placa: true } } },
-    orderBy: { data: "desc" },
+    include: { caminhao: { select: { id: true, placa: true } }, motorista: { select: { nome: true } } },
+    orderBy: [{ data: "desc" }, { criadoEm: "desc" }],
   });
   const custoKm = new Map(ind.map((i) => [i.id, i.custoKm]));
   return viagens.map((v) => {
     const ck = custoKm.get(v.caminhaoId) ?? null;
-    return { ...v, custoKm: ck, margem: ck === null ? null : margemViagem(v.freteUsd, v.kmCarregado, v.kmVazio, ck) };
+    return { ...v, custoKm: ck, margem: ck === null ? null : margemViagem(v.freteUsd, v.kmCarregado, v.kmVazio, ck, v.custosExtrasUsd) };
   });
 }
 
@@ -174,4 +174,20 @@ export async function despesasMotorista(clienteId: string, motoristaId: string, 
     orderBy: [{ data: "desc" }, { criadoEm: "desc" }],
   });
   return { motorista, despesas };
+}
+
+/** Caixa do mês: caixa inicial + fretes recebidos − despesas lançadas. */
+export async function caixaMes(clienteId: string, mes: string) {
+  const { inicio, fim } = intervaloMes(mes);
+  const [inicial, fretes, despesas] = await Promise.all([
+    db.caixaInicial.findUnique({ where: { clienteId_mes: { clienteId, mes } } }),
+    db.viagem.findMany({ where: { caminhao: { clienteId }, data: { gte: inicio, lt: fim } }, select: { freteUsd: true, recebido: true, custosExtrasUsd: true } }),
+    db.despesa.aggregate({ where: { caminhao: { clienteId }, data: { gte: inicio, lt: fim } }, _sum: { valorUsd: true } }),
+  ]);
+  const recebidos = fretes.filter((f) => f.recebido).reduce((a, f) => a + f.freteUsd, 0);
+  const aReceber = fretes.filter((f) => !f.recebido).reduce((a, f) => a + f.freteUsd, 0);
+  const extras = fretes.reduce((a, f) => a + f.custosExtrasUsd, 0);
+  const gastos = despesas._sum.valorUsd ?? 0;
+  const inicialUsd = inicial?.valorUsd ?? 0;
+  return { inicial, inicialUsd, recebidos, aReceber, gastos, extras, saldo: inicialUsd + recebidos - gastos - extras };
 }

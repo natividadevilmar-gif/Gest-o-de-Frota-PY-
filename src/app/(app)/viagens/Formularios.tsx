@@ -1,9 +1,8 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useState } from "react";
 import { freteMinimoPorTonelada, margemViagem } from "@/lib/indicadores";
 import { num, usd } from "@/lib/formato";
-import { registrarViagem } from "./actions";
 
 type Cam = { id: string; placa: string; custoKm: number };
 
@@ -46,26 +45,5 @@ export function Simulador({ caminhoes }: { caminhoes: Cam[] }) {
         </div>
       </div>
     </>
-  );
-}
-
-export function NovaViagem({ caminhoes, hoje }: { caminhoes: { id: string; placa: string }[]; hoje: string }) {
-  const [r, acao, enviando] = useActionState(registrarViagem, null);
-  return (
-    <form className="form" action={acao}>
-      <label htmlFor="caminhaoId">Caminhão
-        <select id="caminhaoId" name="caminhaoId">{caminhoes.map((c) => <option key={c.id} value={c.id}>{c.placa}</option>)}</select>
-      </label>
-      <label htmlFor="vdata">Data<input id="vdata" name="data" type="date" defaultValue={hoje} required /></label>
-      <label htmlFor="origem">Origem<input id="origem" name="origem" required /></label>
-      <label htmlFor="destino">Destino<input id="destino" name="destino" required /></label>
-      <label htmlFor="carga">Carga<input id="carga" name="carga" placeholder="Soja" required /></label>
-      <label htmlFor="toneladas">Toneladas<input id="toneladas" name="toneladas" type="number" step="0.1" min="0.1" required /></label>
-      <label htmlFor="freteUsd">Frete (USD)<input id="freteUsd" name="freteUsd" type="number" step="0.01" min="0.01" required /></label>
-      <label htmlFor="kmCarregado">km carregado<input id="kmCarregado" name="kmCarregado" type="number" min="1" required /></label>
-      <label htmlFor="kmVazio">km vazio<input id="kmVazio" name="kmVazio" type="number" min="0" required /></label>
-      <button className="pri" type="submit" disabled={enviando}>Registrar viagem</button>
-      {r && <p className={`msg ${r.ok ? "ok" : "bad"}`} role="status">{r.msg}</p>}
-    </form>
   );
 }

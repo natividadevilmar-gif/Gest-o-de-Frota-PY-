@@ -3,7 +3,8 @@ import { clienteAtual } from "@/lib/acesso";
 import { indicadoresFrota, viagensCliente } from "@/lib/dados";
 import { dataBr, mesValido, nomeMes, num, usd } from "@/lib/formato";
 import { mesAtual, planoPermite } from "@/lib/indicadores";
-import { NovaViagem, Simulador } from "./Formularios";
+import Link from "next/link";
+import { Simulador } from "./Formularios";
 
 export default async function Viagens({ searchParams }: { searchParams: Promise<{ mes?: string }> }) {
   const { cliente } = await clienteAtual();
@@ -56,10 +57,7 @@ export default async function Viagens({ searchParams }: { searchParams: Promise<
           <Simulador caminhoes={comCusto} />
         </div>
       )}
-      <div className="card">
-        <div className="card-h"><h2>Registrar viagem</h2></div>
-        <NovaViagem caminhoes={ind.map((i) => ({ id: i.id, placa: i.placa }))} hoje={new Date().toISOString().slice(0, 10)} />
-      </div>
+      <p className="note">Para lançar um frete com cliente, rota, produto e recebimento, use <Link href="/fretes#novo">Fretes e margem</Link>.</p>
     </>
   );
 }
