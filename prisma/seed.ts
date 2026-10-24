@@ -1,5 +1,6 @@
 // Dados de exemplo para demonstração. Nenhum cliente ou número aqui é real.
 // Uso: npm run db:seed  (apaga e recria tudo)
+//      SEED_SE_VAZIO=1 npm run db:seed  (só cria se o banco não tiver usuários; usado no deploy)
 import { PrismaClient, type Plano } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { simulador } from "../src/lib/telemetria/simulador";
@@ -32,6 +33,7 @@ const FROTA = [
 ] as const;
 
 async function main() {
+  if (process.env.SEED_SE_VAZIO && (await db.usuario.count()) > 0) return console.log("Banco já tem dados; exemplo não recriado.");
   await db.cliente.deleteMany();
   await db.usuario.deleteMany();
 
