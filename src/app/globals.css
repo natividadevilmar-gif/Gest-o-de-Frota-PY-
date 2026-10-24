@@ -1,8 +1,8 @@
-/* Visual de sinalização rodoviária: barra lateral asfalto, destaque âmbar. */
+/* Cores padrão: bandeira do Paraguai. Cada cliente pode trocar pelas do país de origem (src/lib/temas.ts). */
 :root{
   --bg:#f3f4f2; --surface:#fff; --surface-2:#eceeea; --line:#d9dcd5;
-  --fg:#1c211e; --muted:#5d665f; --accent:#c9860a; --accent-ink:#fff; --accent-soft:#f7ead0;
-  --road:#2b312d; --road-ink:#e9ece7;
+  --fg:#1c211e; --muted:#5d665f; --accent:#C8261B; --accent-ink:#fff; --accent-soft:#F8DEDB;
+  --road:#0B2E6F; --road-ink:#EEF2FA;
   --ok:#2f7d4f; --ok-soft:#dcefe2; --warn:#b26a00; --warn-soft:#fbe8c8; --bad:#b3261e; --bad-soft:#f8dcd9; --info:#2c5d8a; --info-soft:#dce8f3;
   --c-diesel:#c9860a; --c-alim:#c0603a; --c-pneus:#6b7f8e; --c-manut:#8c5a3c; --c-pedagio:#b0a060; --c-outros:#c7c2b2; --c-motorista:#3f7a5a; --c-seguro:#7a6aa0; --c-deprec:#9aa39c;
   --f-display:"Barlow Semi Condensed","Arial Narrow",Arial,sans-serif;
@@ -11,8 +11,7 @@
 }
 @media (prefers-color-scheme: dark){:root{
   --bg:#141715; --surface:#1c201d; --surface-2:#252a26; --line:#343a35;
-  --fg:#e6e9e4; --muted:#9aa39c; --accent:#e9a42a; --accent-ink:#1a1405; --accent-soft:#3a2d12;
-  --road:#0e100f; --road-ink:#d9ddd6;
+  --fg:#e6e9e4; --muted:#9aa39c; --accent:#F0675C; --accent-ink:#141715; --accent-soft:#3E1D1A;
   --ok:#5cbf85; --ok-soft:#1c3326; --warn:#e6a243; --warn-soft:#3a2b14; --bad:#ef7a70; --bad-soft:#3d1c1a; --info:#7fb0dc; --info-soft:#1a2a3a;
   color-scheme:dark}}
 *{box-sizing:border-box}
@@ -24,7 +23,8 @@ a{color:inherit}
 .app{display:grid;grid-template-columns:220px 1fr;min-height:100%}
 .side{background:var(--road);color:var(--road-ink);padding:18px 12px;display:flex;flex-direction:column;gap:4px;position:sticky;top:0;height:100vh}
 .logo{font-family:var(--f-display);font-weight:700;font-size:1.3rem;letter-spacing:.03em;padding:0 10px 14px;display:flex;align-items:center;gap:8px;line-height:1.1}
-.logo i{display:inline-block;flex:none;width:26px;height:8px;background:repeating-linear-gradient(90deg,var(--accent) 0 8px,transparent 8px 12px)}
+.bandeira{display:inline-flex;flex-direction:column;flex:none;width:26px;height:18px;border-radius:2px;overflow:hidden;box-shadow:0 0 0 1px rgba(255,255,255,.25)}
+.bandeira span{flex:1}
 .navgrp{font-size:.68rem;letter-spacing:.12em;text-transform:uppercase;opacity:.55;padding:14px 10px 4px}
 .nav a{display:flex;align-items:center;justify-content:space-between;gap:8px;text-decoration:none;padding:8px 10px;border-radius:6px;font-weight:500}
 .nav a:hover{background:rgba(255,255,255,.07)}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { TEMAS } from "@/lib/temas";
 import { criarCliente } from "./actions";
 
 export function NovoCliente() {
@@ -12,6 +13,9 @@ export function NovoCliente() {
       <label htmlFor="ruc">RUC<input id="ruc" name="ruc" /></label>
       <label htmlFor="idioma">Idioma
         <select id="idioma" name="idioma" defaultValue="pt"><option value="pt">Português</option><option value="es">Español</option></select>
+      </label>
+      <label htmlFor="pais">País de origem (cores)
+        <select id="pais" name="pais" defaultValue="PY">{Object.entries(TEMAS).map(([k, t]) => <option key={k} value={k}>{t.nome}</option>)}</select>
       </label>
       <label htmlFor="gestorNome">Nome do gestor<input id="gestorNome" name="gestorNome" className="wide" required /></label>
       <label htmlFor="gestorEmail">E-mail do gestor<input id="gestorEmail" name="gestorEmail" type="email" className="wide" required /></label>

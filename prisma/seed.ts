@@ -13,11 +13,11 @@ const dia = (offset: number) => new Date(Date.UTC(hoje.getUTCFullYear(), hoje.ge
 
 const CLIENTES = [
   { nome: "Transportes Monday S.A.", cidade: "Santa Rita", diasEmAtraso: 0, frota: true },
-  { nome: "Agrotransporte Naranjal", cidade: "Naranjal", diasEmAtraso: 0, planos: { BASICO: 18, GESTAO: 12, VIDEO: 0 } },
+  { nome: "Agrotransporte Naranjal", cidade: "Naranjal", diasEmAtraso: 0, pais: "DE", planos: { BASICO: 18, GESTAO: 12, VIDEO: 0 } },
   { nome: "Combustibles del Este", cidade: "Ciudad del Este", diasEmAtraso: 9, idioma: "es", planos: { BASICO: 0, GESTAO: 4, VIDEO: 14 } },
   { nome: "Cooperativa San Alberto", cidade: "San Alberto", diasEmAtraso: 0, planos: { BASICO: 25, GESTAO: 10, VIDEO: 0 } },
   { nome: "Fletes Los Cedrales", cidade: "Los Cedrales", diasEmAtraso: 18, idioma: "es", planos: { BASICO: 12, GESTAO: 0, VIDEO: 0 } },
-  { nome: "Logística Itapúa", cidade: "María Auxiliadora", diasEmAtraso: 0, planos: { BASICO: 6, GESTAO: 15, VIDEO: 4 } },
+  { nome: "Logística Itapúa", cidade: "María Auxiliadora", diasEmAtraso: 0, pais: "BR", planos: { BASICO: 6, GESTAO: 15, VIDEO: 4 } },
 ] as const;
 
 const FROTA = [
@@ -40,7 +40,7 @@ async function main() {
 
   for (const c of CLIENTES) {
     const cliente = await db.cliente.create({
-      data: { nome: c.nome, cidade: c.cidade, diasEmAtraso: c.diasEmAtraso, idioma: "idioma" in c ? c.idioma : "pt" },
+      data: { nome: c.nome, cidade: c.cidade, diasEmAtraso: c.diasEmAtraso, idioma: "idioma" in c ? c.idioma : "pt", pais: "pais" in c ? c.pais : "PY" },
     });
 
     if (!("frota" in c)) {

@@ -4,7 +4,9 @@ import { db } from "@/lib/db";
 import { num, usd } from "@/lib/formato";
 import { DIAS_PARA_BLOQUEIO, mensalidadeTotal, NOME_PLANO, situacaoPagamento, type Plano } from "@/lib/indicadores";
 import { cotacaoDoDia } from "@/lib/cotacao";
-import { atualizarAtraso, salvarCotacao } from "./actions";
+import { Bandeira } from "@/components/Bandeira";
+import { temaDoPais, TEMAS } from "@/lib/temas";
+import { atualizarAtraso, atualizarPais, salvarCotacao } from "./actions";
 import { NovoCliente } from "./NovoCliente";
 
 // Ponto de equilíbrio do ano 1 no plano de negócio.
@@ -38,12 +40,12 @@ export default async function Empresa() {
         <div className="tw">
           <table>
             <thead>
-              <tr><th>Cliente</th>{PLANOS.map((p) => <th key={p} className="n">{NOME_PLANO[p]}</th>)}<th className="n">Mensal</th><th>Pagamento</th><th>Dias em atraso</th></tr>
+              <tr><th>Cliente</th>{PLANOS.map((p) => <th key={p} className="n">{NOME_PLANO[p]}</th>)}<th className="n">Mensal</th><th>Pagamento</th><th>Dias em atraso</th><th>País (cores)</th></tr>
             </thead>
             <tbody>
               {linhas.map(({ c, planos, mrr, situacao }) => (
                 <tr key={c.id}>
-                  <td><b>{c.nome}</b><br /><small className="muted">{c.cidade} · {c.idioma === "es" ? "español" : "português"}</small></td>
+                  <td><b>{c.nome}</b><br /><small className="muted">{c.cidade} · {c.idioma === "es" ? "español" : "português"} · {temaDoPais(c.pais).nome}</small></td>
                   {PLANOS.map((p) => <td key={p} className="n">{planos.filter((x) => x === p).length}</td>)}
                   <td className="n">{usd(mrr)}</td>
                   <td><span className={`pill ${situacao === "em_dia" ? "ok" : situacao === "atrasado" ? "warn" : "bad"}`}>{situacao === "em_dia" ? "em dia" : situacao === "atrasado" ? `atraso ${c.diasEmAtraso} dias` : "bloqueado"}</span></td>
@@ -54,12 +56,22 @@ export default async function Empresa() {
                       <button type="submit">Salvar</button>
                     </form>
                   </td>
+                  <td>
+                    <form action={atualizarPais} className="form" style={{ flexWrap: "nowrap", alignItems: "center" }}>
+                      <input type="hidden" name="id" value={c.id} />
+                      <Bandeira pais={c.pais} />
+                      <select name="pais" defaultValue={c.pais} aria-label={`País de ${c.nome}`}>
+                        {Object.entries(TEMAS).map(([k, t]) => <option key={k} value={k}>{t.nome}</option>)}
+                      </select>
+                      <button type="submit">Salvar</button>
+                    </form>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-        <p className="note">Por enquanto o atraso é informado à mão. A integração com o faturamento eletrônico (SIFEN) e o banco fica para depois do MVP.</p>
+        <p className="note">Por enquanto o atraso é informado à mão. A integração com o faturamento eletrônico (SIFEN) e o banco fica para depois do MVP. O país define as cores da plataforma para aquele cliente.</p>
       </div>
       <div className="card">
         <div className="card-h">

@@ -1,3 +1,4 @@
+import { Bandeira, EstiloTema } from "@/components/Bandeira";
 import { Nav, type ItemNav } from "@/components/Nav";
 import { SeletorCliente } from "@/components/SeletorCliente";
 import { clienteOpcional } from "@/lib/acesso";
@@ -33,9 +34,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="app">
+      <EstiloTema pais={cliente?.pais ?? "PY"} />
       <aside className="side">
         <div className="logo">
-          <i />
+          <Bandeira pais={cliente?.pais ?? "PY"} />
           Gestão de Frota PY
         </div>
         <Nav itens={itens} />

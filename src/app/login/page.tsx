@@ -9,7 +9,11 @@ export default function Login() {
     <main className="center">
       <div className="card login">
         <div className="logo" style={{ padding: 0 }}>
-          <i />
+          <span className="bandeira" aria-hidden="true">
+            <span style={{ background: "#D52B1E" }} />
+            <span style={{ background: "#FFFFFF" }} />
+            <span style={{ background: "#0038A8" }} />
+          </span>
           Gestão de Frota PY
         </div>
         <h1>Entrar</h1>

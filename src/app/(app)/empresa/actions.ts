@@ -9,6 +9,9 @@ import { exigirAdmin } from "@/lib/acesso";
 import { definirCotacao } from "@/lib/cotacao";
 import { db } from "@/lib/db";
 import { COOKIE_CLIENTE } from "@/lib/sessao";
+import { TEMAS } from "@/lib/temas";
+
+const pais = z.string().refine((v) => Object.hasOwn(TEMAS, v));
 
 export async function escolherCliente(form: FormData) {
   await exigirAdmin();
@@ -26,6 +29,7 @@ const novoCliente = z.object({
   cidade: z.string().trim().min(2),
   ruc: z.string().trim().optional(),
   idioma: z.enum(["pt", "es"]),
+  pais,
   gestorNome: z.string().trim().min(2),
   gestorEmail: z.string().trim().toLowerCase().email(),
   senha: z.string().min(8),
@@ -43,6 +47,7 @@ export async function criarCliente(_: Resultado, form: FormData): Promise<Result
       cidade: p.data.cidade,
       ruc: p.data.ruc || null,
       idioma: p.data.idioma,
+      pais: p.data.pais,
       usuarios: { create: { nome: p.data.gestorNome, email: p.data.gestorEmail, senhaHash, papel: "GESTOR" } },
     },
   });
@@ -63,5 +68,12 @@ export async function salvarCotacao(form: FormData) {
   const pyg = z.coerce.number().positive().parse(form.get("pygPorUsd"));
   const brl = z.coerce.number().positive().parse(form.get("brlPorUsd"));
   await definirCotacao(pyg, brl);
+  revalidatePath("/", "layout");
+}
+
+export async function atualizarPais(form: FormData) {
+  await exigirAdmin();
+  const id = String(form.get("id"));
+  await db.cliente.update({ where: { id }, data: { pais: pais.parse(form.get("pais")) } });
   revalidatePath("/", "layout");
 }

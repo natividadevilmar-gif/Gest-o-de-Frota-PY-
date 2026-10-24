@@ -49,6 +49,8 @@ model Cliente {
   ruc           String?
   cidade        String
   idioma        Idioma     @default(pt)
+  // País de origem (ISO 3166, duas letras): define as cores da plataforma para o cliente.
+  pais          String     @default("PY")
   // Dias desde o vencimento da mensalidade mais antiga em aberto (0 = em dia).
   diasEmAtraso  Int        @default(0)
   criadoEm      DateTime   @default(now())
