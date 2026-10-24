@@ -64,3 +64,41 @@ export function lerFalaLocal(frase: string): FalaLida {
   const valor = nums.length ? Math.max(...nums.map((n) => n.v)) : null;
   return { categoria, valor, moeda, litros };
 }
+
+export type NotaLida = FalaLida & { data: string | null; posto: string | null };
+
+const NUM_DINHEIRO = /\d{1,3}(?:[.\s]\d{3})+(?:,\d{1,2})?|\d+,\d{1,2}|\d{3,7}/g;
+const NAO_E_VALOR = /\b(ruc|timbrado|tel|telefone|cuit|cnpj|cpf|nro|n[ºo°]|factura|fatura|caja|cajero|ticket|autoriza)/i;
+
+function dinheiro(txt: string): number {
+  return numero(txt.replace(/\s/g, "."));
+}
+
+/**
+ * Lê o texto que o OCR do celular extraiu da foto de uma nota (Tesseract) e
+ * acha tipo, total, moeda, litros, data e estabelecimento. Heurística simples:
+ * o total é o maior valor das linhas com "total"; sem elas, o maior valor da nota.
+ */
+export function lerNotaLocal(texto: string): NotaLida {
+  const linhas = texto.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  const t = texto.toLowerCase();
+  const categoria = CATEGORIAS.find(([, re]) => re.test(t))?.[0] ?? "OUTROS";
+  const moeda: Moeda | null = /\b(u\$s|usd|d[oó]lares)\b/.test(t) ? "USD"
+    : /r\$|\breais\b|\bcnpj\b/.test(t) ? "BRL"
+    : /\b(cuit|ars|argentina)\b/.test(t) ? "ARS"
+    : /\b(gs\.?|guaran[ií]e?s?|ruc|timbrado|asunci[oó]n)\b|₲/.test(t) ? "PYG"
+    : null;
+
+  const valoresDa = (l: string) => (NAO_E_VALOR.test(l) || /\d{2}[/-]\d{2}[/-]\d{2,4}|\d{2}:\d{2}/.test(l) ? [] : (l.match(NUM_DINHEIRO) ?? []).map(dinheiro));
+  const totais = linhas.filter((l) => /total/i.test(l) && !/sub\s*-?total/i.test(l)).flatMap(valoresDa);
+  const todos = linhas.flatMap((l) => (/litros?|\blts?\b/i.test(l) ? [] : valoresDa(l)));
+  const lista = totais.length ? totais : todos;
+  const valor = lista.length ? Math.max(...lista) : null;
+
+  const ml = /(\d+(?:[.,]\d+)?)\s*(?:l|lt|lts|litros?)\b/i.exec(texto);
+  const litros = ml ? Number(ml[1].replace(",", ".")) : null;
+  const md = /(\d{2})[/-](\d{2})[/-](\d{4}|\d{2})/.exec(texto);
+  const data = md ? `${md[3].length === 2 ? `20${md[3]}` : md[3]}-${md[2]}-${md[1]}` : null;
+  const posto = linhas.find((l) => /[a-záéíóúç]{3,}/i.test(l) && !/\d{3,}/.test(l))?.slice(0, 80) ?? null;
+  return { categoria, valor, moeda, litros, data, posto };
+}

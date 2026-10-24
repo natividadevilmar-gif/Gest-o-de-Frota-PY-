@@ -21,3 +21,25 @@ describe("fala sem a Claude API", () => {
     expect(lerFalaLocal("85000")).toMatchObject({ categoria: "OUTROS", valor: 85000, moeda: null });
   });
 });
+
+import { lerNotaLocal } from "./falaLocal";
+
+describe("nota lida no celular", () => {
+  it("nota de posto paraguaio", () => {
+    const n = lerNotaLocal(`ESTACION COPETROL KM 30
+RUC 80012345-6  TIMBRADO 12345678
+Fecha 22/10/2026 14:32
+GASOIL TIPO III
+300,00 L x 7.150
+SUBTOTAL 2.145.000
+TOTAL Gs. 2.145.000
+IVA 10% 195.000`);
+    expect(n).toMatchObject({ categoria: "DIESEL", valor: 2145000, moeda: "PYG", litros: 300, data: "2026-10-22", posto: "ESTACION COPETROL KM 30" });
+  });
+  it("sem linha de total usa o maior valor", () => {
+    expect(lerNotaLocal("Restaurante El Paso\nAlmuerzo 45.000\nGaseosa 8.000\nGs").valor).toBe(45000);
+  });
+  it("nota argentina em pesos", () => {
+    expect(lerNotaLocal("Gomeria Ruta 14\nCUIT 30-12345678-9\nReparacion cubierta\nTOTAL $ 25.500,00")).toMatchObject({ categoria: "PNEUS", valor: 25500, moeda: "ARS" });
+  });
+});

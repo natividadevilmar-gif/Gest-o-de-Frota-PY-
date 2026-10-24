@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
 import { paraUsd, SIMBOLO, type Moeda } from "@/lib/cambio";
-import { lerFalaLocal } from "@/lib/falaLocal";
+import { lerFalaLocal, lerNotaLocal } from "@/lib/falaLocal";
 import { num } from "@/lib/formato";
 import { lancarDespesa, lerDespesaAction, type Leitura } from "./actions";
 
@@ -28,6 +28,22 @@ type JanelaComVoz = Window & { SpeechRecognition?: new () => Reconhecimento; web
 
 const COMBUSTIVEL = ["DIESEL", "ARLA32"];
 const CASAS: Record<Moeda, number> = { USD: 2, PYG: 0, BRL: 2, ARS: 2 };
+
+/** Lê o texto da nota no próprio celular (Tesseract, arquivos servidos em /ocr). */
+async function textoDaFoto(dataUrl: string, aoProgredir: (p: number) => void): Promise<string> {
+  const { createWorker } = await import("tesseract.js");
+  const worker = await createWorker(["spa", "por"], 1, {
+    workerPath: "/ocr/worker.min.js",
+    corePath: "/ocr/core",
+    langPath: "/ocr/lang",
+    logger: (m: { status: string; progress: number }) => m.status === "recognizing text" && aoProgredir(m.progress),
+  });
+  try {
+    return (await worker.recognize(dataUrl)).data.text;
+  } finally {
+    await worker.terminate();
+  }
+}
 
 /** Reduz a foto no próprio celular antes de enviar (recibos de 4 MB viram ~300 KB). */
 async function reduzirFoto(arquivo: File): Promise<string> {
@@ -95,7 +111,8 @@ export function LancarDespesa({ caminhoes, hoje, cotacao, idioma, leituraAtiva }
       ...x,
       caminhaoId: l.caminhaoId ?? x.caminhaoId,
       data: c.data && /^\d{4}-\d{2}-\d{2}$/.test(c.data) ? c.data : x.data,
-      categoria: c.categoria,
+      // Leitura local sem tipo reconhecido mantém o tipo que o usuário já escolheu.
+      categoria: c.categoria === "OUTROS" && !leituraAtiva ? x.categoria : c.categoria,
       moeda: c.moeda ?? x.moeda,
       valor: c.valor ? String(c.valor) : x.valor,
       litros: c.litros ? String(c.litros) : x.litros,
@@ -118,9 +135,22 @@ export function LancarDespesa({ caminhoes, hoje, cotacao, idioma, leituraAtiva }
       const dataUrl = await reduzirFoto(arq);
       setRecibo(dataUrl);
       if (!leituraAtiva) {
-        setOrigem("foto");
-        setAviso("Foto anexada. Digite o valor da nota e toque em Lançar.");
-        document.getElementById("valor")?.focus();
+        iniciarLeitura(async () => {
+          try {
+            setAviso("Lendo a nota no celular… a primeira vez demora um pouco.");
+            const texto = await textoDaFoto(dataUrl, (p) => setAviso(`Lendo a nota… ${Math.round(p * 100)}%`));
+            const n = lerNotaLocal(texto);
+            if (!n.valor) {
+              setOrigem("foto");
+              setAviso("Foto anexada, mas não achei o total. Digite o valor e toque em Lançar.");
+              return;
+            }
+            aplicar({ ok: true, caminhaoId: null, campos: { ...n, precoLitro: null, odometroKm: null, placa: null, descricao: null } }, "foto");
+          } catch {
+            setOrigem("foto");
+            setAviso("Foto anexada. Não consegui ler a nota; digite o valor e toque em Lançar.");
+          }
+        });
         return;
       }
       iniciarLeitura(async () => aplicar(await lerDespesaAction({ imagem: dataUrl }), "foto"));
@@ -146,7 +176,8 @@ export function LancarDespesa({ caminhoes, hoje, cotacao, idioma, leituraAtiva }
     const w = window as JanelaComVoz;
     const Classe = w.SpeechRecognition ?? w.webkitSpeechRecognition;
     if (!Classe) {
-      setAviso("Este navegador não reconhece voz. Toque no campo abaixo e use o microfone do teclado.");
+      setAviso("Este navegador não reconhece voz. Toque no campo “ou escreva”, use o microfone do teclado e depois toque em Preencher.");
+      document.getElementById("frase")?.focus();
       return;
     }
     const rec = new Classe();
@@ -157,7 +188,12 @@ export function LancarDespesa({ caminhoes, hoje, cotacao, idioma, leituraAtiva }
       setFrase(texto);
       lerFrase(texto);
     };
-    rec.onerror = (e) => setAviso(e.error === "not-allowed" ? "Permita o uso do microfone para falar a despesa." : "Não ouvi direito. Tente de novo.");
+    rec.onerror = (e) => {
+      if (e.error === "not-allowed" || e.error === "service-not-allowed") {
+        setAviso("O microfone não foi liberado. Use o microfone do teclado no campo “ou escreva” e toque em Preencher.");
+        document.getElementById("frase")?.focus();
+      } else setAviso("Não ouvi direito. Tente de novo.");
+    };
     rec.onend = () => setOuvindo(false);
     reconhecimento.current = rec;
     setOuvindo(true);
