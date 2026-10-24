@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   comparacaoReferenciaPct,
+  composicaoCusto,
+  consumoPorAbastecimento,
   custoPorKm,
   custoTotal,
   desvioCombustivelPct,
@@ -131,5 +133,54 @@ describe("fracaoMes", () => {
     expect(fracaoMes("2026-10", hoje)).toBeCloseTo(22 / 31, 6);
     expect(fracaoMes("2026-09", hoje)).toBe(1);
     expect(fracaoMes("2026-11", hoje)).toBe(0);
+  });
+});
+
+describe("combustível", () => {
+  it("soma diesel e Arla 32 em Combustível", () => {
+    const c = composicaoCusto({
+      variaveis: [
+        { categoria: "DIESEL", valorUsd: 1000 },
+        { categoria: "ARLA32", valorUsd: 40 },
+      ],
+      salarioMotorista: 0,
+      seguroMensal: 0,
+      depreciacaoMensal: 0,
+    });
+    expect(c["Combustível"]).toBe(1040);
+  });
+
+  it("mede km/l entre dois tanques cheios", () => {
+    const d = (s: string) => new Date(`${s}T00:00:00Z`);
+    const r = consumoPorAbastecimento([
+      { data: d("2026-10-01"), litros: 300, odometroKm: 100000, tanqueCheio: true },
+      { data: d("2026-10-03"), litros: 200, odometroKm: 100500, tanqueCheio: false },
+      { data: d("2026-10-05"), litros: 300, odometroKm: 101250, tanqueCheio: true },
+      { data: d("2026-10-07"), litros: 250, odometroKm: null, tanqueCheio: true },
+    ]);
+    expect(r[0]).toBeNull();
+    expect(r[1]).toBeNull();
+    expect(r[2]).toBeCloseTo(1250 / 500, 6);
+    expect(r[3]).toBeNull();
+  });
+
+  it("descarta km/l impossível por odômetro digitado errado", () => {
+    const d = (s: string) => new Date(`${s}T00:00:00Z`);
+    const r = consumoPorAbastecimento([
+      { data: d("2026-10-01"), litros: 300, odometroKm: 100000, tanqueCheio: true },
+      { data: d("2026-10-05"), litros: 300, odometroKm: 190000, tanqueCheio: true },
+    ]);
+    expect(r[1]).toBeNull();
+  });
+});
+
+import { paraUsd } from "./cambio";
+
+describe("câmbio", () => {
+  it("converte guaranis e reais para dólar", () => {
+    const c = { pygPorUsd: 7300, brlPorUsd: 5.4 };
+    expect(paraUsd(2_500_000, "PYG", c)).toBe(342.47);
+    expect(paraUsd(540, "BRL", c)).toBe(100);
+    expect(paraUsd(99.9, "USD", c)).toBe(99.9);
   });
 });

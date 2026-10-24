@@ -29,7 +29,9 @@ enum Idioma {
 
 enum CategoriaDespesa {
   DIESEL
-  PNEUS
+  ARLA32
+  ALIMENTACAO
+  PNEUS // aparece como "Borracharia"
   MANUTENCAO
   PEDAGIO
   OUTROS
@@ -109,10 +111,27 @@ model Despesa {
   caminhao    Caminhao         @relation(fields: [caminhaoId], references: [id], onDelete: Cascade)
   data        DateTime         @db.Date
   categoria   CategoriaDespesa
-  valorUsd    Float
-  // Só para DIESEL: litros abastecidos, comparados com o consumo medido pela CAN.
+  // Valor sempre gravado em USD. Quando lançado em guaranis ou reais, guardamos
+  // o valor original e a cotação usada na conversão.
+  valorUsd      Float
+  moeda         String           @default("USD")
+  valorOriginal Float?
+  cotacao       Float?
+  // Abastecimento (DIESEL e ARLA32): litros, preço e posto. Os litros de diesel
+  // são comparados com o consumo medido pela CAN.
   litros      Float?
+  precoLitro  Float?
+  posto       String?
+  // Odômetro no abastecimento e se completou o tanque: permite medir km/l
+  // entre dois tanques cheios em caminhões sem leitura CAN.
+  odometroKm  Int?
+  tanqueCheio Boolean          @default(false)
   descricao   String?
+  // Foto do recibo (JPEG reduzido no celular antes do envio).
+  recibo      Bytes?
+  reciboTipo  String?
+  // Como foi lançado: "manual", "foto" ou "audio".
+  origem      String           @default("manual")
   criadoEm    DateTime         @default(now())
 
   @@index([caminhaoId, data])
@@ -174,4 +193,14 @@ model Viagem {
   criadoEm     DateTime @default(now())
 
   @@index([caminhaoId, data])
+}
+
+// Cotação do dia usada para converter despesas lançadas em moeda local.
+model Cotacao {
+  id        String   @id @default(cuid())
+  data      DateTime @db.Date @unique
+  pygPorUsd Float
+  brlPorUsd Float
+  fonte     String
+  criadoEm  DateTime @default(now())
 }

@@ -8,8 +8,10 @@ Este é o MVP do módulo próprio. Rastreamento ao vivo, mapa e vídeo ficam na 
 
 - **Login e acessos:** equipe interna (`ADMIN`), gestor e operador da transportadora. Cada transportadora só vê a própria frota; toda consulta filtra pelo cliente da sessão.
 - **Caminhões e planos:** cadastro com consumo de referência, odômetro, rastreador e custos fixos mensais. O plano de cada caminhão libera os módulos.
-- **Custo por km:** despesas lançadas + custos fixos ÷ km do GPS, com a composição por categoria. No mês em andamento os custos fixos entram proporcionais aos dias já passados.
-- **Consumo:** km/l pela rede CAN, comparação com a referência do modelo, marcha lenta, excessos, frenagens e alerta de desvio quando o abastecido passa 3% do consumido.
+- **Lançar despesas:** combustível (diesel e Arla 32, com litros, preço por litro, posto, odômetro e tanque cheio), alimentação, pedágio, manutenção, borracharia e outros. Pelo celular dá para tirar foto do recibo ou falar a despesa: a leitura automática (Claude API) preenche o formulário e o usuário confere antes de lançar. A foto fica guardada junto da despesa.
+- **Moeda local:** a despesa pode ser lançada em guaranis, reais ou dólares. O sistema converte para USD com a cotação do dia (buscada uma vez por dia, com opção de fixar à mão em "Minha empresa") e guarda o valor original e a cotação usada.
+- **Custo por km:** despesas lançadas + custos fixos ÷ km do GPS, com relatório separado por tipo de gasto e planilha CSV. No mês em andamento os custos fixos entram proporcionais aos dias já passados.
+- **Consumo:** km/l pela rede CAN (ou pelo método do tanque cheio nos abastecimentos), comparação com a referência do modelo, marcha lenta, excessos, frenagens e alerta de desvio quando o abastecido passa 3% do consumido.
 - **Revisões:** itens por km ou por data, aviso com 1.000 km ou 15 dias de antecedência, falhas lidas da CAN. Registrar o serviço zera o intervalo e lança o custo como manutenção.
 - **Margem por viagem:** frete menos custo por km × (km carregado + km vazio), e um simulador de frete com o frete mínimo por tonelada.
 - **Minha empresa (interno):** clientes, caminhões por plano, mensalidades, atraso e bloqueio automático após 15 dias.
@@ -26,6 +28,8 @@ npm run db:migrate          # cria as tabelas
 npm run db:seed             # dados de exemplo (apaga o que houver)
 npm run dev                 # http://localhost:3000
 ```
+
+Para ativar a leitura de recibos por foto e de despesas faladas, defina `ANTHROPIC_API_KEY` no `.env`. Sem a chave, os botões de foto e áudio não aparecem e o lançamento continua manual. O reconhecimento de voz usa o próprio navegador do celular (Chrome no Android, Safari no iPhone).
 
 Logins de exemplo (senha `frota2026`):
 

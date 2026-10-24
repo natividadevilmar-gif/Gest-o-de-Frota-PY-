@@ -38,18 +38,21 @@ export type CustosMes = {
 
 export function composicaoCusto(c: CustosMes): Record<string, number> {
   const out: Record<string, number> = {
-    Diesel: 0,
-    Pneus: 0,
-    Manutenção: 0,
+    Combustível: 0,
+    Alimentação: 0,
     Pedágio: 0,
+    Manutenção: 0,
+    Borracharia: 0,
     Outros: 0,
     Motorista: c.salarioMotorista,
     Seguro: c.seguroMensal,
     Depreciação: c.depreciacaoMensal,
   };
   const nome: Record<string, string> = {
-    DIESEL: "Diesel",
-    PNEUS: "Pneus",
+    DIESEL: "Combustível",
+    ARLA32: "Combustível",
+    ALIMENTACAO: "Alimentação",
+    PNEUS: "Borracharia",
     MANUTENCAO: "Manutenção",
     PEDAGIO: "Pedágio",
     OUTROS: "Outros",
@@ -57,6 +60,20 @@ export function composicaoCusto(c: CustosMes): Record<string, number> {
   for (const d of c.variaveis) out[nome[d.categoria] ?? "Outros"] += d.valorUsd;
   return out;
 }
+
+/** Categorias lançadas como despesa, na ordem do relatório. Os custos fixos vêm depois. */
+export const CATEGORIAS_DESPESA = ["Combustível", "Alimentação", "Pedágio", "Manutenção", "Borracharia", "Outros"] as const;
+export const CATEGORIAS_FIXAS = ["Motorista", "Seguro", "Depreciação"] as const;
+
+export const NOME_CATEGORIA: Record<string, string> = {
+  DIESEL: "Combustível: diesel",
+  ARLA32: "Combustível: Arla 32",
+  ALIMENTACAO: "Alimentação",
+  PEDAGIO: "Pedágio",
+  MANUTENCAO: "Manutenção",
+  PNEUS: "Borracharia",
+  OUTROS: "Outros",
+};
 
 export function custoTotal(c: CustosMes): number {
   return Object.values(composicaoCusto(c)).reduce((a, b) => a + b, 0);
@@ -88,6 +105,37 @@ export function suspeitaDesvio(desvioPct: number | null): boolean {
 /** Percentual acima (positivo) ou abaixo (negativo) do consumo de referência do modelo. */
 export function comparacaoReferenciaPct(kmL: number | null, refKmL: number): number | null {
   return kmL === null || refKmL <= 0 ? null : (kmL / refKmL - 1) * 100;
+}
+
+export type Abastecimento = { data: Date; litros: number; odometroKm: number | null; tanqueCheio: boolean };
+
+/**
+ * Consumo medido pelo método do tanque cheio: entre dois abastecimentos de tanque
+ * cheio, km rodado (diferença de odômetro) ÷ litros colocados depois do primeiro.
+ * Devolve o km/l no abastecimento que fecha cada intervalo, ou null quando não dá
+ * para medir (sem odômetro, tanque não completado ou sem tanque cheio anterior).
+ * Resultados fora de 0,5 a 8 km/l indicam odômetro digitado errado e também viram null.
+ */
+const KM_L_MIN = 0.5;
+const KM_L_MAX = 8;
+
+export function consumoPorAbastecimento(abast: Abastecimento[]): (number | null)[] {
+  const ordem = abast.map((a, i) => ({ a, i })).sort((x, y) => x.a.data.getTime() - y.a.data.getTime() || (x.a.odometroKm ?? 0) - (y.a.odometroKm ?? 0));
+  const out: (number | null)[] = abast.map(() => null);
+  let ultimoCheio: number | null = null;
+  let litros = 0;
+  for (const { a, i } of ordem) {
+    if (ultimoCheio !== null) litros += a.litros;
+    if (a.tanqueCheio && a.odometroKm !== null) {
+      if (ultimoCheio !== null && litros > 0 && a.odometroKm > ultimoCheio) {
+        const kmL = (a.odometroKm - ultimoCheio) / litros;
+        out[i] = kmL >= KM_L_MIN && kmL <= KM_L_MAX ? kmL : null;
+      }
+      ultimoCheio = a.odometroKm;
+      litros = 0;
+    }
+  }
+  return out;
 }
 
 /** Litros gastos a mais do que gastaria rodando na referência do modelo. */

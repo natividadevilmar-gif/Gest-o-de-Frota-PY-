@@ -3,7 +3,8 @@ import { exigirAdmin } from "@/lib/acesso";
 import { db } from "@/lib/db";
 import { num, usd } from "@/lib/formato";
 import { DIAS_PARA_BLOQUEIO, mensalidadeTotal, NOME_PLANO, situacaoPagamento, type Plano } from "@/lib/indicadores";
-import { atualizarAtraso } from "./actions";
+import { cotacaoDoDia } from "@/lib/cotacao";
+import { atualizarAtraso, salvarCotacao } from "./actions";
 import { NovoCliente } from "./NovoCliente";
 
 // Ponto de equilíbrio do ano 1 no plano de negócio.
@@ -20,6 +21,7 @@ export default async function Empresa() {
   const caminhoes = linhas.reduce((a, l) => a + l.planos.length, 0);
   const mrr = linhas.reduce((a, l) => a + l.mrr, 0);
   const atraso = linhas.filter((l) => l.situacao !== "em_dia").reduce((a, l) => a + l.mrr, 0);
+  const cotacao = await cotacaoDoDia();
   const mix = PLANOS.map((p) => linhas.reduce((a, l) => a + l.planos.filter((x) => x === p).length, 0));
 
   return (
@@ -58,6 +60,18 @@ export default async function Empresa() {
           </table>
         </div>
         <p className="note">Por enquanto o atraso é informado à mão. A integração com o faturamento eletrônico (SIFEN) e o banco fica para depois do MVP.</p>
+      </div>
+      <div className="card">
+        <div className="card-h">
+          <h2>Cotação do dia</h2>
+          <p>Fonte: {cotacao.fonte} · {cotacao.data.split("-").reverse().join("/")}</p>
+        </div>
+        <form action={salvarCotacao} className="form">
+          <label htmlFor="pygPorUsd">Guaranis por dólar<input id="pygPorUsd" name="pygPorUsd" type="number" step="any" min="1" defaultValue={cotacao.pygPorUsd} /></label>
+          <label htmlFor="brlPorUsd">Reais por dólar<input id="brlPorUsd" name="brlPorUsd" type="number" step="any" min="0.01" defaultValue={cotacao.brlPorUsd} /></label>
+          <button type="submit">Usar esta cotação hoje</button>
+        </form>
+        <p className="note">A cotação é buscada sozinha uma vez por dia. Use este campo só se quiser fixar outra (por exemplo, a do seu banco).</p>
       </div>
       <div className="card">
         <div className="card-h"><h2>Cadastrar cliente</h2><p>Cria a transportadora e o acesso do gestor.</p></div>

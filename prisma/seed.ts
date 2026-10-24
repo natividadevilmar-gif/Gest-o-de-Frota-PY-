@@ -5,7 +5,8 @@ import bcrypt from "bcryptjs";
 import { simulador } from "../src/lib/telemetria/simulador";
 
 const db = new PrismaClient();
-const DIESEL_USD_L = 0.98;
+const PYG_POR_USD = 7300;
+const PRECO_DIESEL_PYG = 7150; // cerca de USD 0,98 por litro
 
 const hoje = new Date();
 const dia = (offset: number) => new Date(Date.UTC(hoje.getUTCFullYear(), hoje.getUTCMonth(), hoje.getUTCDate() + offset));
@@ -91,13 +92,22 @@ async function main() {
         const fimDoMes = new Date(data.getTime() + 86_400_000).getUTCDate() === 1;
         if (data.getUTCDay() === 6 || fimDoMes || d === -1) {
           const litros = Math.round(litrosSemana * f.desvio);
+          const posto = ["Copetrol Santa Rita", "Petrobras Naranjal", "Shell Ruta 6", "Puma Ciudad del Este"][Math.abs(odo) % 4];
           await db.despesa.create({
-            data: { caminhaoId: cam.id, data, categoria: "DIESEL", litros, valorUsd: Math.round(litros * DIESEL_USD_L * 100) / 100, descricao: "Abastecimento" },
+            data: {
+              caminhaoId: cam.id, data, categoria: "DIESEL", litros, precoLitro: PRECO_DIESEL_PYG, posto, odometroKm: odo, tanqueCheio: true,
+              moeda: "PYG", valorOriginal: litros * PRECO_DIESEL_PYG, cotacao: PYG_POR_USD,
+              valorUsd: Math.round(((litros * PRECO_DIESEL_PYG) / PYG_POR_USD) * 100) / 100,
+            },
+          });
+          const refeicao = 140_000 + (odo % 5) * 10_000;
+          await db.despesa.create({
+            data: { caminhaoId: cam.id, data, categoria: "ALIMENTACAO", moeda: "PYG", valorOriginal: refeicao, cotacao: PYG_POR_USD, valorUsd: Math.round((refeicao / PYG_POR_USD) * 100) / 100, descricao: "Refeições da semana" },
           });
           litrosSemana = 0;
         }
         if (data.getUTCDate() === 10) {
-          await db.despesa.create({ data: { caminhaoId: cam.id, data, categoria: "PNEUS", valorUsd: 360 + (odo % 60) } });
+          await db.despesa.create({ data: { caminhaoId: cam.id, data, categoria: "PNEUS", valorUsd: 360 + (odo % 60), descricao: "Borracharia" } });
           await db.despesa.create({ data: { caminhaoId: cam.id, data, categoria: "PEDAGIO", valorUsd: 95 } });
         }
         if (data.getUTCDate() === 18) {

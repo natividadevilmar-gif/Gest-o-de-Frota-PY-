@@ -6,6 +6,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { exigirAdmin } from "@/lib/acesso";
+import { definirCotacao } from "@/lib/cotacao";
 import { db } from "@/lib/db";
 import { COOKIE_CLIENTE } from "@/lib/sessao";
 
@@ -55,4 +56,12 @@ export async function atualizarAtraso(form: FormData) {
   const dias = z.coerce.number().int().min(0).max(365).parse(form.get("diasEmAtraso"));
   await db.cliente.update({ where: { id }, data: { diasEmAtraso: dias } });
   revalidatePath("/empresa");
+}
+
+export async function salvarCotacao(form: FormData) {
+  await exigirAdmin();
+  const pyg = z.coerce.number().positive().parse(form.get("pygPorUsd"));
+  const brl = z.coerce.number().positive().parse(form.get("brlPorUsd"));
+  await definirCotacao(pyg, brl);
+  revalidatePath("/", "layout");
 }

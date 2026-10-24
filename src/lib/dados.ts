@@ -2,6 +2,7 @@ import "server-only";
 import { db } from "@/lib/db";
 import {
   comparacaoReferenciaPct,
+  consumoPorAbastecimento,
   composicaoCusto,
   custoPorKm,
   desvioCombustivelPct,
@@ -119,6 +120,35 @@ export async function viagensCliente(clienteId: string, mes: string, ind: Indica
     const ck = custoKm.get(v.caminhaoId) ?? null;
     return { ...v, custoKm: ck, margem: ck === null ? null : margemViagem(v.freteUsd, v.kmCarregado, v.kmVazio, ck) };
   });
+}
+
+/** Despesas do mês, com o km/l medido pelo método do tanque cheio nos abastecimentos de diesel. */
+export async function lancamentosMes(clienteId: string, mes: string, caminhoes: Set<string>) {
+  const { inicio, fim } = intervaloMes(mes);
+  const despesas = await db.despesa.findMany({
+    where: { caminhao: { clienteId }, data: { gte: inicio, lt: fim } },
+    include: { caminhao: { select: { placa: true } } },
+    omit: { recibo: true },
+    orderBy: [{ data: "desc" }, { criadoEm: "desc" }],
+  });
+  // Abastecimentos desde 60 dias antes do mês, para achar o tanque cheio anterior.
+  const desde = new Date(inicio.getTime() - 60 * 86_400_000);
+  const diesel = await db.despesa.findMany({
+    where: { caminhao: { clienteId }, categoria: "DIESEL", data: { gte: desde, lt: fim } },
+    select: { id: true, caminhaoId: true, data: true, litros: true, odometroKm: true, tanqueCheio: true },
+  });
+  const kmL = new Map<string, number>();
+  for (const id of new Set(diesel.map((d) => d.caminhaoId))) {
+    const doCaminhao = diesel.filter((d) => d.caminhaoId === id);
+    const r = consumoPorAbastecimento(doCaminhao.map((d) => ({ data: d.data, litros: d.litros ?? 0, odometroKm: d.odometroKm, tanqueCheio: d.tanqueCheio })));
+    doCaminhao.forEach((d, i) => r[i] !== null && kmL.set(d.id, r[i]!));
+  }
+  const comRecibo = new Set(
+    (await db.despesa.findMany({ where: { id: { in: despesas.map((d) => d.id) }, recibo: { not: null } }, select: { id: true } })).map((d) => d.id),
+  );
+  return despesas
+    .filter((d) => caminhoes.has(d.caminhaoId))
+    .map((d) => ({ ...d, placa: d.caminhao.placa, kmLTanque: kmL.get(d.id) ?? null, temRecibo: comRecibo.has(d.id) }));
 }
 
 function soma(xs: number[]) {
