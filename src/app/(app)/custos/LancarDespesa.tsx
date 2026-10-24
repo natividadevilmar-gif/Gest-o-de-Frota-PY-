@@ -87,6 +87,8 @@ export function LancarDespesa({ caminhoes, hoje, cotacao, idioma, leituraAtiva }
   // Assistente de voz: pergunta, uma etapa por vez, o que faltou na primeira frase.
   const [etapa, setEtapa] = useState<Etapa | null>(null);
   const fluxo = useRef({ voz: false, tipoDito: false, feitas: new Set<Etapa>() });
+  // Tipo escolhido à mão no formulário: vale para as próximas falas e não é perguntado.
+  const tipoEscolhido = useRef(false);
 
   const vazio = {
     caminhaoId: caminhoes[0]?.id ?? "",
@@ -118,6 +120,13 @@ export function LancarDespesa({ caminhoes, hoje, cotacao, idioma, leituraAtiva }
     const l = Number(f.litros), p = Number(f.precoLitro);
     if (l > 0 && p > 0) setF((x) => ({ ...x, valor: (l * p).toFixed(CASAS[x.moeda]) }));
   }, [f.litros, f.precoLitro, f.moeda, combustivel, valorManual]);
+
+  // Com litros e total informados, o preço por litro é calculado (não precisa falar nem digitar).
+  useEffect(() => {
+    if (!valorManual || !combustivel) return;
+    const l = Number(f.litros), v = Number(f.valor);
+    if (l > 0 && v > 0) setF((x) => ({ ...x, precoLitro: (v / l).toFixed(CASAS[x.moeda]) }));
+  }, [f.litros, f.valor, f.moeda, combustivel, valorManual]);
 
   useEffect(() => {
     if (r?.ok) {
@@ -220,6 +229,7 @@ export function LancarDespesa({ caminhoes, hoje, cotacao, idioma, leituraAtiva }
     if (e === "valor") {
       if (!l.valor) return perguntar(e, true);
       x.valor = String(l.valor);
+      if (l.litros) x.litros = String(l.litros);
       if (l.moeda) x.moeda = l.moeda;
       if (l.categoria !== "OUTROS") { x.categoria = l.categoria; fluxo.current.tipoDito = true; }
       setValorManual(true);
@@ -231,6 +241,8 @@ export function LancarDespesa({ caminhoes, hoje, cotacao, idioma, leituraAtiva }
       const n = l.litros ?? l.valor;
       if (!pular && !n) return perguntar(e, true);
       if (n) x.litros = String(n);
+      // "300 litros, 2 milhões 145 mil": também traz o total.
+      if (l.litros && l.valor) { x.valor = String(l.valor); setValorManual(true); }
     } else if (e === "km") {
       const n = l.valor ?? l.litros;
       if (!pular && !n) return perguntar(e, true);
@@ -297,9 +309,10 @@ export function LancarDespesa({ caminhoes, hoje, cotacao, idioma, leituraAtiva }
   /** Começa uma despesa nova por voz. */
   function falar() {
     if (ouvindo) return reconhecimento.current?.stop();
-    fluxo.current = { voz: true, tipoDito: false, feitas: new Set() };
-    // Despesa nova: limpa os campos, mantendo caminhão, data e moeda.
-    const limpo = { ...vazio, caminhaoId: atual.current.caminhaoId, data: atual.current.data, moeda: atual.current.moeda };
+    fluxo.current = { voz: true, tipoDito: tipoEscolhido.current, feitas: new Set() };
+    // Despesa nova: limpa os campos, mantendo caminhão, data, moeda e o tipo escolhido.
+    const x0 = atual.current;
+    const limpo = { ...vazio, caminhaoId: x0.caminhaoId, data: x0.data, moeda: x0.moeda, categoria: tipoEscolhido.current ? x0.categoria : vazio.categoria };
     atual.current = limpo;
     setF(limpo);
     setValorManual(false);
@@ -394,6 +407,7 @@ export function LancarDespesa({ caminhoes, hoje, cotacao, idioma, leituraAtiva }
             <b>{TIPO[f.categoria] ?? f.categoria}</b> · {SIMBOLO[f.moeda]} {num(valorNum, CASAS[f.moeda])}
             {emUsd !== null && f.moeda !== "USD" && <> · USD {num(emUsd, 2)}</>}
             {f.litros && <> · {f.litros} l</>}
+            {f.litros && Number(f.precoLitro) > 0 && <> · {SIMBOLO[f.moeda]} {num(Number(f.precoLitro), CASAS[f.moeda])}/l</>}
             {f.odometroKm && <> · {num(Number(f.odometroKm))} km</>}
             {f.descricao && <> · {f.descricao}</>}
             <br /><small className="muted">{caminhoes.find((c) => c.id === f.caminhaoId)?.placa} · {f.data.split("-").reverse().join("/")}</small>
@@ -438,7 +452,7 @@ export function LancarDespesa({ caminhoes, hoje, cotacao, idioma, leituraAtiva }
         </label>
         <label htmlFor="data">Data<input id="data" name="data" type="date" value={f.data} onChange={(e) => set("data", e.target.value)} required /></label>
         <label htmlFor="categoria">Tipo
-          <select id="categoria" name="categoria" value={f.categoria} onChange={(e) => { fluxo.current.tipoDito = true; set("categoria", e.target.value); }}>
+          <select id="categoria" name="categoria" value={f.categoria} onChange={(e) => { tipoEscolhido.current = true; fluxo.current.tipoDito = true; set("categoria", e.target.value); }}>
             <option value="DIESEL">Combustível: diesel</option>
             <option value="ARLA32">Combustível: Arla 32</option>
             <option value="ALIMENTACAO">Alimentação</option>
