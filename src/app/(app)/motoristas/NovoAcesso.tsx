@@ -8,7 +8,7 @@ type Props = {
   caminhoes: { id: string; placa: string; motorista: string | null; lanca: boolean }[];
 };
 
-export function NovoAcesso({ motoristas, caminhoes }: Props) {
+export function NovoAcesso({ motoristas, caminhoes, idioma }: Props & { idioma: "pt" | "es" }) {
   const [r, acao, enviando] = useActionState(criarAcesso, null);
   const [quem, setQuem] = useState(motoristas[0]?.id ?? "novo");
   // Depois de criar, o motorista sai da lista: volta a seleção para um que ainda não tem acesso.
@@ -33,6 +33,9 @@ export function NovoAcesso({ motoristas, caminhoes }: Props) {
       </label>
       <label htmlFor="celular">Celular (login)<input id="celular" name="celular" inputMode="tel" placeholder="celular do motorista, ex.: 09XX XXX XXX" required /></label>
       <label htmlFor="pin">PIN (6 a 8 números)<input id="pin" name="pin" inputMode="numeric" pattern="\d{6,8}" maxLength={8} required /></label>
+      <label htmlFor="idioma">Idioma do motorista
+        <select id="idioma" name="idioma" defaultValue={idioma}><option value="pt">Português</option><option value="es">Español</option></select>
+      </label>
       <button className="pri" type="submit" disabled={enviando}>Criar acesso</button>
       {r && <p className={`msg ${r.ok ? "ok" : "bad"}`} role="status">{r.msg}</p>}
     </form>

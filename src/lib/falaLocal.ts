@@ -13,11 +13,11 @@ export type FalaLida = {
 
 const CATEGORIAS: [FalaLida["categoria"], RegExp][] = [
   ["ARLA32", /\b(arla|adblue|ureia|urea)\b/],
-  ["DIESEL", /\b(diesel|gasoil|gas[oó]leo|combust[ií]vel|abasteci\w*)\b/],
+  ["DIESEL", /\b(di[eé]sel|gasoil|gas[oó]leo|combust[ií]vel|combustible|abasteci\w*|carga de combustible)\b/],
   ["PEDAGIO", /\b(ped[aá]gio|peaje)\b/],
   ["PNEUS", /\b(borracharia|gomer[ií]a|pneus?|cubiertas?)\b/],
-  ["MANUTENCAO", /\b(manuten[cç][aã]o|oficina|taller|pe[cç]as?|[oó]leo|filtros?|mec[aâ]nico)\b/],
-  ["ALIMENTACAO", /\b(alimenta[cç][aã]o|almo[cç]o|janta|jantar|lanche|caf[eé]|refei[cç][aã]o|comida|restaurante|comedor|cena)\b/],
+  ["MANUTENCAO", /\b(manuten[cç][aã]o|mantenimiento|oficina|taller|pe[cç]as?|repuestos?|[oó]leo|aceite|filtros?|mec[aâ]nico)\b/],
+  ["ALIMENTACAO", /\b(alimenta[cç][aã]o|almo[cç]o|almuerzo|desayuno|janta|jantar|lanche|caf[eé]|refei[cç][aã]o|comida|restaurante|comedor|cena)\b/],
 ];
 
 const UNIDADES: Record<string, number> = {
@@ -61,7 +61,7 @@ export function lerFalaLocal(frase: string): FalaLida {
   const moeda: Moeda | null = /\b(d[oó]lar(es)?|usd)\b/.test(t) ? "USD"
     : /\b(reais|real|r\$)/.test(t) ? "BRL"
     : /\bpesos?\b/.test(t) ? "ARS"
-    : /\b(guaranis?|gs\.?)\b|₲/.test(t) ? "PYG"
+    : /\b(guaran[ií]e?s?|gs\.?)\b|₲/.test(t) ? "PYG"
     : null;
 
   let litros: number | null = null;

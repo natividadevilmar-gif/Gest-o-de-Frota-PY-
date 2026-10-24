@@ -26,6 +26,7 @@ const despesa = z.object({
   descricao: z.preprocess(vazioEhIndefinido, z.string().trim().max(200).optional()),
   origem: z.enum(["manual", "foto", "audio"]).default("manual"),
   recibo: z.preprocess(vazioEhIndefinido, z.string().max(3_000_000).optional()),
+  idioma: z.enum(["pt", "es"]).default("pt"),
 });
 
 export type Resultado = { ok: boolean; msg: string } | null;
@@ -35,13 +36,14 @@ const COMBUSTIVEL = new Set(["DIESEL", "ARLA32"]);
 export async function lancarDespesa(_: Resultado, form: FormData): Promise<Resultado> {
   const { sessao, cliente } = await clienteAtual();
   const p = despesa.safeParse(Object.fromEntries(form));
-  if (!p.success) return { ok: false, msg: "Confira caminhão, data, tipo e valor." };
+  const es = form.get("idioma") === "es";
+  if (!p.success) return { ok: false, msg: es ? "Revise camión, fecha, tipo y monto." : "Confira caminhão, data, tipo e valor." };
   const d = p.data;
   const combustivel = COMBUSTIVEL.has(d.categoria);
-  if (d.categoria === "DIESEL" && !d.litros) return { ok: false, msg: "Para diesel, informe os litros abastecidos." };
+  if (d.categoria === "DIESEL" && !d.litros) return { ok: false, msg: es ? "Para diésel, indique los litros cargados." : "Para diesel, informe os litros abastecidos." };
   const motoristaId = await motoristaDaSessao(sessao);
   const cam = await db.caminhao.findFirst({ where: { id: d.caminhaoId, clienteId: cliente.id, ...(motoristaId !== null ? { motoristaId } : {}) } });
-  if (!cam) return { ok: false, msg: "Caminhão não encontrado." };
+  if (!cam) return { ok: false, msg: es ? "Camión no encontrado." : "Caminhão não encontrado." };
 
   const cot = await cotacaoDoDia();
   const valorUsd = paraUsd(d.valor, d.moeda as Moeda, cot);
@@ -70,7 +72,15 @@ export async function lancarDespesa(_: Resultado, form: FormData): Promise<Resul
   });
   revalidatePath("/", "layout");
   const conv = d.moeda === "USD" ? "" : ` (${num(d.valor, d.moeda === "PYG" ? 0 : 2)} ${d.moeda} a ${num(taxa(d.moeda as Moeda, cot), 2)})`;
-  return { ok: true, msg: `${usd(valorUsd, 2)}${conv} lançado em ${cam.placa}${d.litros ? `, ${num(d.litros, 1)} litros` : ""}.` };
+  return { ok: true, msg: `${usd(valorUsd, 2)}${conv} ${es ? "cargado en" : "lançado em"} ${cam.placa}${d.litros ? `, ${num(d.litros, 1)} litros` : ""}.` };
+}
+
+/** Guarda o idioma escolhido pelo usuário na tela de despesas (vale nas próximas vezes). */
+export async function salvarIdioma(idioma: "pt" | "es") {
+  const { sessao } = await clienteAtual();
+  if (idioma !== "pt" && idioma !== "es") return;
+  await db.usuario.update({ where: { id: sessao.usuarioId }, data: { idioma } });
+  revalidatePath("/despesas");
 }
 
 export async function excluirDespesa(form: FormData) {

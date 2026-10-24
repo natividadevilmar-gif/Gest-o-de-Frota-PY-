@@ -25,9 +25,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     : [];
   const libera = (m: Modulo) => planos.some((p) => planoPermite(p, m));
 
+  // O motorista vê o menu no idioma escolhido por ele.
+  const es = sessao.papel === "MOTORISTA" && ((await db.usuario.findUnique({ where: { id: sessao.usuarioId }, select: { idioma: true } }))?.idioma ?? cliente?.idioma) === "es";
   const itens: ItemNav[] = (sessao.papel === "MOTORISTA" ? MODULOS.filter((x) => x.href === "/despesas") : MODULOS).map((x, i) => ({
     href: x.href,
-    rotulo: x.rotulo,
+    rotulo: es && x.href === "/despesas" ? "Cargar gasto" : x.rotulo,
     grupo: i === 0 ? "Frota" : undefined,
     bloqueadoPor: libera(x.m) ? undefined : NOME_PLANO[planoMinimo(x.m)],
   }));
@@ -45,8 +47,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </div>
         <Nav itens={itens} />
         <form action={sair}>
-          <Link className="sair-link" href="/senha">Trocar senha</Link>
-          <button className="sair" type="submit">Sair</button>
+          <Link className="sair-link" href="/senha">{es ? "Cambiar PIN" : "Trocar senha"}</Link>
+          <button className="sair" type="submit">{es ? "Salir" : "Sair"}</button>
         </form>
       </aside>
       <div className="main">

@@ -48,3 +48,11 @@ IVA 10% 195.000`);
     expect(lerNotaLocal("Gomeria Ruta 14\nCUIT 30-12345678-9\nReparacion cubierta\nTOTAL $ 25.500,00")).toMatchObject({ categoria: "PNEUS", valor: 25500, moeda: "ARS" });
   });
 });
+
+describe("fala em espanhol", () => {
+  it("entende gastos ditos em espanhol", () => {
+    expect(lerFalaLocal("almuerzo 60 mil guaraníes")).toMatchObject({ categoria: "ALIMENTACAO", valor: 60000, moeda: "PYG" });
+    expect(lerFalaLocal("combustible 300 litros 2 millones 145 mil")).toMatchObject({ categoria: "DIESEL", valor: 2_145_000, litros: 300 });
+    expect(lerFalaLocal("peaje 45 mil")).toMatchObject({ categoria: "PEDAGIO", valor: 45000 });
+  });
+});

@@ -68,6 +68,8 @@ model Usuario {
   papel     Papel
   clienteId String?
   cliente   Cliente? @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  // Idioma escolhido pelo próprio usuário (null = idioma do cliente).
+  idioma      Idioma?
   // Só para papel MOTORISTA: o motorista dono deste acesso.
   motoristaId String?    @unique
   motorista   Motorista? @relation(fields: [motoristaId], references: [id], onDelete: Cascade)

@@ -8,6 +8,7 @@ import { lancamentosMes } from "@/lib/dados";
 import { dataBr, mesValido, nomeMes, num } from "@/lib/formato";
 import { mesAtual, NOME_CATEGORIA, planoPermite } from "@/lib/indicadores";
 import { leitorConfigurado } from "@/lib/leitorDespesa";
+import { TEXTOS } from "@/lib/textosDespesa";
 import { excluirDespesa } from "../custos/actions";
 import { LancarDespesa } from "../custos/LancarDespesa";
 
@@ -15,13 +16,17 @@ export default async function Despesas({ searchParams }: { searchParams: Promise
   const { sessao, cliente } = await clienteAtual();
   const mes = mesValido((await searchParams).mes, mesAtual());
   const motoristaId = await motoristaDaSessao(sessao);
+  const usuario = await db.usuario.findUnique({ where: { id: sessao.usuarioId }, select: { idioma: true } });
+  const idioma = usuario?.idioma ?? cliente.idioma;
+  const es = idioma === "es";
+  const t = TEXTOS[idioma];
   const caminhoes = (await db.caminhao.findMany({
     where: { clienteId: cliente.id, ...(motoristaId !== null ? { motoristaId } : {}) },
     orderBy: { placa: "asc" },
     select: { id: true, placa: true, plano: true },
   })).filter((c) => planoPermite(c.plano, "custos"));
   if (caminhoes.length === 0 && motoristaId !== null) {
-    return <><h1>Lançar despesa</h1><div className="card"><p className="note">Nenhum caminhão seu está liberado para lançar despesas. Fale com o gestor da frota.</p></div></>;
+    return <><h1>{es ? "Cargar gasto" : "Lançar despesa"}</h1><div className="card"><p className="note">{es ? "Ninguno de sus camiones está habilitado para cargar gastos. Hable con el gestor de la flota." : "Nenhum caminhão seu está liberado para lançar despesas. Fale com o gestor da frota."}</p></div></>;
   }
   if (caminhoes.length === 0) return <PlanoNecessario modulo="custos" titulo="Lançar despesas" />;
   const cotacao = await cotacaoDoDia();
@@ -31,35 +36,35 @@ export default async function Despesas({ searchParams }: { searchParams: Promise
   return (
     <>
       <div className="card-h">
-        <h1>Lançar despesa</h1>
+        <h1>{es ? "Cargar gasto" : "Lançar despesa"}</h1>
         {motoristaId === null && <Link className="btn" href={`/custos?mes=${mes}`}>Ver relatório de custos</Link>}
       </div>
 
       <div className="card">
-        <div className="card-h"><h2>Nova despesa</h2><p>Tire foto do recibo, fale ou preencha. O custo por km recalcula na hora.</p></div>
+        <div className="card-h"><h2>{es ? "Nuevo gasto" : "Nova despesa"}</h2><p>{es ? "Saque foto de la factura, hable o complete." : "Tire foto do recibo, fale ou preencha. O custo por km recalcula na hora."}</p></div>
         <LancarDespesa
           caminhoes={caminhoes.map((c) => ({ id: c.id, placa: c.placa }))}
           hoje={new Date().toISOString().slice(0, 10)}
           cotacao={cotacao}
-          idioma={cliente.idioma}
+          idioma={idioma}
           leituraAtiva={leitorConfigurado()}
         />
       </div>
 
       <div className="card">
-        <div className="card-h"><h2>Lançamentos · {nomeMes(mes)}</h2><div className="form" style={{ alignItems: "center" }}><p>{lancamentos.length} despesas</p><SeletorMes mes={mes} caminho="/despesas" /></div></div>
+        <div className="card-h"><h2>{es ? "Gastos cargados" : "Lançamentos"} · {nomeMes(mes)}</h2><div className="form" style={{ alignItems: "center" }}><p>{lancamentos.length} {es ? "gastos" : "despesas"}</p><SeletorMes mes={mes} caminho="/despesas" /></div></div>
         {lancamentos.length === 0 ? (
-          <p className="note">Nenhuma despesa lançada neste mês.</p>
+          <p className="note">{es ? "Ningún gasto cargado este mes." : "Nenhuma despesa lançada neste mês."}</p>
         ) : (
           <div className="tw">
             <table>
-              <thead><tr><th>Data</th><th>Caminhão</th><th>Tipo</th><th>Detalhe</th><th className="n">Valor pago</th><th className="n">USD</th><th className="n">km/l (tanque cheio)</th><th>Recibo</th>{pode && <th />}</tr></thead>
+              <thead><tr><th>{t.data}</th><th>{t.caminhao}</th><th>{es ? "Tipo" : "Tipo"}</th><th>{es ? "Detalle" : "Detalhe"}</th><th className="n">{es ? "Monto pagado" : "Valor pago"}</th><th className="n">USD</th><th className="n">{es ? "km/l (tanque lleno)" : "km/l (tanque cheio)"}</th><th>{es ? "Factura" : "Recibo"}</th>{pode && <th />}</tr></thead>
               <tbody>
                 {lancamentos.map((d) => (
                   <tr key={d.id}>
                     <td>{dataBr(d.data)}</td>
                     <td><Placa placa={d.placa} /></td>
-                    <td>{NOME_CATEGORIA[d.categoria]}{d.origem !== "manual" && <> <span className="tag">{d.origem === "foto" ? "foto" : "áudio"}</span></>}</td>
+                    <td>{es ? t.tipos[d.categoria] : NOME_CATEGORIA[d.categoria]}{d.origem !== "manual" && <> <span className="tag">{d.origem === "foto" ? "foto" : "áudio"}</span></>}</td>
                     <td>
                       {[d.litros ? `${num(d.litros, 1)} l` : null, d.precoLitro ? `${SIMBOLO[d.moeda as Moeda]} ${num(d.precoLitro, d.moeda === "PYG" ? 0 : 2)}/l` : null, d.posto, d.odometroKm ? `${num(d.odometroKm)} km` : null, d.descricao]
                         .filter(Boolean)

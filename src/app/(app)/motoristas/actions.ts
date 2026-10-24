@@ -15,6 +15,7 @@ const acesso = z.object({
   caminhaoId: z.string().optional(),
   celular: z.string().transform(normalizarLogin).pipe(z.string().regex(/^\d{8,15}$/)),
   pin: z.string().regex(/^\d{6,8}$/),
+  idioma: z.enum(["pt", "es"]),
 });
 
 /** Cria o acesso de um motorista (e o motorista, se for novo) com celular e PIN. */
@@ -41,7 +42,7 @@ export async function criarAcesso(_: Resultado, form: FormData): Promise<Resulta
   if (d.caminhaoId) await db.caminhao.updateMany({ where: { id: d.caminhaoId, clienteId: cliente.id }, data: { motoristaId: mot.id } });
 
   await db.usuario.create({
-    data: { email: d.celular, nome: mot.nome, senhaHash: await bcrypt.hash(d.pin, 10), papel: "MOTORISTA", clienteId: cliente.id, motoristaId: mot.id },
+    data: { email: d.celular, nome: mot.nome, senhaHash: await bcrypt.hash(d.pin, 10), papel: "MOTORISTA", clienteId: cliente.id, motoristaId: mot.id, idioma: d.idioma },
   });
   revalidatePath("/motoristas");
   return { ok: true, msg: `Acesso criado. ${mot.nome} entra com o celular ${d.celular} e o PIN informado.` };
@@ -63,5 +64,14 @@ export async function removerAcesso(form: FormData) {
   const { sessao, cliente } = await clienteAtual();
   if (!podeEditarCadastros(sessao)) return;
   await db.usuario.deleteMany({ where: { id: String(form.get("id")), clienteId: cliente.id, papel: "MOTORISTA" } });
+  revalidatePath("/motoristas");
+}
+
+export async function mudarIdioma(form: FormData) {
+  const { sessao, cliente } = await clienteAtual();
+  if (!podeEditarCadastros(sessao)) return;
+  const idioma = z.enum(["pt", "es"]).safeParse(form.get("idioma"));
+  if (!idioma.success) return;
+  await db.usuario.updateMany({ where: { id: String(form.get("id")), clienteId: cliente.id, papel: "MOTORISTA" }, data: { idioma: idioma.data } });
   revalidatePath("/motoristas");
 }

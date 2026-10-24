@@ -4,7 +4,8 @@ import { useActionState, useEffect, useRef, useState, useTransition } from "reac
 import { paraUsd, SIMBOLO, type Moeda } from "@/lib/cambio";
 import { lerFalaLocal, lerNotaLocal } from "@/lib/falaLocal";
 import { num } from "@/lib/formato";
-import { lancarDespesa, lerDespesaAction, type Leitura } from "./actions";
+import { TEXTOS, type Lingua } from "@/lib/textosDespesa";
+import { lancarDespesa, lerDespesaAction, salvarIdioma, type Leitura } from "./actions";
 
 type Props = {
   caminhoes: { id: string; placa: string }[];
@@ -28,23 +29,6 @@ type JanelaComVoz = Window & { SpeechRecognition?: new () => Reconhecimento; web
 
 const COMBUSTIVEL = ["DIESEL", "ARLA32"];
 type Etapa = "valor" | "tipo" | "litros" | "km" | "descricao";
-const PERGUNTA: Record<Etapa, string> = {
-  valor: "Qual foi o valor?",
-  tipo: "Qual o tipo? Diesel, alimentação, pedágio, manutenção ou borracharia?",
-  litros: "Quantos litros?",
-  km: "Qual a quilometragem do caminhão?",
-  descricao: "Quer falar uma descrição?",
-};
-const DICA: Record<Etapa, string> = {
-  valor: "Ex.: “45 mil”, “120 dólares”",
-  tipo: "Ex.: “pedágio”",
-  litros: "Ex.: “300”",
-  km: "Ex.: “452 mil 800”. Ou toque em Pular.",
-  descricao: "Ex.: “troca de pneu dianteiro”. Ou toque em Pular.",
-};
-const TIPO: Record<string, string> = {
-  DIESEL: "Combustível (diesel)", ARLA32: "Arla 32", ALIMENTACAO: "Alimentação", PEDAGIO: "Pedágio", MANUTENCAO: "Manutenção", PNEUS: "Borracharia", OUTROS: "Outros",
-};
 const CASAS: Record<Moeda, number> = { USD: 2, PYG: 0, BRL: 2, ARS: 2 };
 
 /** Lê o texto da nota no próprio celular (Tesseract, arquivos servidos em /ocr). */
@@ -76,6 +60,8 @@ async function reduzirFoto(arquivo: File): Promise<string> {
 
 export function LancarDespesa({ caminhoes, hoje, cotacao, idioma, leituraAtiva }: Props) {
   const [r, acao, enviando] = useActionState(lancarDespesa, null);
+  const [lingua, setLingua] = useState<Lingua>(idioma);
+  const t = TEXTOS[lingua];
   const [lendo, iniciarLeitura] = useTransition();
   const [aviso, setAviso] = useState<string | null>(null);
   const [ouvindo, setOuvindo] = useState(false);
@@ -189,7 +175,7 @@ export function LancarDespesa({ caminhoes, hoje, cotacao, idioma, leituraAtiva }
     if (!proxima) {
       setEtapa(null);
       setResumo(true);
-      falarTexto("Confira e toque em lançar.");
+      falarTexto(t.confira);
       return;
     }
     perguntar(proxima);
@@ -198,7 +184,7 @@ export function LancarDespesa({ caminhoes, hoje, cotacao, idioma, leituraAtiva }
   function perguntar(e: Etapa, repetir = false) {
     setEtapa(e);
     setResumo(false);
-    const texto = (repetir ? "Não entendi. " : "") + PERGUNTA[e];
+    const texto = (repetir ? `${t.naoEntendi} ` : "") + t.perguntas[e];
     setAviso(null);
     falarTexto(texto, () => ouvir(e));
   }
@@ -209,7 +195,7 @@ export function LancarDespesa({ caminhoes, hoje, cotacao, idioma, leituraAtiva }
     if (!sintese || typeof SpeechSynthesisUtterance === "undefined") return void (depois && setTimeout(depois, 300));
     sintese.cancel();
     const u = new SpeechSynthesisUtterance(texto);
-    u.lang = idioma === "es" ? "es-PY" : "pt-BR";
+    u.lang = t.vozLingua;
     let foi = false;
     const seguirUmaVez = () => { if (!foi) { foi = true; depois?.(); } };
     u.onend = seguirUmaVez;
@@ -220,8 +206,8 @@ export function LancarDespesa({ caminhoes, hoje, cotacao, idioma, leituraAtiva }
 
   /** Resposta a uma etapa do assistente. */
   function responder(e: Etapa, texto: string) {
-    const t = texto.trim().toLowerCase();
-    const pular = /^(pular|pula|n[aã]o|nada|sem|nenhum[a]?|sin|no|ninguno)\b/.test(t);
+    const fala = texto.trim().toLowerCase();
+    const pular = /^(pular|pula|saltar|salta|n[aã]o|nada|sem|nenhum[a]?|sin|no|ninguno|ninguna)\b/.test(fala);
     const l = lerFalaLocal(texto);
     const x = { ...atual.current };
     fluxo.current.feitas.add(e);
@@ -233,7 +219,7 @@ export function LancarDespesa({ caminhoes, hoje, cotacao, idioma, leituraAtiva }
       if (l.categoria !== "OUTROS") { x.categoria = l.categoria; fluxo.current.tipoDito = true; }
       setValorManual(true);
     } else if (e === "tipo") {
-      if (l.categoria === "OUTROS" && !/\boutr[oa]s?\b|\botros?\b/.test(t)) return perguntar(e, true);
+      if (l.categoria === "OUTROS" && !/\boutr[oa]s?\b|\botros?\b/.test(fala)) return perguntar(e, true);
       x.categoria = l.categoria;
       fluxo.current.tipoDito = true;
     } else if (e === "litros") {
@@ -264,32 +250,32 @@ export function LancarDespesa({ caminhoes, hoje, cotacao, idioma, leituraAtiva }
     const arq = e.target.files?.[0];
     e.target.value = "";
     if (!arq) return;
-    setAviso(leituraAtiva ? "Lendo a nota…" : null);
+    setAviso(leituraAtiva ? t.lendoNota : null);
     try {
       const dataUrl = await reduzirFoto(arq);
       setRecibo(dataUrl);
       if (!leituraAtiva) {
         iniciarLeitura(async () => {
           try {
-            setAviso("Lendo a nota no celular… a primeira vez demora um pouco.");
-            const texto = await textoDaFoto(dataUrl, (p) => setAviso(`Lendo a nota… ${Math.round(p * 100)}%`));
+            setAviso(t.lendoNotaCelular);
+            const texto = await textoDaFoto(dataUrl, (p) => setAviso(`${t.lendoNota} ${Math.round(p * 100)}%`));
             const n = lerNotaLocal(texto);
             if (!n.valor) {
               setOrigem("foto");
-              setAviso("Foto anexada, mas não achei o total. Digite o valor e toque em Lançar.");
+              setAviso(t.semTotal);
               return;
             }
             aplicar({ ok: true, caminhaoId: null, campos: { ...n, precoLitro: null, odometroKm: null, placa: null, descricao: null } }, "foto");
           } catch {
             setOrigem("foto");
-            setAviso("Foto anexada. Não consegui ler a nota; digite o valor e toque em Lançar.");
+            setAviso(t.notaIlegivel);
           }
         });
         return;
       }
       iniciarLeitura(async () => aplicar(await lerDespesaAction({ imagem: dataUrl }), "foto"));
     } catch {
-      setAviso("Não consegui abrir a foto. Tente outra vez.");
+      setAviso(t.fotoErro);
     }
   }
 
@@ -297,11 +283,11 @@ export function LancarDespesa({ caminhoes, hoje, cotacao, idioma, leituraAtiva }
     if (!texto.trim()) return;
     if (!leituraAtiva) {
       const l = lerFalaLocal(texto);
-      if (!l.valor && !fluxo.current.voz) return setAviso(`Não entendi o valor em “${texto}”. Tente de novo.`);
+      if (!l.valor && !fluxo.current.voz) return setAviso(t.valorNaoEntendido(texto));
       aplicar({ ok: true, caminhaoId: null, campos: { ...l, precoLitro: null, posto: null, data: null, odometroKm: null, placa: null, descricao: null } }, "audio");
       return;
     }
-    setAviso("Entendendo o que foi dito…");
+    setAviso(t.entendendo);
     iniciarLeitura(async () => aplicar(await lerDespesaAction({ texto }), "audio"));
   }
 
@@ -327,11 +313,11 @@ export function LancarDespesa({ caminhoes, hoje, cotacao, idioma, leituraAtiva }
     const Classe = w.SpeechRecognition ?? w.webkitSpeechRecognition;
     if (!Classe) {
       setEtapa(null);
-      setAviso("Este navegador não reconhece voz. Abra “Prefere digitar a frase?”, use o microfone do teclado e toque em Preencher.");
+      setAviso(t.semVoz);
       return;
     }
     const rec = new Classe();
-    rec.lang = idioma === "es" ? "es-PY" : "pt-BR";
+    rec.lang = t.vozLingua;
     rec.interimResults = false;
     let ouviu = false;
     rec.onresult = (ev) => {
@@ -345,16 +331,16 @@ export function LancarDespesa({ caminhoes, hoje, cotacao, idioma, leituraAtiva }
     rec.onerror = (ev) => {
       if (ev.error === "not-allowed" || ev.error === "service-not-allowed") {
         setEtapa(null);
-        setAviso("O microfone não foi liberado. Abra “Prefere digitar a frase?” e use o microfone do teclado.");
+        setAviso(t.semMicrofone);
       }
     };
     rec.onend = () => {
       setOuvindo(false);
-      if (!ouviu) setAviso(e ? "Não ouvi. Toque em “Responder” e fale de novo." : "Não ouvi nada. Toque no microfone e fale de novo.");
+      if (!ouviu) setAviso(e ? t.naoOuviEtapa : t.naoOuvi);
     };
     reconhecimento.current = rec;
     setOuvindo(true);
-    if (!e) setAviso("Pode falar agora…");
+    if (!e) setAviso(t.podeFalar);
     rec.start();
   }
 
@@ -369,46 +355,53 @@ export function LancarDespesa({ caminhoes, hoje, cotacao, idioma, leituraAtiva }
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-      <label htmlFor="categoria" className="tipo-topo">Tipo da despesa
+      <div className="lingua" role="group" aria-label="Idioma / Idioma">
+        {(["pt", "es"] as const).map((l) => (
+          <button key={l} type="button" aria-pressed={lingua === l} className={lingua === l ? "pri" : ""} onClick={() => { setLingua(l); void salvarIdioma(l); }}>
+            {l === "pt" ? "Português" : "Español"}
+          </button>
+        ))}
+      </div>
+      <label htmlFor="categoria" className="tipo-topo">{t.tipoDespesa}
         <select id="categoria" value={f.categoria} onChange={(e) => { tipoEscolhido.current = true; set("categoria", e.target.value); }}>
-          {Object.entries(TIPO).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+          {Object.entries(t.tipos).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
         </select>
       </label>
       <div className="captura">
         <button type="button" className={`grande ${ouvindo ? "gravando" : "pri"}`} onClick={falar} disabled={lendo} aria-pressed={ouvindo}>
-          <span aria-hidden="true">🎤</span> {ouvindo ? "Ouvindo… toque para parar" : "Falar a despesa"}
+          <span aria-hidden="true">🎤</span> {ouvindo ? t.ouvindoParar : t.falar}
         </button>
         <button type="button" className="grande" onClick={() => arquivo.current?.click()} disabled={lendo}>
-          <span aria-hidden="true">📷</span> Foto da nota
+          <span aria-hidden="true">📷</span> {t.foto}
         </button>
         <input ref={arquivo} type="file" accept="image/*" capture="environment" hidden onChange={aoEscolherFoto} />
       </div>
       {r?.ok && !etapa && !resumo && !ouvindo && (
         <div className="confirma ok" role="status">
-          <div><b>Lançado:</b> {r.msg}</div>
-          <button type="button" className="pri grande" onClick={falar}>🎤 Falar a próxima despesa</button>
+          <div><b>{t.lancado}</b> {r.msg}</div>
+          <button type="button" className="pri grande" onClick={falar}>🎤 {t.proxima}</button>
         </div>
       )}
-      {!ouvindo && !resumo && !etapa && <p className="note">Escolha o tipo e fale o valor. Ex.: “<b>45 mil</b>” ou, no diesel, “<b>300 litros, 2 milhões 145 mil</b>”. Se falar outro tipo (“pedágio 45 mil”), ele troca sozinho.</p>}
-      {ouvido && <p className="note">Ouvi: “{ouvido}”</p>}
+      {!ouvindo && !resumo && !etapa && <p className="note">{t.dicaInicial}</p>}
+      {ouvido && <p className="note">{t.ouvi}: “{ouvido}”</p>}
       {etapa && (
         <div className="confirma" role="group" aria-label="Assistente de voz">
           <div>
-            <b>{PERGUNTA[etapa]}</b>
-            <br /><small className="muted">{ouvindo ? "Ouvindo…" : DICA[etapa]}</small>
+            <b>{t.perguntas[etapa]}</b>
+            <br /><small className="muted">{ouvindo ? t.ouvindo : t.dicas[etapa]}</small>
           </div>
           <div className="form">
-            {!ouvindo && <button type="button" className="pri grande" onClick={() => ouvir(etapa)}>🎤 Responder</button>}
-            {(etapa === "km" || etapa === "descricao" || etapa === "litros") && <button type="button" onClick={() => responder(etapa, "pular")}>Pular</button>}
-            <button type="button" onClick={cancelarAssistente}>Cancelar</button>
+            {!ouvindo && <button type="button" className="pri grande" onClick={() => ouvir(etapa)}>🎤 {t.responder}</button>}
+            {(etapa === "km" || etapa === "descricao" || etapa === "litros") && <button type="button" onClick={() => responder(etapa, "pular")}>{t.pular}</button>}
+            <button type="button" onClick={cancelarAssistente}>{t.cancelar}</button>
           </div>
         </div>
       )}
-      {(aviso || lendo) && <p className="msg info" role="status">{aviso ?? "Lendo…"}</p>}
+      {(aviso || lendo) && <p className="msg info" role="status">{aviso ?? t.lendo}</p>}
       {resumo && !lendo && (
         <div className="confirma" role="group" aria-label="Confirmar despesa">
           <div>
-            <b>{TIPO[f.categoria] ?? f.categoria}</b> · {SIMBOLO[f.moeda]} {num(valorNum, CASAS[f.moeda])}
+            <b>{t.tipos[f.categoria] ?? f.categoria}</b> · {SIMBOLO[f.moeda]} {num(valorNum, CASAS[f.moeda])}
             {emUsd !== null && f.moeda !== "USD" && <> · USD {num(emUsd, 2)}</>}
             {f.litros && <> · {f.litros} l</>}
             {f.litros && Number(f.precoLitro) > 0 && <> · {SIMBOLO[f.moeda]} {num(Number(f.precoLitro), CASAS[f.moeda])}/l</>}
@@ -417,13 +410,13 @@ export function LancarDespesa({ caminhoes, hoje, cotacao, idioma, leituraAtiva }
             <br /><small className="muted">{caminhoes.find((c) => c.id === f.caminhaoId)?.placa} · {f.data.split("-").reverse().join("/")}</small>
           </div>
           <div className="form">
-            <button type="button" className="pri grande" disabled={enviando || !(valorNum > 0)} onClick={() => formulario.current?.requestSubmit()}>Lançar</button>
-            <button type="button" onClick={() => { setResumo(false); document.getElementById("valor")?.focus(); }}>Corrigir</button>
+            <button type="button" className="pri grande" disabled={enviando || !(valorNum > 0)} onClick={() => formulario.current?.requestSubmit()}>{t.lancar}</button>
+            <button type="button" onClick={() => { setResumo(false); document.getElementById("valor")?.focus(); }}>{t.corrigir}</button>
           </div>
         </div>
       )}
       <details className="digitar">
-        <summary>Prefere digitar a frase?</summary>
+        <summary>{t.digitar}</summary>
         <form
           className="form"
           onSubmit={(e) => {
@@ -432,60 +425,58 @@ export function LancarDespesa({ caminhoes, hoje, cotacao, idioma, leituraAtiva }
           }}
         >
           <label htmlFor="frase" style={{ flex: 1 }}>
-            Frase
-            <input id="frase" value={frase} onChange={(e) => setFrase(e.target.value)} placeholder="Pedágio 45 mil guaranis" style={{ width: "100%" }} />
+            {t.frase}
+            <input id="frase" value={frase} onChange={(e) => setFrase(e.target.value)} placeholder={t.exemploFrase} style={{ width: "100%" }} />
           </label>
-          <button type="submit" disabled={lendo || !frase.trim()}>Preencher</button>
+          <button type="submit" disabled={lendo || !frase.trim()}>{t.preencher}</button>
         </form>
       </details>
       {recibo && (
         <div className="recibo-previa">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={recibo} alt="Foto do recibo" />
-          <button type="button" onClick={() => setRecibo(null)}>Remover foto</button>
+          <img src={recibo} alt={t.fotoRecibo} />
+          <button type="button" onClick={() => setRecibo(null)}>{t.removerFoto}</button>
         </div>
       )}
 
       <form className="form" action={acao} ref={formulario}>
         <input type="hidden" name="origem" value={origem} />
+        <input type="hidden" name="idioma" value={lingua} />
         {recibo && <input type="hidden" name="recibo" value={recibo} />}
-        <label htmlFor="caminhaoId">Caminhão
+        <label htmlFor="caminhaoId">{t.caminhao}
           <select id="caminhaoId" name="caminhaoId" value={f.caminhaoId} onChange={(e) => set("caminhaoId", e.target.value)}>
             {caminhoes.map((c) => <option key={c.id} value={c.id}>{c.placa}</option>)}
           </select>
         </label>
-        <label htmlFor="data">Data<input id="data" name="data" type="date" value={f.data} onChange={(e) => set("data", e.target.value)} required /></label>
+        <label htmlFor="data">{t.data}<input id="data" name="data" type="date" value={f.data} onChange={(e) => set("data", e.target.value)} required /></label>
         <input type="hidden" name="categoria" value={f.categoria} />
-        <label htmlFor="moeda">Moeda
+        <label htmlFor="moeda">{t.moeda}
           <select id="moeda" name="moeda" value={f.moeda} onChange={(e) => set("moeda", e.target.value)}>
-            <option value="PYG">Guaranis (₲)</option>
-            <option value="USD">Dólares (USD)</option>
-            <option value="BRL">Reais (R$)</option>
-            <option value="ARS">Pesos argentinos (AR$)</option>
+            {Object.entries(t.moedas).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
           </select>
         </label>
         {combustivel && (
           <>
-            <label htmlFor="litros">Litros<input id="litros" name="litros" type="number" step="0.01" min="0.01" inputMode="decimal" value={f.litros} onChange={(e) => set("litros", e.target.value)} required={f.categoria === "DIESEL"} /></label>
-            <label htmlFor="precoLitro">Preço por litro ({SIMBOLO[f.moeda]})<input id="precoLitro" name="precoLitro" type="number" step="any" min="0" inputMode="decimal" value={f.precoLitro} onChange={(e) => set("precoLitro", e.target.value)} /></label>
+            <label htmlFor="litros">{t.litros}<input id="litros" name="litros" type="number" step="0.01" min="0.01" inputMode="decimal" value={f.litros} onChange={(e) => set("litros", e.target.value)} required={f.categoria === "DIESEL"} /></label>
+            <label htmlFor="precoLitro">{t.precoLitro} ({SIMBOLO[f.moeda]})<input id="precoLitro" name="precoLitro" type="number" step="any" min="0" inputMode="decimal" value={f.precoLitro} onChange={(e) => set("precoLitro", e.target.value)} /></label>
           </>
         )}
-        <label htmlFor="valor">Valor total ({SIMBOLO[f.moeda]})
+        <label htmlFor="valor">{t.valorTotal} ({SIMBOLO[f.moeda]})
           <input id="valor" name="valor" type="number" step="any" min="0.01" inputMode="decimal" value={f.valor} onChange={(e) => { setValorManual(true); set("valor", e.target.value); }} required />
         </label>
         {combustivel && (
           <>
-            <label htmlFor="posto">Posto<input id="posto" name="posto" className="wide" value={f.posto} onChange={(e) => set("posto", e.target.value)} /></label>
-            <label htmlFor="odometroKm">Odômetro (km)<input id="odometroKm" name="odometroKm" type="number" min="0" inputMode="numeric" value={f.odometroKm} onChange={(e) => set("odometroKm", e.target.value)} /></label>
-            <label htmlFor="tanqueCheio" className="check"><input id="tanqueCheio" name="tanqueCheio" type="checkbox" checked={f.tanqueCheio} onChange={(e) => set("tanqueCheio", e.target.checked)} />Completou o tanque</label>
+            <label htmlFor="posto">{t.posto}<input id="posto" name="posto" className="wide" value={f.posto} onChange={(e) => set("posto", e.target.value)} /></label>
+            <label htmlFor="odometroKm">{t.odometro}<input id="odometroKm" name="odometroKm" type="number" min="0" inputMode="numeric" value={f.odometroKm} onChange={(e) => set("odometroKm", e.target.value)} /></label>
+            <label htmlFor="tanqueCheio" className="check"><input id="tanqueCheio" name="tanqueCheio" type="checkbox" checked={f.tanqueCheio} onChange={(e) => set("tanqueCheio", e.target.checked)} />{t.tanqueCheio}</label>
           </>
         )}
-        <label htmlFor="descricao">Descrição<input id="descricao" name="descricao" className="wide" value={f.descricao} onChange={(e) => set("descricao", e.target.value)} /></label>
-        <button className="pri" type="submit" disabled={enviando || lendo}>Lançar</button>
+        <label htmlFor="descricao">{t.descricao}<input id="descricao" name="descricao" className="wide" value={f.descricao} onChange={(e) => set("descricao", e.target.value)} /></label>
+        <button className="pri" type="submit" disabled={enviando || lendo}>{t.lancar}</button>
       </form>
       {emUsd !== null && f.moeda !== "USD" && (
         <p className="note">
-          = <b>USD {num(emUsd, 2)}</b> · {taxaTxt} · cotação de {cotacao.data.split("-").reverse().join("/")} ({cotacao.fonte})
+          = <b>USD {num(emUsd, 2)}</b> · {taxaTxt} · {t.cotacaoDe} {cotacao.data.split("-").reverse().join("/")} ({cotacao.fonte})
         </p>
       )}
       {r && <p className={`msg ${r.ok ? "ok" : "bad"}`} role="status">{r.msg}</p>}
