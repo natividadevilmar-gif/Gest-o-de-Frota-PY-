@@ -1,12 +1,14 @@
 import Link from "next/link";
 import { Kpi, Placa } from "@/components/ui";
-import { clienteAtual } from "@/lib/acesso";
+import { clienteAtual, podeEditarCadastros } from "@/lib/acesso";
 import { indicadoresFrota, saldoEmpresa, saldoPorMes, revisoesCliente, totaisFrota, viagensCliente } from "@/lib/dados";
+import { db } from "@/lib/db";
 import { num, usd, nomeMes } from "@/lib/formato";
 import { mesAtual, NOME_PLANO, planoPermite } from "@/lib/indicadores";
+import { Relatorios } from "./Relatorios";
 
 export default async function Painel() {
-  const { cliente } = await clienteAtual();
+  const { sessao, cliente } = await clienteAtual();
   const mes = mesAtual();
   const ind = await indicadoresFrota(cliente.id, mes);
   const gestao = ind.filter((i) => planoPermite(i.plano, "custos"));
@@ -15,7 +17,11 @@ export default async function Painel() {
   const viagens = (await viagensCliente(cliente.id, mes, ind)).filter((v) => v.margem);
   const frete = viagens.reduce((a, v) => a + v.freteUsd, 0);
   const margem = viagens.reduce((a, v) => a + (v.margem?.margemUsd ?? 0), 0);
-  const [saldo, historico] = await Promise.all([saldoEmpresa(cliente.id, mes), saldoPorMes(cliente.id, mes)]);
+  const [saldo, historico, motoristas] = await Promise.all([
+    saldoEmpresa(cliente.id, mes),
+    saldoPorMes(cliente.id, mes),
+    db.motorista.findMany({ where: { clienteId: cliente.id }, select: { id: true, nome: true }, orderBy: { nome: "asc" } }),
+  ]);
 
   type Alerta = { sev: "bad" | "warn" | "info"; titulo: string; detalhe: string; href: string };
   const alertas: Alerta[] = [
@@ -66,6 +72,10 @@ export default async function Painel() {
         <Kpi rotulo="Despesas do mês" valor={usd(saldo.despesas)} sub="lançadas na frota" />
         <Kpi rotulo="Saldo em caixa" valor={usd(saldo.saldo)} sub="saldo anterior + fretes − despesas" />
       </div>
+      {podeEditarCadastros(sessao) && <div className="card">
+        <div className="card-h"><h2>Relatórios em Excel</h2><p>Escolha o mês; o do motorista traz despesas, fretes e caixa dele</p></div>
+        <Relatorios mes={mes} motoristas={motoristas} />
+      </div>}
       {temGestao ? (
         <div className="grid g4">
           <Kpi rotulo="Custo por km" valor={usd(tot.custoKm, 2)} sub={`${usd(tot.custo)} em ${num(tot.km)} km`} />
