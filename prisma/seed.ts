@@ -17,7 +17,7 @@ const CLIENTES = [
   { nome: "Agrotransporte Naranjal", cidade: "Naranjal", diasEmAtraso: 0, planos: { BASICO: 18, GESTAO: 12, VIDEO: 0 } },
   { nome: "Combustibles del Este", cidade: "Ciudad del Este", diasEmAtraso: 9, idioma: "es", planos: { BASICO: 0, GESTAO: 4, VIDEO: 14 } },
   { nome: "Cooperativa San Alberto", cidade: "San Alberto", diasEmAtraso: 0, planos: { BASICO: 25, GESTAO: 10, VIDEO: 0 } },
-  { nome: "Fletes Los Cedrales", cidade: "Los Cedrales", diasEmAtraso: 18, idioma: "es", planos: { BASICO: 12, GESTAO: 0, VIDEO: 0 } },
+  { nome: "Fletes Los Cedrales", cidade: "Los Cedrales", diasEmAtraso: 18, pais: "DE", idioma: "es", planos: { BASICO: 12, GESTAO: 0, VIDEO: 0 } },
   { nome: "Logística Itapúa", cidade: "María Auxiliadora", diasEmAtraso: 0, pais: "BR", planos: { BASICO: 6, GESTAO: 15, VIDEO: 4 } },
 ] as const;
 
