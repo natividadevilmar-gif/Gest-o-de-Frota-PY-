@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const segredo = (process.env.SESSION_SECRET ?? "").length >= 32;
+  const segredo = (process.env.SESSION_SECRET ?? "").length >= 32 || Boolean(process.env.DATABASE_URL);
   let banco: string;
   let dadosDeExemplo = false;
   try {

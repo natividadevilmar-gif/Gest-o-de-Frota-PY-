@@ -11,10 +11,15 @@ export type Sessao = {
   clienteId: string | null;
 };
 
-function chave() {
+// Usa SESSION_SECRET quando definido. Sem ele, deriva a chave da URL do banco,
+// que também é secreta e já existe em todo deploy (trocar a senha do banco
+// apenas desconecta quem estiver logado).
+async function chave() {
   const s = process.env.SESSION_SECRET;
-  if (!s || s.length < 32) throw new Error("SESSION_SECRET precisa ter pelo menos 32 caracteres");
-  return new TextEncoder().encode(s);
+  if (s && s.length >= 32) return new TextEncoder().encode(s);
+  const base = process.env.DATABASE_URL;
+  if (!base) throw new Error("Defina SESSION_SECRET (32+ caracteres) ou DATABASE_URL");
+  return new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`gf-sessao:${base}`)));
 }
 
 export async function assinarSessao(s: Sessao): Promise<string> {
@@ -22,13 +27,13 @@ export async function assinarSessao(s: Sessao): Promise<string> {
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime(`${DURACAO_S}s`)
-    .sign(chave());
+    .sign(await chave());
 }
 
 export async function lerSessao(token: string | undefined): Promise<Sessao | null> {
   if (!token) return null;
   try {
-    const { payload } = await jwtVerify(token, chave());
+    const { payload } = await jwtVerify(token, await chave());
     return {
       usuarioId: String(payload.usuarioId),
       nome: String(payload.nome),
