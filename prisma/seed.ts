@@ -153,9 +153,14 @@ async function main() {
         },
       });
     }
-    await db.caixaInicial.create({
-      data: { clienteId: cliente.id, mes: `${hoje.getUTCFullYear()}-${String(hoje.getUTCMonth() + 1).padStart(2, "0")}`, valorOriginal: 25000, valorUsd: 25000, observacao: "Banco + dinheiro no escritório" },
-    });
+    // Caixa de viagem entregue a cada motorista (o de demonstração saiu há 4 dias).
+    for (const c of await db.caminhao.findMany({ where: { clienteId: cliente.id, motoristaId: { not: null } }, include: { motorista: true } })) {
+      const demo = c.motorista!.nome === "Nelson Duarte";
+      const valor = demo ? 6_000_000 : 8_000_000;
+      await db.caixaViagem.create({
+        data: { clienteId: cliente.id, motoristaId: c.motoristaId!, caminhaoId: c.id, data: dia(demo ? -4 : -3), moeda: "PYG", valorOriginal: valor, valorUsd: Math.round((valor / 7300) * 100) / 100, observacao: "Adiantamento para combustível, pedágio e comida" },
+      });
+    }
   }
   console.log("Dados de exemplo criados. Logins (senha frota2026): admin@gestaodefrota.com.py, gestor@avmtruck.com.py; motorista: 0981123456, PIN 123456");
 }

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Kpi, Placa } from "@/components/ui";
 import { clienteAtual } from "@/lib/acesso";
-import { caixaMes, indicadoresFrota, revisoesCliente, totaisFrota, viagensCliente } from "@/lib/dados";
+import { indicadoresFrota, saldoEmpresa, saldoPorMes, revisoesCliente, totaisFrota, viagensCliente } from "@/lib/dados";
 import { num, usd, nomeMes } from "@/lib/formato";
 import { mesAtual, NOME_PLANO, planoPermite } from "@/lib/indicadores";
 
@@ -15,7 +15,7 @@ export default async function Painel() {
   const viagens = (await viagensCliente(cliente.id, mes, ind)).filter((v) => v.margem);
   const frete = viagens.reduce((a, v) => a + v.freteUsd, 0);
   const margem = viagens.reduce((a, v) => a + (v.margem?.margemUsd ?? 0), 0);
-  const caixa = await caixaMes(cliente.id, mes);
+  const [saldo, historico] = await Promise.all([saldoEmpresa(cliente.id, mes), saldoPorMes(cliente.id, mes)]);
 
   type Alerta = { sev: "bad" | "warn" | "info"; titulo: string; detalhe: string; href: string };
   const alertas: Alerta[] = [
@@ -57,14 +57,14 @@ export default async function Painel() {
         <div className="acoes-painel">
           <Link className="btn pri" href="/despesas">+ Lançar despesa</Link>
           <Link className="btn pri" href="/fretes#novo">+ Lançar frete</Link>
-          <Link className="btn" href="/caixa">Caixa inicial</Link>
+          <Link className="btn" href="/caixa#novo">Caixa inicial do motorista</Link>
         </div>
       </div>
       <div className="grid g4">
-        <Kpi rotulo="Caixa inicial" valor={caixa.inicial ? usd(caixa.inicialUsd) : "–"} sub={caixa.inicial ? `${nomeMes(mes)}` : <Link href="/caixa">informar caixa inicial</Link>} />
-        <Kpi rotulo="Fretes recebidos" valor={usd(caixa.recebidos)} sub={`${usd(caixa.aReceber)} a receber`} />
-        <Kpi rotulo="Despesas do mês" valor={usd(caixa.gastos + caixa.extras)} sub="lançadas na frota" />
-        <Kpi rotulo="Saldo em caixa" valor={usd(caixa.saldo)} sub="caixa + recebidos − despesas" />
+        <Kpi rotulo="Saldo do mês anterior" valor={usd(saldo.anterior)} sub="acumulado até o fim do mês passado" />
+        <Kpi rotulo="Fretes do mês" valor={usd(saldo.fretes)} sub={`${usd(saldo.aReceber)} ainda a receber`} />
+        <Kpi rotulo="Despesas do mês" valor={usd(saldo.despesas)} sub="lançadas na frota" />
+        <Kpi rotulo="Saldo em caixa" valor={usd(saldo.saldo)} sub="saldo anterior + fretes − despesas" />
       </div>
       {temGestao ? (
         <div className="grid g4">
@@ -127,6 +127,25 @@ export default async function Painel() {
               </tbody>
             </table>
           </div>
+        </div>
+      </div>
+      <div className="card">
+        <div className="card-h"><h2>Saldo em caixa mês a mês</h2><p>O saldo de cada mês passa para o seguinte</p></div>
+        <div className="tw">
+          <table>
+            <thead><tr><th>Mês</th><th className="n">Fretes</th><th className="n">Despesas</th><th className="n">Resultado do mês</th><th className="n">Saldo acumulado</th></tr></thead>
+            <tbody>
+              {historico.map((h) => (
+                <tr key={h.mes}>
+                  <td>{nomeMes(h.mes)}</td>
+                  <td className="n">{usd(h.fretes)}</td>
+                  <td className="n">{usd(h.despesas)}</td>
+                  <td className="n"><span className={h.resultado < 0 ? "t-bad" : "t-ok"}>{usd(h.resultado)}</span></td>
+                  <td className="n"><b>{usd(h.saldo)}</b></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </>

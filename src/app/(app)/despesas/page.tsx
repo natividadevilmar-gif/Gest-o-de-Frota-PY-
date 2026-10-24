@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { Placa, PlanoNecessario, SeletorMes } from "@/components/ui";
 import { clienteAtual, motoristaDaSessao, podeEditarCadastros } from "@/lib/acesso";
-import { SIMBOLO, type Moeda } from "@/lib/cambio";
+import { SIMBOLO, taxa, type Moeda } from "@/lib/cambio";
 import { cotacaoDoDia } from "@/lib/cotacao";
 import { db } from "@/lib/db";
-import { lancamentosMes } from "@/lib/dados";
-import { dataBr, mesValido, nomeMes, num } from "@/lib/formato";
+import { caixasMotoristas, lancamentosMes } from "@/lib/dados";
+import { dataBr, mesValido, nomeMes, num, usd } from "@/lib/formato";
 import { mesAtual, NOME_CATEGORIA, planoPermite } from "@/lib/indicadores";
 import { leitorConfigurado } from "@/lib/leitorDespesa";
 import { TEXTOS } from "@/lib/textosDespesa";
@@ -32,6 +32,9 @@ export default async function Despesas({ searchParams }: { searchParams: Promise
   const cotacao = await cotacaoDoDia();
   const lancamentos = await lancamentosMes(cliente.id, mes, new Set(caminhoes.map((c) => c.id)), motoristaId !== null ? sessao.usuarioId : undefined);
   const pode = podeEditarCadastros(sessao);
+  // O motorista vê quanto ainda tem do dinheiro que levou para a viagem.
+  const caixa = motoristaId ? (await caixasMotoristas(cliente.id, { motoristaId })).find((c) => c.aberto) : undefined;
+  const naMoeda = (v: number, m: string) => (m === "USD" ? usd(v) : `${SIMBOLO[m as Moeda]} ${num(v * (taxa(m as Moeda, cotacao) ?? 1), 2)}`);
 
   return (
     <>
@@ -39,6 +42,17 @@ export default async function Despesas({ searchParams }: { searchParams: Promise
         <h1>{es ? "Cargar gasto" : "Lançar despesa"}</h1>
         {motoristaId === null && <Link className="btn" href={`/custos?mes=${mes}`}>Ver relatório de custos</Link>}
       </div>
+
+      {caixa && (
+        <div className="card caixa-motorista">
+          <div className="card-h"><h2>{es ? "Su caja del viaje" : "Seu caixa da viagem"}</h2><p>{es ? "recibido el" : "recebido em"} {dataBr(caixa.data)}</p></div>
+          <div className="grid g3">
+            <div className="kpi"><span className="lbl">{es ? "Recibido" : "Recebido"}</span><b>{caixa.moeda === "USD" ? usd(caixa.valorUsd) : `${SIMBOLO[caixa.moeda as Moeda]} ${num(caixa.valorOriginal, 2)}`}</b></div>
+            <div className="kpi"><span className="lbl">{es ? "Gastado" : "Gasto"}</span><b>{naMoeda(caixa.gastoUsd, caixa.moeda)}</b><span className="sub">{caixa.nDespesas} {es ? "gastos" : "despesas"}</span></div>
+            <div className="kpi"><span className="lbl">{es ? "Le queda" : "Ainda tem"}</span><b className={caixa.saldoUsd < 0 ? "t-bad" : "t-ok"}>{caixa.moeda === "USD" ? usd(caixa.saldoUsd) : `${SIMBOLO[caixa.moeda as Moeda]} ${num(caixa.valorOriginal - caixa.gastoUsd * (taxa(caixa.moeda as Moeda, cotacao) ?? 1), 2)}`}</b></div>
+          </div>
+        </div>
+      )}
 
       <div className="card">
         <div className="card-h"><h2>{es ? "Nuevo gasto" : "Nova despesa"}</h2><p>{es ? "Saque foto de la factura, hable o complete." : "Tire foto do recibo, fale ou preencha. O custo por km recalcula na hora."}</p></div>

@@ -45,20 +45,20 @@ enum Gatilho {
 }
 
 model Cliente {
-  id           String         @id @default(cuid())
+  id           String        @id @default(cuid())
   nome         String
   ruc          String?
   cidade       String
-  idioma       Idioma         @default(pt)
+  idioma       Idioma        @default(pt)
   // País de origem (ISO 3166, duas letras): define as cores da plataforma para o cliente.
-  pais         String         @default("PY")
+  pais         String        @default("PY")
   // Dias desde o vencimento da mensalidade mais antiga em aberto (0 = em dia).
-  diasEmAtraso Int            @default(0)
-  criadoEm     DateTime       @default(now())
+  diasEmAtraso Int           @default(0)
+  criadoEm     DateTime      @default(now())
   usuarios     Usuario[]
   caminhoes    Caminhao[]
   motoristas   Motorista[]
-  caixas       CaixaInicial[]
+  caixas       CaixaViagem[]
 }
 
 model Usuario {
@@ -79,14 +79,15 @@ model Usuario {
 }
 
 model Motorista {
-  id        String     @id @default(cuid())
+  id        String        @id @default(cuid())
   clienteId String
-  cliente   Cliente    @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  cliente   Cliente       @relation(fields: [clienteId], references: [id], onDelete: Cascade)
   nome      String
   documento String?
   caminhoes Caminhao[]
   acesso    Usuario?
   viagens   Viagem[]
+  caixas    CaixaViagem[]
 }
 
 model Caminhao {
@@ -112,6 +113,7 @@ model Caminhao {
   telemetria        TelemetriaDia[]
   revisoes          ItemRevisao[]
   viagens           Viagem[]
+  caixas            CaixaViagem[]
   criadoEm          DateTime        @default(now())
 
   @@unique([clienteId, placa])
@@ -226,19 +228,25 @@ model Viagem {
   @@index([caminhaoId, data])
 }
 
-// Dinheiro em caixa no começo do mês, para o saldo: caixa inicial + fretes recebidos − despesas.
-model CaixaInicial {
-  id            String   @id @default(cuid())
+// Caixa da viagem: dinheiro entregue ao motorista quando sai. As despesas dele a partir
+// dessa data (até o próximo caixa ou o fechamento) saem desse dinheiro.
+model CaixaViagem {
+  id            String    @id @default(cuid())
   clienteId     String
-  cliente       Cliente  @relation(fields: [clienteId], references: [id], onDelete: Cascade)
-  mes           String
-  moeda         String   @default("USD")
+  cliente       Cliente   @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  motoristaId   String
+  motorista     Motorista @relation(fields: [motoristaId], references: [id], onDelete: Cascade)
+  caminhaoId    String?
+  caminhao      Caminhao? @relation(fields: [caminhaoId], references: [id], onDelete: SetNull)
+  data          DateTime  @db.Date
+  moeda         String    @default("PYG")
   valorOriginal Float
   valorUsd      Float
   observacao    String?
-  atualizadoEm  DateTime @updatedAt
+  fechadoEm     DateTime? @db.Date
+  criadoEm      DateTime  @default(now())
 
-  @@unique([clienteId, mes])
+  @@index([motoristaId, data])
 }
 
 // Cotação do dia usada para converter despesas lançadas em moeda local.

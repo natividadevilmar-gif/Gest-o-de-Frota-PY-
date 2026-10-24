@@ -176,18 +176,77 @@ export async function despesasMotorista(clienteId: string, motoristaId: string, 
   return { motorista, despesas };
 }
 
-/** Caixa do mês: caixa inicial + fretes recebidos − despesas lançadas. */
-export async function caixaMes(clienteId: string, mes: string) {
+/** Saldo em caixa da empresa, acumulado mês a mês: saldo anterior + fretes do mês − despesas do mês. */
+export async function saldoEmpresa(clienteId: string, mes: string) {
   const { inicio, fim } = intervaloMes(mes);
-  const [inicial, fretes, despesas] = await Promise.all([
-    db.caixaInicial.findUnique({ where: { clienteId_mes: { clienteId, mes } } }),
-    db.viagem.findMany({ where: { caminhao: { clienteId }, data: { gte: inicio, lt: fim } }, select: { freteUsd: true, recebido: true, custosExtrasUsd: true } }),
-    db.despesa.aggregate({ where: { caminhao: { clienteId }, data: { gte: inicio, lt: fim } }, _sum: { valorUsd: true } }),
+  const somaFretes = (data: { lt: Date; gte?: Date }) =>
+    db.viagem.aggregate({ where: { caminhao: { clienteId }, data }, _sum: { freteUsd: true, custosExtrasUsd: true } });
+  const somaDespesas = (data: { lt: Date; gte?: Date }) => db.despesa.aggregate({ where: { caminhao: { clienteId }, data }, _sum: { valorUsd: true } });
+  const [fAntes, dAntes, fMes, dMes, aReceber] = await Promise.all([
+    somaFretes({ lt: inicio }),
+    somaDespesas({ lt: inicio }),
+    somaFretes({ gte: inicio, lt: fim }),
+    somaDespesas({ gte: inicio, lt: fim }),
+    db.viagem.aggregate({ where: { caminhao: { clienteId }, data: { lt: fim }, recebido: false }, _sum: { freteUsd: true } }),
   ]);
-  const recebidos = fretes.filter((f) => f.recebido).reduce((a, f) => a + f.freteUsd, 0);
-  const aReceber = fretes.filter((f) => !f.recebido).reduce((a, f) => a + f.freteUsd, 0);
-  const extras = fretes.reduce((a, f) => a + f.custosExtrasUsd, 0);
-  const gastos = despesas._sum.valorUsd ?? 0;
-  const inicialUsd = inicial?.valorUsd ?? 0;
-  return { inicial, inicialUsd, recebidos, aReceber, gastos, extras, saldo: inicialUsd + recebidos - gastos - extras };
+  const anterior = (fAntes._sum.freteUsd ?? 0) - (fAntes._sum.custosExtrasUsd ?? 0) - (dAntes._sum.valorUsd ?? 0);
+  const fretes = fMes._sum.freteUsd ?? 0;
+  const despesas = (dMes._sum.valorUsd ?? 0) + (fMes._sum.custosExtrasUsd ?? 0);
+  return { anterior, fretes, despesas, saldo: anterior + fretes - despesas, aReceber: aReceber._sum.freteUsd ?? 0 };
+}
+
+/**
+ * Caixas de viagem dos motoristas, com quanto já gastaram de cada um. Contam as despesas lançadas
+ * pelo login do motorista desde a entrega do dinheiro até o próximo caixa dele ou o fechamento;
+ * motorista sem login conta as despesas do caminhão do caixa, menos manutenção e pneus.
+ */
+export async function caixasMotoristas(clienteId: string, filtro: { motoristaId?: string } = {}) {
+  const caixas = await db.caixaViagem.findMany({
+    where: { clienteId, ...(filtro.motoristaId ? { motoristaId: filtro.motoristaId } : {}) },
+    include: { motorista: { select: { nome: true, acesso: { select: { id: true } } } }, caminhao: { select: { placa: true } } },
+    orderBy: [{ data: "desc" }, { criadoEm: "desc" }],
+  });
+  return Promise.all(
+    caixas.map(async (c) => {
+      // O próximo caixa do mesmo motorista encerra este (a lista vem da data mais nova para a mais antiga).
+      const proximo = caixas.filter((o) => o.motoristaId === c.motoristaId && (o.data > c.data || (+o.data === +c.data && o.criadoEm > c.criadoEm))).at(-1);
+      const fim = c.fechadoEm ?? proximo?.data ?? null;
+      // Manutenção e pneus a empresa paga direto; não saem do dinheiro do motorista.
+      const quem = c.motorista.acesso
+        ? { usuarioId: c.motorista.acesso.id }
+        : c.caminhaoId ? { caminhaoId: c.caminhaoId, categoria: { notIn: ["MANUTENCAO" as const, "PNEUS" as const] } } : null;
+      const gasto = quem
+        ? await db.despesa.aggregate({
+            where: { ...quem, caminhao: { clienteId }, data: { gte: c.data, ...(fim ? (c.fechadoEm ? { lte: fim } : { lt: fim }) : {}) } },
+            _sum: { valorUsd: true },
+            _count: true,
+          })
+        : null;
+      const gastoUsd = gasto?._sum.valorUsd ?? 0;
+      return { ...c, aberto: !fim, gastoUsd, nDespesas: gasto?._count ?? 0, saldoUsd: c.valorUsd - gastoUsd };
+    }),
+  );
+}
+
+/** Resultado de cada mês (fretes − despesas) e o saldo acumulado até o fim dele, dos últimos meses. */
+export async function saldoPorMes(clienteId: string, ate: string, meses = 6) {
+  const { fim } = intervaloMes(ate);
+  const [fretes, despesas] = await Promise.all([
+    db.viagem.findMany({ where: { caminhao: { clienteId }, data: { lt: fim } }, select: { data: true, freteUsd: true, custosExtrasUsd: true } }),
+    db.despesa.findMany({ where: { caminhao: { clienteId }, data: { lt: fim } }, select: { data: true, valorUsd: true } }),
+  ]);
+  const porMes = new Map<string, { fretes: number; despesas: number }>();
+  const em = (d: Date) => {
+    const k = d.toISOString().slice(0, 7);
+    if (!porMes.has(k)) porMes.set(k, { fretes: 0, despesas: 0 });
+    return porMes.get(k)!;
+  };
+  fretes.forEach((f) => { const m = em(f.data); m.fretes += f.freteUsd; m.despesas += f.custosExtrasUsd; });
+  despesas.forEach((d) => { em(d.data).despesas += d.valorUsd; });
+  let acumulado = 0;
+  const linhas = [...porMes.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([mes, v]) => {
+    acumulado += v.fretes - v.despesas;
+    return { mes, ...v, resultado: v.fretes - v.despesas, saldo: acumulado };
+  });
+  return linhas.slice(-meses).reverse();
 }
