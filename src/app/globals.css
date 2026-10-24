@@ -144,3 +144,12 @@ button.link{background:none;border:0;padding:0;min-height:0;color:var(--accent);
 .frete > button.grande{flex:none;align-self:flex-start;min-width:240px}
 @media (max-width:520px){.frete > button.grande{align-self:stretch}}
 .voltar-inicio{display:inline-flex;align-self:flex-start;margin-bottom:12px;font-weight:600}
+.busca-motorista{width:100%;max-width:360px;min-height:40px;margin-bottom:10px}
+.cartoes-caixa{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
+.cartao-caixa{display:flex;flex-direction:column;gap:4px;padding:12px 14px;border:1px solid var(--line);border-left:5px solid var(--accent);border-radius:8px;background:var(--surface);color:var(--fg);text-decoration:none}
+.cartao-caixa:hover{background:var(--surface-2)}
+.cartao-caixa .nome{font-weight:600}
+.cartao-caixa .nome small{font-weight:400;color:var(--muted)}
+.cartao-caixa b{font-size:1.35rem}
+.cartao-caixa > small{color:var(--muted)}
+.cartao-caixa.sem{border-left-color:var(--line)}

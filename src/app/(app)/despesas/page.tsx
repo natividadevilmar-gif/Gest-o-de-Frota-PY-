@@ -34,7 +34,6 @@ export default async function Despesas({ searchParams }: { searchParams: Promise
   const pode = podeEditarCadastros(sessao);
   // O motorista vê quanto ainda tem do dinheiro que levou para a viagem.
   const caixa = motoristaId ? (await caixasMotoristas(cliente.id, { motoristaId })).find((c) => c.aberto) : undefined;
-  const naMoeda = (v: number, m: string) => (m === "USD" ? usd(v) : `${SIMBOLO[m as Moeda]} ${num(v * (taxa(m as Moeda, cotacao) ?? 1), 2)}`);
 
   return (
     <>
@@ -48,8 +47,8 @@ export default async function Despesas({ searchParams }: { searchParams: Promise
           <div className="card-h"><h2>{es ? "Su caja del viaje" : "Seu caixa da viagem"}</h2><p>{es ? "recibido el" : "recebido em"} {dataBr(caixa.data)}</p></div>
           <div className="grid g3">
             <div className="kpi"><span className="lbl">{es ? "Recibido" : "Recebido"}</span><b>{caixa.moeda === "USD" ? usd(caixa.valorUsd) : `${SIMBOLO[caixa.moeda as Moeda]} ${num(caixa.valorOriginal, 2)}`}</b></div>
-            <div className="kpi"><span className="lbl">{es ? "Gastado" : "Gasto"}</span><b>{naMoeda(caixa.gastoUsd, caixa.moeda)}</b><span className="sub">{caixa.nDespesas} {es ? "gastos" : "despesas"}</span></div>
-            <div className="kpi"><span className="lbl">{es ? "Le queda" : "Ainda tem"}</span><b className={caixa.saldoUsd < 0 ? "t-bad" : "t-ok"}>{caixa.moeda === "USD" ? usd(caixa.saldoUsd) : `${SIMBOLO[caixa.moeda as Moeda]} ${num(caixa.valorOriginal - caixa.gastoUsd * (taxa(caixa.moeda as Moeda, cotacao) ?? 1), 2)}`}</b></div>
+            <div className="kpi"><span className="lbl">{es ? "Gastado" : "Gasto"}</span><b>{caixa.moeda === "USD" ? usd(caixa.gastoUsd) : `${SIMBOLO[caixa.moeda as Moeda]} ${num(caixa.gastoMesmaMoeda + caixa.gastoOutrasUsd * (taxa(caixa.moeda as Moeda, cotacao) ?? 1), 2)}`}</b><span className="sub">{caixa.nDespesas} {es ? "gastos" : "despesas"}</span></div>
+            <div className="kpi"><span className="lbl">{es ? "Le queda" : "Ainda tem"}</span><b className={caixa.saldoUsd < 0 ? "t-bad" : "t-ok"}>{caixa.moeda === "USD" ? usd(caixa.saldoUsd) : `${SIMBOLO[caixa.moeda as Moeda]} ${num(caixa.valorOriginal - caixa.gastoMesmaMoeda - caixa.gastoOutrasUsd * (taxa(caixa.moeda as Moeda, cotacao) ?? 1), 2)}`}</b></div>
           </div>
         </div>
       )}

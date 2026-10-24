@@ -215,15 +215,16 @@ export async function caixasMotoristas(clienteId: string, filtro: { motoristaId?
       const quem = c.motorista.acesso
         ? { usuarioId: c.motorista.acesso.id }
         : c.caminhaoId ? { caminhaoId: c.caminhaoId, categoria: { notIn: ["MANUTENCAO" as const, "PNEUS" as const] } } : null;
-      const gasto = quem
-        ? await db.despesa.aggregate({
-            where: { ...quem, caminhao: { clienteId }, data: { gte: c.data, ...(fim ? (c.fechadoEm ? { lte: fim } : { lt: fim }) : {}) } },
-            _sum: { valorUsd: true },
-            _count: true,
-          })
+      const despesasWhere = quem
+        ? { ...quem, caminhao: { clienteId }, data: { gte: c.data, ...(fim ? (c.fechadoEm ? { lte: fim } : { lt: fim }) : {}) } }
         : null;
-      const gastoUsd = gasto?._sum.valorUsd ?? 0;
-      return { ...c, aberto: !fim, gastoUsd, nDespesas: gasto?._count ?? 0, saldoUsd: c.valorUsd - gastoUsd };
+      const lista = despesasWhere ? await db.despesa.findMany({ where: despesasWhere, select: { valorUsd: true, moeda: true, valorOriginal: true } }) : [];
+      const gastoUsd = lista.reduce((a, d) => a + d.valorUsd, 0);
+      // Para mostrar na moeda do caixa: despesas na mesma moeda pelo valor pago, as outras em USD (converter com a cotação).
+      const mesma = lista.filter((d) => d.moeda === c.moeda);
+      const gastoMesmaMoeda = mesma.reduce((a, d) => a + (d.valorOriginal ?? d.valorUsd), 0);
+      const gastoOutrasUsd = gastoUsd - mesma.reduce((a, d) => a + d.valorUsd, 0);
+      return { ...c, aberto: !fim, gastoUsd, gastoMesmaMoeda, gastoOutrasUsd, nDespesas: lista.length, saldoUsd: c.valorUsd - gastoUsd, despesasWhere };
     }),
   );
 }
