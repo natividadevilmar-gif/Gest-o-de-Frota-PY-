@@ -51,7 +51,7 @@ export function SeletorMes({ mes, caminho }: { mes: string; caminho: string }) {
         Mês
         <input id="mes" name="mes" type="month" defaultValue={mes} />
       </label>
-      <button type="submit">Ver</button>
+      <button type="submit">Ver mês</button>
     </form>
   );
 }

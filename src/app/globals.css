@@ -143,3 +143,4 @@ button.mini{padding:3px 8px;font-size:.8rem}
 button.link{background:none;border:0;padding:0;min-height:0;color:var(--accent);text-decoration:underline;font-size:.8rem;cursor:pointer}
 .frete > button.grande{flex:none;align-self:flex-start;min-width:240px}
 @media (max-width:520px){.frete > button.grande{align-self:stretch}}
+.voltar-inicio{display:inline-flex;align-self:flex-start;margin-bottom:12px;font-weight:600}

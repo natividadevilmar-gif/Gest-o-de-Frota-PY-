@@ -16,7 +16,7 @@ export function SeletorCliente({ clientes, atual }: { clientes: { id: string; no
         </select>
       </label>
       <noscript>
-        <button type="submit">Ver</button>
+        <button type="submit">Abrir</button>
       </noscript>
     </form>
   );

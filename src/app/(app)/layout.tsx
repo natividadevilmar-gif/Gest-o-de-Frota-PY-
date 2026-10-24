@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Bandeira, EstiloTema } from "@/components/Bandeira";
 import { Nav, type ItemNav } from "@/components/Nav";
 import { SeletorCliente } from "@/components/SeletorCliente";
+import { VoltarInicio } from "@/components/VoltarInicio";
 import { clienteOpcional } from "@/lib/acesso";
 import { db } from "@/lib/db";
 import { NOME_PLANO, planoMinimo, planoPermite, type Modulo, type Plano } from "@/lib/indicadores";
@@ -64,7 +65,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </div>
           {sessao.papel === "ADMIN" && cliente && <SeletorCliente clientes={clientes} atual={cliente.id} />}
         </header>
-        <div className="content">{children}</div>
+        <div className="content">{sessao.papel !== "MOTORISTA" && <VoltarInicio />}{children}</div>
       </div>
     </div>
   );
