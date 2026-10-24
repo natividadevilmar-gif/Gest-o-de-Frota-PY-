@@ -13,8 +13,8 @@ const hoje = new Date();
 const dia = (offset: number) => new Date(Date.UTC(hoje.getUTCFullYear(), hoje.getUTCMonth(), hoje.getUTCDate() + offset));
 
 const CLIENTES = [
-  { nome: "Transportes Monday S.A.", cidade: "Santa Rita", diasEmAtraso: 0, frota: true },
-  { nome: "Agrotransporte Naranjal", cidade: "Naranjal", diasEmAtraso: 0, pais: "DE", planos: { BASICO: 18, GESTAO: 12, VIDEO: 0 } },
+  { nome: "AVM Truck", ruc: "80012345-6", cidade: "Santa Rita", diasEmAtraso: 0, frota: true },
+  { nome: "Agrotransporte Naranjal", cidade: "Naranjal", diasEmAtraso: 0, planos: { BASICO: 18, GESTAO: 12, VIDEO: 0 } },
   { nome: "Combustibles del Este", cidade: "Ciudad del Este", diasEmAtraso: 9, idioma: "es", planos: { BASICO: 0, GESTAO: 4, VIDEO: 14 } },
   { nome: "Cooperativa San Alberto", cidade: "San Alberto", diasEmAtraso: 0, planos: { BASICO: 25, GESTAO: 10, VIDEO: 0 } },
   { nome: "Fletes Los Cedrales", cidade: "Los Cedrales", diasEmAtraso: 18, idioma: "es", planos: { BASICO: 12, GESTAO: 0, VIDEO: 0 } },
@@ -42,7 +42,7 @@ async function main() {
 
   for (const c of CLIENTES) {
     const cliente = await db.cliente.create({
-      data: { nome: c.nome, cidade: c.cidade, diasEmAtraso: c.diasEmAtraso, idioma: "idioma" in c ? c.idioma : "pt", pais: "pais" in c ? c.pais : "PY" },
+      data: { nome: c.nome, ruc: "ruc" in c ? c.ruc : null, cidade: c.cidade, diasEmAtraso: c.diasEmAtraso, idioma: "idioma" in c ? c.idioma : "pt", pais: "pais" in c ? c.pais : "PY" },
     });
 
     if (!("frota" in c)) {
@@ -60,7 +60,7 @@ async function main() {
     }
 
     await db.usuario.create({
-      data: { email: "gestor@transportesmonday.com.py", nome: "Gestor Monday", senhaHash: senha, papel: "GESTOR", clienteId: cliente.id },
+      data: { email: "gestor@avmtruck.com.py", nome: "Gestor AVM Truck", senhaHash: senha, papel: "GESTOR", clienteId: cliente.id },
     });
 
     for (const f of FROTA) {
@@ -142,7 +142,7 @@ async function main() {
       });
     }
   }
-  console.log("Dados de exemplo criados. Logins (senha frota2026): admin@gestaodefrota.com.py, gestor@transportesmonday.com.py");
+  console.log("Dados de exemplo criados. Logins (senha frota2026): admin@gestaodefrota.com.py, gestor@avmtruck.com.py");
 }
 
 main().finally(() => db.$disconnect());
