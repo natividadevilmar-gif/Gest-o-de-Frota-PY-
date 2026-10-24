@@ -43,7 +43,7 @@ const DICA: Record<Etapa, string> = {
   descricao: "Ex.: “troca de pneu dianteiro”. Ou toque em Pular.",
 };
 const TIPO: Record<string, string> = {
-  DIESEL: "Diesel", ARLA32: "Arla 32", ALIMENTACAO: "Alimentação", PEDAGIO: "Pedágio", MANUTENCAO: "Manutenção", PNEUS: "Borracharia", OUTROS: "Outros",
+  DIESEL: "Combustível (diesel)", ARLA32: "Arla 32", ALIMENTACAO: "Alimentação", PEDAGIO: "Pedágio", MANUTENCAO: "Manutenção", PNEUS: "Borracharia", OUTROS: "Outros",
 };
 const CASAS: Record<Moeda, number> = { USD: 2, PYG: 0, BRL: 2, ARS: 2 };
 
@@ -130,7 +130,7 @@ export function LancarDespesa({ caminhoes, hoje, cotacao, idioma, leituraAtiva }
 
   useEffect(() => {
     if (r?.ok) {
-      setF((x) => ({ ...vazio, caminhaoId: x.caminhaoId, data: x.data, moeda: x.moeda }));
+      setF((x) => ({ ...vazio, caminhaoId: x.caminhaoId, data: x.data, moeda: x.moeda, categoria: x.categoria }));
       setValorManual(false);
       setRecibo(null);
       setOrigem("manual");
@@ -182,7 +182,6 @@ export function LancarDespesa({ caminhoes, hoje, cotacao, idioma, leituraAtiva }
     const feitas = fluxo.current.feitas;
     const proxima: Etapa | null =
       !(Number(c.valor) > 0) ? "valor"
-      : !fluxo.current.tipoDito ? "tipo"
       : COMBUSTIVEL.includes(c.categoria) && !(Number(c.litros) > 0) && !feitas.has("litros") ? "litros"
       : !c.odometroKm && !feitas.has("km") ? "km"
       : !c.descricao && !feitas.has("descricao") ? "descricao"
@@ -312,7 +311,7 @@ export function LancarDespesa({ caminhoes, hoje, cotacao, idioma, leituraAtiva }
     fluxo.current = { voz: true, tipoDito: tipoEscolhido.current, feitas: new Set() };
     // Despesa nova: limpa os campos, mantendo caminhão, data, moeda e o tipo escolhido.
     const x0 = atual.current;
-    const limpo = { ...vazio, caminhaoId: x0.caminhaoId, data: x0.data, moeda: x0.moeda, categoria: tipoEscolhido.current ? x0.categoria : vazio.categoria };
+    const limpo = { ...vazio, caminhaoId: x0.caminhaoId, data: x0.data, moeda: x0.moeda, categoria: x0.categoria };
     atual.current = limpo;
     setF(limpo);
     setValorManual(false);
@@ -370,6 +369,11 @@ export function LancarDespesa({ caminhoes, hoje, cotacao, idioma, leituraAtiva }
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <label htmlFor="tipoTopo" className="tipo-topo">Tipo da despesa
+        <select id="tipoTopo" value={f.categoria} onChange={(e) => { tipoEscolhido.current = true; set("categoria", e.target.value); }}>
+          {Object.entries(TIPO).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+        </select>
+      </label>
       <div className="captura">
         <button type="button" className={`grande ${ouvindo ? "gravando" : "pri"}`} onClick={falar} disabled={lendo} aria-pressed={ouvindo}>
           <span aria-hidden="true">🎤</span> {ouvindo ? "Ouvindo… toque para parar" : "Falar a despesa"}
@@ -385,7 +389,7 @@ export function LancarDespesa({ caminhoes, hoje, cotacao, idioma, leituraAtiva }
           <button type="button" className="pri grande" onClick={falar}>🎤 Falar a próxima despesa</button>
         </div>
       )}
-      {!ouvindo && !resumo && !etapa && <p className="note">Fale assim: “<b>pedágio 45 mil</b>”, “<b>almoço 60 mil guaranis</b>” ou “<b>diesel 300 litros 2 milhões 145 mil</b>”.</p>}
+      {!ouvindo && !resumo && !etapa && <p className="note">Escolha o tipo e fale o valor. Ex.: “<b>45 mil</b>” ou, no diesel, “<b>300 litros, 2 milhões 145 mil</b>”. Se falar outro tipo (“pedágio 45 mil”), ele troca sozinho.</p>}
       {ouvido && <p className="note">Ouvi: “{ouvido}”</p>}
       {etapa && (
         <div className="confirma" role="group" aria-label="Assistente de voz">
