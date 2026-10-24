@@ -9,6 +9,7 @@ import { sair } from "../login/actions";
 
 const MODULOS: { m: Modulo; href: string; rotulo: string }[] = [
   { m: "painel", href: "/painel", rotulo: "Painel" },
+  { m: "custos", href: "/despesas", rotulo: "Lançar despesa" },
   { m: "caminhoes", href: "/caminhoes", rotulo: "Caminhões e planos" },
   { m: "custos", href: "/custos", rotulo: "Custo por km" },
   { m: "consumo", href: "/consumo", rotulo: "Consumo e motoristas" },

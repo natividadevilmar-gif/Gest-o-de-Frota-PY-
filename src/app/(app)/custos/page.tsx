@@ -1,14 +1,9 @@
 import Link from "next/link";
 import { Placa, PlanoNecessario, SeletorMes } from "@/components/ui";
-import { clienteAtual, podeEditarCadastros } from "@/lib/acesso";
-import { SIMBOLO, type Moeda } from "@/lib/cambio";
-import { cotacaoDoDia } from "@/lib/cotacao";
-import { indicadoresFrota, lancamentosMes, totaisFrota } from "@/lib/dados";
-import { dataBr, mesValido, nomeMes, num, usd } from "@/lib/formato";
-import { CATEGORIAS_DESPESA, CATEGORIAS_FIXAS, mesAtual, NOME_CATEGORIA, planoPermite } from "@/lib/indicadores";
-import { leitorConfigurado } from "@/lib/leitorDespesa";
-import { excluirDespesa } from "./actions";
-import { LancarDespesa } from "./LancarDespesa";
+import { clienteAtual } from "@/lib/acesso";
+import { indicadoresFrota, totaisFrota } from "@/lib/dados";
+import { mesValido, nomeMes, num, usd } from "@/lib/formato";
+import { CATEGORIAS_DESPESA, CATEGORIAS_FIXAS, mesAtual, planoPermite } from "@/lib/indicadores";
 
 const COR: Record<string, string> = {
   Combustível: "var(--c-diesel)", Alimentação: "var(--c-alim)", Pedágio: "var(--c-pedagio)", Manutenção: "var(--c-manut)",
@@ -17,7 +12,7 @@ const COR: Record<string, string> = {
 const COLUNAS = [...CATEGORIAS_DESPESA, ...CATEGORIAS_FIXAS];
 
 export default async function Custos({ searchParams }: { searchParams: Promise<{ mes?: string }> }) {
-  const { sessao, cliente } = await clienteAtual();
+  const { cliente } = await clienteAtual();
   const mes = mesValido((await searchParams).mes, mesAtual());
   const ind = (await indicadoresFrota(cliente.id, mes)).filter((i) => planoPermite(i.plano, "custos"));
   if (ind.length === 0) return <PlanoNecessario modulo="custos" titulo="Custo por km" />;
@@ -25,26 +20,15 @@ export default async function Custos({ searchParams }: { searchParams: Promise<{
   const linhas = [...ind].sort((a, b) => (b.custoKm ?? 0) - (a.custoKm ?? 0));
   const max = Math.max(...linhas.map((i) => i.custoKm ?? 0), 0.01);
   const totalCat = (k: string) => ind.reduce((a, i) => a + (i.composicao[k] ?? 0), 0);
-  const cotacao = await cotacaoDoDia();
-  const lancamentos = await lancamentosMes(cliente.id, mes, new Set(ind.map((i) => i.id)));
-  const pode = podeEditarCadastros(sessao);
 
   return (
     <>
       <div className="card-h">
         <h1>Custo por km · {nomeMes(mes)}</h1>
-        <SeletorMes mes={mes} caminho="/custos" />
-      </div>
-
-      <div className="card">
-        <div className="card-h"><h2>Lançar despesa</h2><p>Tire foto do recibo, fale ou preencha. O custo por km recalcula na hora.</p></div>
-        <LancarDespesa
-          caminhoes={ind.map((i) => ({ id: i.id, placa: i.placa }))}
-          hoje={new Date().toISOString().slice(0, 10)}
-          cotacao={cotacao}
-          idioma={cliente.idioma}
-          leituraAtiva={leitorConfigurado()}
-        />
+        <div className="form" style={{ alignItems: "center" }}>
+          <Link className="btn pri" href="/despesas">+ Lançar despesa</Link>
+          <SeletorMes mes={mes} caminho="/custos" />
+        </div>
       </div>
 
       <div className="card">
@@ -107,44 +91,6 @@ export default async function Custos({ searchParams }: { searchParams: Promise<{
         </div>
       </div>
 
-      <div className="card">
-        <div className="card-h"><h2>Lançamentos do mês</h2><p>{lancamentos.length} despesas</p></div>
-        {lancamentos.length === 0 ? (
-          <p className="note">Nenhuma despesa lançada neste mês.</p>
-        ) : (
-          <div className="tw">
-            <table>
-              <thead><tr><th>Data</th><th>Caminhão</th><th>Tipo</th><th>Detalhe</th><th className="n">Valor pago</th><th className="n">USD</th><th className="n">km/l (tanque cheio)</th><th>Recibo</th>{pode && <th />}</tr></thead>
-              <tbody>
-                {lancamentos.map((d) => (
-                  <tr key={d.id}>
-                    <td>{dataBr(d.data)}</td>
-                    <td><Placa placa={d.placa} /></td>
-                    <td>{NOME_CATEGORIA[d.categoria]}{d.origem !== "manual" && <> <span className="tag">{d.origem === "foto" ? "foto" : "áudio"}</span></>}</td>
-                    <td>
-                      {[d.litros ? `${num(d.litros, 1)} l` : null, d.precoLitro ? `${SIMBOLO[d.moeda as Moeda]} ${num(d.precoLitro, d.moeda === "PYG" ? 0 : 2)}/l` : null, d.posto, d.odometroKm ? `${num(d.odometroKm)} km` : null, d.descricao]
-                        .filter(Boolean)
-                        .join(" · ") || "–"}
-                    </td>
-                    <td className="n">{d.moeda === "USD" ? "–" : `${SIMBOLO[d.moeda as Moeda]} ${num(d.valorOriginal, d.moeda === "PYG" ? 0 : 2)}`}</td>
-                    <td className="n">{num(d.valorUsd, 2)}</td>
-                    <td className="n">{d.kmLTanque ? num(d.kmLTanque, 2) : "–"}</td>
-                    <td>{d.temRecibo ? <a href={`/recibos/${d.id}`} target="_blank" rel="noopener">ver</a> : "–"}</td>
-                    {pode && (
-                      <td>
-                        <form action={excluirDespesa}>
-                          <input type="hidden" name="id" value={d.id} />
-                          <button type="submit" className="mini" aria-label={`Excluir despesa de ${dataBr(d.data)} em ${d.placa}`}>Excluir</button>
-                        </form>
-                      </td>
-                    )}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
     </>
   );
 }

@@ -51,7 +51,10 @@ export default async function Painel() {
   const temGestao = gestao.length > 0;
   return (
     <>
-      <h1>Painel de {nomeMes(mes)}</h1>
+      <div className="card-h">
+        <h1>Painel de {nomeMes(mes)}</h1>
+        <Link className="btn pri" href="/despesas">+ Lançar despesa</Link>
+      </div>
       {temGestao ? (
         <div className="grid g4">
           <Kpi rotulo="Custo por km" valor={usd(tot.custoKm, 2)} sub={`${usd(tot.custo)} em ${num(tot.km)} km`} />
