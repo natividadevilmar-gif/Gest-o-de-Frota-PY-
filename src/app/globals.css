@@ -104,6 +104,16 @@ button.grande{min-height:56px;font-size:1.05rem;padding:10px 18px;flex:1 1 160px
 .lingua{display:flex;gap:6px;justify-content:flex-end}
 .lingua button{padding:5px 10px;font-size:.85rem}
 .tipo-topo{display:flex;flex-direction:column;gap:4px;font-size:.85rem;color:var(--muted)}
+.moeda-topo{display:flex;flex-direction:column;gap:4px;font-size:.85rem;color:var(--muted)}
+.moeda-topo > div{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.moeda-topo button{min-height:48px;padding:6px 4px;font-size:.9rem;line-height:1.2;color:var(--fg)}
+.moeda-topo button b{font-size:1.05rem}
+.moeda-topo button.sel{background:var(--accent);color:var(--accent-ink);border:2px solid var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
+.moeda-topo.trocada > div{outline:3px solid #e0a100;outline-offset:3px;border-radius:8px}
+.moeda-topo small{color:var(--fg);background:#fff4cc;border-radius:6px;padding:6px 8px}
+.valor-moeda{font-size:1.25rem;font-weight:700}
+.moeda-rotulo{color:var(--fg)}
+@media (max-width:420px){.moeda-topo > div{grid-template-columns:repeat(2,1fr)}}
 .tipo-topo select{font-size:1.05rem;min-height:48px;color:var(--fg)}
 .digitar summary{cursor:pointer;color:var(--muted);font-size:.9rem;padding:4px 0}
 .digitar .form{margin-top:8px}

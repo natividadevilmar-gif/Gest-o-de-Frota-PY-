@@ -30,6 +30,8 @@ type JanelaComVoz = Window & { SpeechRecognition?: new () => Reconhecimento; web
 const COMBUSTIVEL = ["DIESEL", "ARLA32"];
 type Etapa = "valor" | "tipo" | "litros" | "km" | "descricao";
 const CASAS: Record<Moeda, number> = { USD: 2, PYG: 0, BRL: 2, ARS: 2 };
+const BANDEIRA: Record<Moeda, string> = { PYG: "🇵🇾", USD: "🇺🇸", BRL: "🇧🇷", ARS: "🇦🇷" };
+const MOEDAS: Moeda[] = ["PYG", "USD", "BRL", "ARS"];
 
 /** Lê o texto da nota no próprio celular (Tesseract, arquivos servidos em /ocr). */
 async function textoDaFoto(dataUrl: string, aoProgredir: (p: number) => void): Promise<string> {
@@ -93,6 +95,8 @@ export function LancarDespesa({ caminhoes, hoje, cotacao, idioma, leituraAtiva }
   const [valorManual, setValorManual] = useState(false);
   const [recibo, setRecibo] = useState<string | null>(null);
   const [origem, setOrigem] = useState<"manual" | "foto" | "audio">("manual");
+  // Moeda trocada pela foto ou pela fala: fica destacada até o usuário confirmar tocando nela.
+  const [moedaTrocada, setMoedaTrocada] = useState(false);
   const [frase, setFrase] = useState("");
 
   const set = (campo: keyof typeof vazio, v: string | boolean) => setF((x) => ({ ...x, [campo]: v }));
@@ -132,6 +136,7 @@ export function LancarDespesa({ caminhoes, hoje, cotacao, idioma, leituraAtiva }
   function aplicar(l: Leitura, de: "foto" | "audio") {
     if (!l.ok) return setAviso(l.msg);
     const c = l.campos;
+    if (c.moeda && c.moeda !== atual.current.moeda) setMoedaTrocada(true);
     setF((x) => ({
       ...x,
       caminhaoId: l.caminhaoId ?? x.caminhaoId,
@@ -215,7 +220,7 @@ export function LancarDespesa({ caminhoes, hoje, cotacao, idioma, leituraAtiva }
       if (!l.valor) return perguntar(e, true);
       x.valor = String(l.valor);
       if (l.litros) x.litros = String(l.litros);
-      if (l.moeda) x.moeda = l.moeda;
+      if (l.moeda && l.moeda !== x.moeda) { x.moeda = l.moeda; setMoedaTrocada(true); }
       if (l.categoria !== "OUTROS") { x.categoria = l.categoria; fluxo.current.tipoDito = true; }
       setValorManual(true);
     } else if (e === "tipo") {
@@ -367,6 +372,17 @@ export function LancarDespesa({ caminhoes, hoje, cotacao, idioma, leituraAtiva }
           {Object.entries(t.tipos).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
         </select>
       </label>
+      <div className={`moeda-topo${moedaTrocada ? " trocada" : ""}`} role="radiogroup" aria-label={t.moedaDoGasto}>
+        <span>{t.moedaDoGasto}</span>
+        <div>
+          {MOEDAS.map((m) => (
+            <button key={m} type="button" role="radio" aria-checked={f.moeda === m} className={f.moeda === m ? "sel" : ""} onClick={() => { setMoedaTrocada(false); set("moeda", m); }}>
+              <span aria-hidden="true">{BANDEIRA[m]}</span> <b>{SIMBOLO[m]}</b> {t.moedaCurta[m]}
+            </button>
+          ))}
+        </div>
+        {moedaTrocada && <small role="status">{t.moedaTrocada} <b>{t.moedas[f.moeda]}</b>. {t.confiraMoeda}</small>}
+      </div>
       <div className="captura">
         <button type="button" className={`grande ${ouvindo ? "gravando" : "pri"}`} onClick={falar} disabled={lendo} aria-pressed={ouvindo}>
           <span aria-hidden="true">🎤</span> {ouvindo ? t.ouvindoParar : t.falar}
@@ -401,7 +417,7 @@ export function LancarDespesa({ caminhoes, hoje, cotacao, idioma, leituraAtiva }
       {resumo && !lendo && (
         <div className="confirma" role="group" aria-label="Confirmar despesa">
           <div>
-            <b>{t.tipos[f.categoria] ?? f.categoria}</b> · {SIMBOLO[f.moeda]} {num(valorNum, CASAS[f.moeda])}
+            <b>{t.tipos[f.categoria] ?? f.categoria}</b> · <span className="valor-moeda">{BANDEIRA[f.moeda]} {SIMBOLO[f.moeda]} {num(valorNum, CASAS[f.moeda])}</span> <small>{t.emMoeda} {t.moedas[f.moeda]}</small>
             {emUsd !== null && f.moeda !== "USD" && <> · USD {num(emUsd, 2)}</>}
             {f.litros && <> · {f.litros} l</>}
             {f.litros && Number(f.precoLitro) > 0 && <> · {SIMBOLO[f.moeda]} {num(Number(f.precoLitro), CASAS[f.moeda])}/l</>}
@@ -450,18 +466,14 @@ export function LancarDespesa({ caminhoes, hoje, cotacao, idioma, leituraAtiva }
         </label>
         <label htmlFor="data">{t.data}<input id="data" name="data" type="date" value={f.data} onChange={(e) => set("data", e.target.value)} required /></label>
         <input type="hidden" name="categoria" value={f.categoria} />
-        <label htmlFor="moeda">{t.moeda}
-          <select id="moeda" name="moeda" value={f.moeda} onChange={(e) => set("moeda", e.target.value)}>
-            {Object.entries(t.moedas).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-          </select>
-        </label>
+        <input type="hidden" name="moeda" value={f.moeda} />
         {combustivel && (
           <>
             <label htmlFor="litros">{t.litros}<input id="litros" name="litros" type="number" step="0.01" min="0.01" inputMode="decimal" value={f.litros} onChange={(e) => set("litros", e.target.value)} required={f.categoria === "DIESEL"} /></label>
             <label htmlFor="precoLitro">{t.precoLitro} ({SIMBOLO[f.moeda]})<input id="precoLitro" name="precoLitro" type="number" step="any" min="0" inputMode="decimal" value={f.precoLitro} onChange={(e) => set("precoLitro", e.target.value)} /></label>
           </>
         )}
-        <label htmlFor="valor">{t.valorTotal} ({SIMBOLO[f.moeda]})
+        <label htmlFor="valor">{t.valorTotal} {t.emMoeda} <b className="moeda-rotulo">{BANDEIRA[f.moeda]} {t.moedas[f.moeda]}</b>
           <input id="valor" name="valor" type="number" step="any" min="0.01" inputMode="decimal" value={f.valor} onChange={(e) => { setValorManual(true); set("valor", e.target.value); }} required />
         </label>
         {combustivel && (
