@@ -3,9 +3,10 @@ import { notFound, redirect } from "next/navigation";
 import { Kpi, Placa, SeletorMes } from "@/components/ui";
 import { clienteAtual, podeEditarCadastros } from "@/lib/acesso";
 import { SIMBOLO, type Moeda } from "@/lib/cambio";
+import { despesasMotorista } from "@/lib/dados";
 import { db } from "@/lib/db";
 import { dataBr, mesValido, nomeMes, num, usd } from "@/lib/formato";
-import { CATEGORIAS_DESPESA, intervaloMes, mesAtual, NOME_CATEGORIA } from "@/lib/indicadores";
+import { CATEGORIAS_DESPESA, mesAtual, NOME_CATEGORIA } from "@/lib/indicadores";
 
 /** Despesas de um motorista no mês: as que ele lançou e as do caminhão que ele dirige. */
 export default async function DespesasDoMotorista({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ mes?: string }> }) {
@@ -13,23 +14,9 @@ export default async function DespesasDoMotorista({ params, searchParams }: { pa
   if (!podeEditarCadastros(sessao)) redirect("/painel");
   const { id } = await params;
   const mes = mesValido((await searchParams).mes, mesAtual());
-  const motorista = await db.motorista.findFirst({
-    where: { id, clienteId: cliente.id },
-    include: { caminhoes: { select: { placa: true } }, acesso: { select: { id: true, email: true } } },
-  });
-  if (!motorista) notFound();
-
-  const { inicio, fim } = intervaloMes(mes);
-  const despesas = await db.despesa.findMany({
-    where: {
-      caminhao: { clienteId: cliente.id },
-      data: { gte: inicio, lt: fim },
-      OR: [{ caminhao: { motoristaId: motorista.id } }, ...(motorista.acesso ? [{ usuarioId: motorista.acesso.id }] : [])],
-    },
-    include: { caminhao: { select: { placa: true } }, usuario: { select: { nome: true, papel: true } } },
-    omit: { recibo: true },
-    orderBy: [{ data: "desc" }, { criadoEm: "desc" }],
-  });
+  const dados = await despesasMotorista(cliente.id, id, mes);
+  if (!dados) notFound();
+  const { motorista, despesas } = dados;
   const comRecibo = new Set(
     (await db.despesa.findMany({ where: { id: { in: despesas.map((d) => d.id) }, recibo: { not: null } }, select: { id: true } })).map((d) => d.id),
   );
@@ -46,6 +33,7 @@ export default async function DespesasDoMotorista({ params, searchParams }: { pa
         <div className="form" style={{ alignItems: "center" }}>
           <Link className="btn" href="/motoristas">← Motoristas</Link>
           <SeletorMes mes={mes} caminho={`/motoristas/${motorista.id}`} />
+          <a className="btn pri" href={`/motoristas/${motorista.id}/relatorio?mes=${mes}`}>Gerar relatório (Excel)</a>
         </div>
       </div>
       <p className="note">

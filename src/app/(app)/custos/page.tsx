@@ -34,7 +34,7 @@ export default async function Custos({ searchParams }: { searchParams: Promise<{
       <div className="card">
         <div className="card-h">
           <h2>Relatório de gastos por tipo</h2>
-          <Link className="btn" href={`/custos/relatorio?mes=${mes}`} prefetch={false}>Baixar planilha (CSV)</Link>
+          <Link className="btn" href={`/custos/relatorio?mes=${mes}`} prefetch={false}>Gerar relatório (Excel)</Link>
         </div>
         <div className="tw">
           <table>

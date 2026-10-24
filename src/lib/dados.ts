@@ -154,3 +154,24 @@ export async function lancamentosMes(clienteId: string, mes: string, caminhoes: 
 function soma(xs: number[]) {
   return xs.reduce((a, b) => a + b, 0);
 }
+
+/** Despesas de um motorista no mês: as do caminhão que ele dirige e as que ele lançou pelo app. */
+export async function despesasMotorista(clienteId: string, motoristaId: string, mes: string) {
+  const motorista = await db.motorista.findFirst({
+    where: { id: motoristaId, clienteId },
+    include: { caminhoes: { select: { placa: true } }, acesso: { select: { id: true, email: true } } },
+  });
+  if (!motorista) return null;
+  const { inicio, fim } = intervaloMes(mes);
+  const despesas = await db.despesa.findMany({
+    where: {
+      caminhao: { clienteId },
+      data: { gte: inicio, lt: fim },
+      OR: [{ caminhao: { motoristaId: motorista.id } }, ...(motorista.acesso ? [{ usuarioId: motorista.acesso.id }] : [])],
+    },
+    include: { caminhao: { select: { placa: true } }, usuario: { select: { nome: true, papel: true } } },
+    omit: { recibo: true },
+    orderBy: [{ data: "desc" }, { criadoEm: "desc" }],
+  });
+  return { motorista, despesas };
+}
