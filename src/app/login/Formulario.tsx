@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { Marca } from "@/components/Marca";
 import { entrar } from "./actions";
 
 export function Formulario({ motorista = false }: { motorista?: boolean }) {
@@ -9,12 +10,7 @@ export function Formulario({ motorista = false }: { motorista?: boolean }) {
     <main className="center">
       <div className="card login">
         <div className="logo" style={{ padding: 0 }}>
-          <span className="bandeira" aria-hidden="true">
-            <span style={{ background: "#D52B1E" }} />
-            <span style={{ background: "#FFFFFF" }} />
-            <span style={{ background: "#0038A8" }} />
-          </span>
-          Gestão de Frota PY
+          <Marca tamanho={30} />
         </div>
         <h1>{motorista ? "Acesso do motorista" : "Entrar"}</h1>
         <form action={acao}>
