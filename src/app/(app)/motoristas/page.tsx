@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Placa } from "@/components/ui";
 import { clienteAtual, podeEditarCadastros } from "@/lib/acesso";
@@ -39,7 +40,7 @@ export default async function Motoristas() {
             <tbody>
               {motoristas.map((m) => (
                 <tr key={m.id}>
-                  <td>{m.nome}</td>
+                  <td><Link href={`/motoristas/${m.id}`}><b>{m.nome}</b></Link><br /><small className="muted">ver despesas</small></td>
                   <td>{m.caminhoes.length ? m.caminhoes.map((c) => <Placa key={c.placa} placa={c.placa} />) : "–"}</td>
                   <td>{m.acesso?.email ?? <span className="muted">sem acesso</span>}</td>
                   <td>
