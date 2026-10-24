@@ -44,6 +44,13 @@ npm run lint                # verificação de tipos
 npm run sync:telemetria     # importa o dia de ontem da fonte de telemetria
 ```
 
+## Publicar (Vercel + Neon)
+
+1. Importe o repositório em vercel.com/new e defina `SESSION_SECRET` (gere com `openssl rand -hex 32`).
+2. Em Storage, crie um banco Neon e conecte ao projeto; ele define `DATABASE_URL`.
+3. Cada deploy roda `npm run vercel-build`: aplica as migrações e, se o banco estiver vazio, cria os dados de exemplo.
+4. Opcional: `ANTHROPIC_API_KEY` para ler recibos por foto e despesas faladas.
+
 ## Estrutura
 
 | Caminho | O que tem |
