@@ -31,7 +31,7 @@ export function NovoAcesso({ motoristas, caminhoes }: Props) {
           {caminhoes.map((c) => <option key={c.id} value={c.id}>{c.placa}{c.motorista ? ` (hoje: ${c.motorista})` : ""}{c.lanca ? "" : " · plano Básico, sem despesas"}</option>)}
         </select>
       </label>
-      <label htmlFor="celular">Celular (login)<input id="celular" name="celular" inputMode="tel" placeholder="0981 123 456" required /></label>
+      <label htmlFor="celular">Celular (login)<input id="celular" name="celular" inputMode="tel" placeholder="celular do motorista, ex.: 09XX XXX XXX" required /></label>
       <label htmlFor="pin">PIN (6 a 8 números)<input id="pin" name="pin" inputMode="numeric" pattern="\d{6,8}" maxLength={8} required /></label>
       <button className="pri" type="submit" disabled={enviando}>Criar acesso</button>
       {r && <p className={`msg ${r.ok ? "ok" : "bad"}`} role="status">{r.msg}</p>}
