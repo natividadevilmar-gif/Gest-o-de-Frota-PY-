@@ -81,6 +81,7 @@ export default async function Empresa() {
         <form action={salvarCotacao} className="form">
           <label htmlFor="pygPorUsd">Guaranis por dólar<input id="pygPorUsd" name="pygPorUsd" type="number" step="any" min="1" defaultValue={cotacao.pygPorUsd} /></label>
           <label htmlFor="brlPorUsd">Reais por dólar<input id="brlPorUsd" name="brlPorUsd" type="number" step="any" min="0.01" defaultValue={cotacao.brlPorUsd} /></label>
+          <label htmlFor="arsPorUsd">Pesos argentinos por dólar<input id="arsPorUsd" name="arsPorUsd" type="number" step="any" min="0.01" defaultValue={cotacao.arsPorUsd} /></label>
           <button type="submit">Usar esta cotação hoje</button>
         </form>
         <p className="note">A cotação é buscada sozinha uma vez por dia. Use este campo só se quiser fixar outra (por exemplo, a do seu banco).</p>

@@ -203,6 +203,7 @@ model Cotacao {
   data      DateTime @db.Date @unique
   pygPorUsd Float
   brlPorUsd Float
+  arsPorUsd Float?
   fonte     String
   criadoEm  DateTime @default(now())
 }

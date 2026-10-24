@@ -16,7 +16,7 @@ const despesa = z.object({
   caminhaoId: z.string().min(1),
   data: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   categoria: z.enum(["DIESEL", "ARLA32", "ALIMENTACAO", "PEDAGIO", "MANUTENCAO", "PNEUS", "OUTROS"]),
-  moeda: z.enum(["USD", "PYG", "BRL"]),
+  moeda: z.enum(["USD", "PYG", "BRL", "ARS"]),
   valor: z.coerce.number().positive(),
   litros: numeroOpcional,
   precoLitro: numeroOpcional,

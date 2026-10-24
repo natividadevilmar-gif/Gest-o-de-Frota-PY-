@@ -10,7 +10,7 @@ import { z } from "zod";
 export const DespesaLida = z.object({
   categoria: z.enum(["DIESEL", "ARLA32", "ALIMENTACAO", "PEDAGIO", "MANUTENCAO", "PNEUS", "OUTROS"]),
   valor: z.number().nullable().describe("Valor total, na moeda em que foi pago"),
-  moeda: z.enum(["USD", "PYG", "BRL"]).nullable(),
+  moeda: z.enum(["USD", "PYG", "BRL", "ARS"]).nullable(),
   litros: z.number().nullable(),
   precoLitro: z.number().nullable().describe("Preço por litro na moeda do recibo"),
   posto: z.string().nullable().describe("Nome do posto ou estabelecimento"),
@@ -28,8 +28,9 @@ const INSTRUCOES = `Você lê despesas de caminhões de transportadoras do Parag
 Extraia os campos pedidos. Regras:
 - Combustível diesel é DIESEL; Arla 32 (AdBlue, urea) é ARLA32. Pedágio/peaje é PEDAGIO. Peças, oficina, óleo e filtros são MANUTENCAO. Borracharia, gomería, conserto ou troca de pneu é PNEUS. Refeição, lanche, restaurante, comedor, almoço e janta são ALIMENTACAO.
 - Informe o valor e a moeda exatamente como pagos; não converta. A conversão para dólar é feita pelo sistema.
+- Recibos argentinos vêm em pesos ($, ARS) e usam ponto como separador de milhar e vírgula nos centavos.
 - Recibos paraguaios costumam vir em guaranis (Gs., ₲, PYG); guaranis não têm centavos e usam ponto como separador de milhar (2.500.000 = dois milhões e meio).
-- Na fala, "dólares" é USD; "guaranis", "mil" ou "milhões" sem moeda dita é PYG; "reais" é BRL. "Dois milhões e meio" = 2500000.
+- Na fala, "dólares" é USD; "guaranis", "mil" ou "milhões" sem moeda dita é PYG; "reais" é BRL; "pesos" ou "pesos argentinos" é ARS. "Dois milhões e meio" = 2500000.
 - Use null para o que não aparecer. Não invente valores.
 - Datas em AAAA-MM-DD. Se o ano não aparecer, use o ano da data de hoje informada.`;
 

@@ -2,13 +2,14 @@
 
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
 import { paraUsd, SIMBOLO, type Moeda } from "@/lib/cambio";
+import { lerFalaLocal } from "@/lib/falaLocal";
 import { num } from "@/lib/formato";
 import { lancarDespesa, lerDespesaAction, type Leitura } from "./actions";
 
 type Props = {
   caminhoes: { id: string; placa: string }[];
   hoje: string;
-  cotacao: { pygPorUsd: number; brlPorUsd: number; data: string; fonte: string };
+  cotacao: { pygPorUsd: number; brlPorUsd: number; arsPorUsd: number; data: string; fonte: string };
   idioma: "pt" | "es";
   leituraAtiva: boolean;
 };
@@ -26,7 +27,7 @@ type Reconhecimento = {
 type JanelaComVoz = Window & { SpeechRecognition?: new () => Reconhecimento; webkitSpeechRecognition?: new () => Reconhecimento };
 
 const COMBUSTIVEL = ["DIESEL", "ARLA32"];
-const CASAS: Record<Moeda, number> = { USD: 2, PYG: 0, BRL: 2 };
+const CASAS: Record<Moeda, number> = { USD: 2, PYG: 0, BRL: 2, ARS: 2 };
 
 /** Reduz a foto no próprio celular antes de enviar (recibos de 4 MB viram ~300 KB). */
 async function reduzirFoto(arquivo: File): Promise<string> {
@@ -112,10 +113,16 @@ export function LancarDespesa({ caminhoes, hoje, cotacao, idioma, leituraAtiva }
     const arq = e.target.files?.[0];
     e.target.value = "";
     if (!arq) return;
-    setAviso("Lendo o recibo…");
+    setAviso(leituraAtiva ? "Lendo a nota…" : null);
     try {
       const dataUrl = await reduzirFoto(arq);
       setRecibo(dataUrl);
+      if (!leituraAtiva) {
+        setOrigem("foto");
+        setAviso("Foto anexada. Digite o valor da nota e toque em Lançar.");
+        document.getElementById("valor")?.focus();
+        return;
+      }
       iniciarLeitura(async () => aplicar(await lerDespesaAction({ imagem: dataUrl }), "foto"));
     } catch {
       setAviso("Não consegui abrir a foto. Tente outra vez.");
@@ -124,6 +131,12 @@ export function LancarDespesa({ caminhoes, hoje, cotacao, idioma, leituraAtiva }
 
   function lerFrase(texto: string) {
     if (!texto.trim()) return;
+    if (!leituraAtiva) {
+      const l = lerFalaLocal(texto);
+      if (!l.valor) return setAviso(`Ouvi “${texto}”, mas não entendi o valor. Fale de novo ou digite.`);
+      aplicar({ ok: true, caminhaoId: null, campos: { ...l, precoLitro: null, posto: null, data: null, odometroKm: null, placa: null, descricao: null } }, "audio");
+      return;
+    }
     setAviso("Entendendo o que foi dito…");
     iniciarLeitura(async () => aplicar(await lerDespesaAction({ texto }), "audio"));
   }
@@ -154,35 +167,38 @@ export function LancarDespesa({ caminhoes, hoje, cotacao, idioma, leituraAtiva }
 
   const valorNum = Number(f.valor);
   const emUsd = valorNum > 0 ? paraUsd(valorNum, f.moeda, cotacao) : null;
-  const taxaTxt = f.moeda === "PYG" ? `1 USD = ${num(cotacao.pygPorUsd, 0)} ₲` : f.moeda === "BRL" ? `1 USD = R$ ${num(cotacao.brlPorUsd, 2)}` : null;
+  const taxaTxt = {
+    USD: null,
+    PYG: `1 USD = ${num(cotacao.pygPorUsd, 0)} ₲`,
+    BRL: `1 USD = R$ ${num(cotacao.brlPorUsd, 2)}`,
+    ARS: `1 USD = AR$ ${num(cotacao.arsPorUsd, 2)}`,
+  }[f.moeda];
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-      {leituraAtiva && (
-        <div className="captura">
-          <button type="button" className="pri" onClick={() => arquivo.current?.click()} disabled={lendo}>
-            Foto do recibo
-          </button>
-          <input ref={arquivo} type="file" accept="image/*" capture="environment" hidden onChange={aoEscolherFoto} />
-          <button type="button" onClick={falar} disabled={lendo} aria-pressed={ouvindo} className={ouvindo ? "gravando" : ""}>
-            {ouvindo ? "Parar" : "Falar a despesa"}
-          </button>
-          <form
-            className="form"
-            onSubmit={(e) => {
-              e.preventDefault();
-              lerFrase(frase);
-            }}
-            style={{ flex: 1 }}
-          >
-            <label htmlFor="frase" style={{ flex: 1 }}>
-              ou escreva
-              <input id="frase" value={frase} onChange={(e) => setFrase(e.target.value)} placeholder="Pedágio 45 mil guaranis em Coronel Oviedo" style={{ width: "100%" }} />
-            </label>
-            <button type="submit" disabled={lendo || !frase.trim()}>Preencher</button>
-          </form>
-        </div>
-      )}
+      <div className="captura">
+        <button type="button" className="pri" onClick={() => arquivo.current?.click()} disabled={lendo}>
+          Tirar foto da nota
+        </button>
+        <input ref={arquivo} type="file" accept="image/*" capture="environment" hidden onChange={aoEscolherFoto} />
+        <button type="button" onClick={falar} disabled={lendo} aria-pressed={ouvindo} className={ouvindo ? "gravando" : ""}>
+          {ouvindo ? "Parar" : "Falar a despesa"}
+        </button>
+        <form
+          className="form"
+          onSubmit={(e) => {
+            e.preventDefault();
+            lerFrase(frase);
+          }}
+          style={{ flex: 1 }}
+        >
+          <label htmlFor="frase" style={{ flex: 1 }}>
+            ou escreva
+            <input id="frase" value={frase} onChange={(e) => setFrase(e.target.value)} placeholder="Pedágio 45 mil guaranis em Coronel Oviedo" style={{ width: "100%" }} />
+          </label>
+          <button type="submit" disabled={lendo || !frase.trim()}>Preencher</button>
+        </form>
+      </div>
       {(aviso || lendo) && <p className="msg info" role="status">{lendo ? "Lendo…" : aviso}</p>}
       {recibo && (
         <div className="recibo-previa">
@@ -217,6 +233,7 @@ export function LancarDespesa({ caminhoes, hoje, cotacao, idioma, leituraAtiva }
             <option value="PYG">Guaranis (₲)</option>
             <option value="USD">Dólares (USD)</option>
             <option value="BRL">Reais (R$)</option>
+            <option value="ARS">Pesos argentinos (AR$)</option>
           </select>
         </label>
         {combustivel && (

@@ -67,7 +67,8 @@ export async function salvarCotacao(form: FormData) {
   await exigirAdmin();
   const pyg = z.coerce.number().positive().parse(form.get("pygPorUsd"));
   const brl = z.coerce.number().positive().parse(form.get("brlPorUsd"));
-  await definirCotacao(pyg, brl);
+  const ars = z.coerce.number().positive().parse(form.get("arsPorUsd"));
+  await definirCotacao(pyg, brl, ars);
   revalidatePath("/", "layout");
 }
 

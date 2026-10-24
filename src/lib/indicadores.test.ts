@@ -177,8 +177,9 @@ describe("combustível", () => {
 import { paraUsd } from "./cambio";
 
 describe("câmbio", () => {
-  it("converte guaranis e reais para dólar", () => {
-    const c = { pygPorUsd: 7300, brlPorUsd: 5.4 };
+  it("converte guaranis, reais e pesos argentinos para dólar", () => {
+    const c = { pygPorUsd: 7300, brlPorUsd: 5.4, arsPorUsd: 1450 };
+    expect(paraUsd(145_000, "ARS", c)).toBe(100);
     expect(paraUsd(2_500_000, "PYG", c)).toBe(342.47);
     expect(paraUsd(540, "BRL", c)).toBe(100);
     expect(paraUsd(99.9, "USD", c)).toBe(99.9);
