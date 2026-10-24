@@ -63,7 +63,7 @@ export default async function Motoristas() {
             </tbody>
           </table>
         </div>
-        <p className="note">Endereço para o motorista: o mesmo link da plataforma. Ele digita o celular no campo de login e o PIN no campo de senha.</p>
+        <p className="note">Link para enviar ao motorista: <b>gest-o-de-frota-py.vercel.app/motorista</b>. Ele digita o celular e o PIN.</p>
       </div>
     </>
   );

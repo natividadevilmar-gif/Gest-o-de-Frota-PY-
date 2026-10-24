@@ -1,37 +1,5 @@
-"use client";
-
-import { useActionState } from "react";
-import { entrar } from "./actions";
+import { Formulario } from "./Formulario";
 
 export default function Login() {
-  const [estado, acao, enviando] = useActionState(entrar, null);
-  return (
-    <main className="center">
-      <div className="card login">
-        <div className="logo" style={{ padding: 0 }}>
-          <span className="bandeira" aria-hidden="true">
-            <span style={{ background: "#D52B1E" }} />
-            <span style={{ background: "#FFFFFF" }} />
-            <span style={{ background: "#0038A8" }} />
-          </span>
-          Gestão de Frota PY
-        </div>
-        <h1>Entrar</h1>
-        <form action={acao}>
-          <label htmlFor="email">
-            E-mail ou celular
-            <input id="email" name="email" type="text" autoComplete="username" autoCapitalize="none" defaultValue={estado?.email} key={estado?.email} required />
-          </label>
-          <label htmlFor="senha">
-            Senha ou PIN
-            <input id="senha" name="senha" type="password" autoComplete="current-password" required />
-          </label>
-          {estado && <p className="msg bad" role="alert">{estado.erro}</p>}
-          <button className="pri" type="submit" disabled={enviando}>
-            {enviando ? "Entrando…" : "Entrar"}
-          </button>
-        </form>
-      </div>
-    </main>
-  );
+  return <Formulario />;
 }
