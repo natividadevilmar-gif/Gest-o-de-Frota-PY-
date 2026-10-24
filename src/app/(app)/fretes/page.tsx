@@ -111,8 +111,8 @@ export default async function Fretes({ searchParams }: { searchParams: Promise<{
                       <td><Placa placa={f.caminhao.placa} />{f.motorista && <><br /><small className="muted">{f.motorista.nome}</small></>}</td>
                       <td>{f.embarcador ?? "–"}{f.documento && <><br /><small className="muted">{f.documento}</small></>}</td>
                       <td>{pais(f.paisOrigem)} {f.origem} → {pais(f.paisDestino)} {f.destino}<br /><small className="muted">{num(f.kmCarregado)} km + {num(f.kmVazio)} vazio</small></td>
-                      <td>{f.carga}, {num(f.toneladas, 1)} t{f.precoTonelada && <><br /><small className="muted">{SIMBOLO[f.moeda as Moeda]} {num(f.precoTonelada, f.moeda === "PYG" ? 0 : 2)}/t</small></>}</td>
-                      <td className="n">{usd(f.freteUsd)}{f.valorOriginal && <><br /><small className="muted">{SIMBOLO[f.moeda as Moeda]} {num(f.valorOriginal, f.moeda === "PYG" ? 0 : 2)}</small></>}</td>
+                      <td>{f.carga}, {num(f.toneladas, 1)} t{f.precoTonelada && <><br /><small className="muted">{SIMBOLO[f.moeda as Moeda]} {num(f.precoTonelada, 2)}/t</small></>}</td>
+                      <td className="n">{usd(f.freteUsd)}{f.valorOriginal && <><br /><small className="muted">{SIMBOLO[f.moeda as Moeda]} {num(f.valorOriginal, 2)}</small></>}</td>
                       <td className="n">{usd(f.margem?.custoUsd)}{f.custosExtrasUsd > 0 && <><br /><small className="muted">+{usd(f.custosExtrasUsd)} extras</small></>}</td>
                       <td className="n">{f.margem ? <span className={`pill ${corMargem(p)}`}>{usd(f.margem.margemUsd)} · {num(p, 0)}%</span> : "sem custo/km"}</td>
                       <td>

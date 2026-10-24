@@ -39,7 +39,7 @@ export function NovoFrete({ caminhoes, motoristas, cotacao, hoje, paisCliente }:
   const extrasUsd = Number(v.custosExtras) > 0 ? paraUsd(Number(v.custosExtras), moeda, cotacao) : 0;
   const km = Number(v.kmCarregado) || 0;
   const m = c?.custoKm != null && km > 0 && freteUsd > 0 ? margemViagem(freteUsd, km, Number(v.kmVazio) || 0, c.custoKm, extrasUsd) : null;
-  const casas = moeda === "PYG" ? 0 : 2;
+  const casas = 2;
 
   return (
     <form ref={formulario} action={acao} className="frete">

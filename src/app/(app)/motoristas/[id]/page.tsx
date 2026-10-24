@@ -71,7 +71,7 @@ export default async function DespesasDoMotorista({ params, searchParams }: { pa
                     <td><Placa placa={d.caminhao.placa} /></td>
                     <td>{NOME_CATEGORIA[d.categoria]}{d.origem !== "manual" && <> <span className="tag">{d.origem === "foto" ? "foto" : "áudio"}</span></>}</td>
                     <td>{[d.litros ? `${num(d.litros, 1)} l` : null, d.odometroKm ? `${num(d.odometroKm)} km` : null, d.posto, d.descricao].filter(Boolean).join(" · ") || "–"}</td>
-                    <td className="n">{d.moeda === "USD" ? "–" : `${SIMBOLO[d.moeda as Moeda]} ${num(d.valorOriginal, d.moeda === "PYG" ? 0 : 2)}`}</td>
+                    <td className="n">{d.moeda === "USD" ? "–" : `${SIMBOLO[d.moeda as Moeda]} ${num(d.valorOriginal, 2)}`}</td>
                     <td className="n">{num(d.valorUsd, 2)}</td>
                     <td>{d.usuario ? (d.usuario.papel === "MOTORISTA" ? "motorista" : d.usuario.nome) : "–"}</td>
                     <td>{comRecibo.has(d.id) ? <a href={`/recibos/${d.id}`} target="_blank" rel="noopener">ver</a> : "–"}</td>

@@ -29,7 +29,7 @@ type JanelaComVoz = Window & { SpeechRecognition?: new () => Reconhecimento; web
 
 const COMBUSTIVEL = ["DIESEL", "ARLA32"];
 type Etapa = "valor" | "tipo" | "litros" | "km" | "descricao";
-const CASAS: Record<Moeda, number> = { USD: 2, PYG: 0, BRL: 2, ARS: 2 };
+const CASAS: Record<Moeda, number> = { USD: 2, PYG: 2, BRL: 2, ARS: 2 };
 const BANDEIRA: Record<Moeda, string> = { PYG: "🇵🇾", USD: "🇺🇸", BRL: "🇧🇷", ARS: "🇦🇷" };
 const MOEDAS: Moeda[] = ["PYG", "USD", "BRL", "ARS"];
 
@@ -372,7 +372,7 @@ export function LancarDespesa({ caminhoes, hoje, cotacao, idioma, leituraAtiva }
   const emUsd = valorNum > 0 ? paraUsd(valorNum, f.moeda, cotacao) : null;
   const taxaTxt = {
     USD: null,
-    PYG: `1 USD = ${num(cotacao.pygPorUsd, 0)} ₲`,
+    PYG: `1 USD = ₲ ${num(cotacao.pygPorUsd, 2)}`,
     BRL: `1 USD = R$ ${num(cotacao.brlPorUsd, 2)}`,
     ARS: `1 USD = AR$ ${num(cotacao.arsPorUsd, 2)}`,
   }[f.moeda];

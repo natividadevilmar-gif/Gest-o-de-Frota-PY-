@@ -84,7 +84,7 @@ export async function lancarFrete(_: Resultado, form: FormData): Promise<Resulta
     },
   });
   revalidatePath("/", "layout");
-  return { ok: true, msg: `Frete ${f.origem} → ${f.destino} lançado em ${cam.placa}: ${usd(freteUsd, 2)}${moeda === "USD" ? "" : ` (${num(valor, moeda === "PYG" ? 0 : 2)} ${moeda})`}.` };
+  return { ok: true, msg: `Frete ${f.origem} → ${f.destino} lançado em ${cam.placa}: ${usd(freteUsd, 2)}${moeda === "USD" ? "" : ` (${num(valor, 2)} ${moeda})`}.` };
 }
 
 export async function marcarRecebido(form: FormData) {

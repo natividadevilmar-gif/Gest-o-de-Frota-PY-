@@ -20,7 +20,7 @@ export default async function Caixa({ searchParams }: { searchParams: Promise<{ 
         <SeletorMes mes={mes} caminho="/caixa" />
       </div>
       <div className="grid g4">
-        <Kpi rotulo="Caixa inicial" valor={usd(c.inicialUsd)} sub={c.inicial ? (c.inicial.moeda === "USD" ? "informado em dólar" : `${SIMBOLO[c.inicial.moeda as Moeda]} ${num(c.inicial.valorOriginal, c.inicial.moeda === "PYG" ? 0 : 2)}`) : "ainda não informado"} />
+        <Kpi rotulo="Caixa inicial" valor={usd(c.inicialUsd)} sub={c.inicial ? (c.inicial.moeda === "USD" ? "informado em dólar" : `${SIMBOLO[c.inicial.moeda as Moeda]} ${num(c.inicial.valorOriginal, 2)}`) : "ainda não informado"} />
         <Kpi rotulo="Fretes recebidos" valor={usd(c.recebidos)} sub={`${usd(c.aReceber)} ainda a receber`} />
         <Kpi rotulo="Despesas do mês" valor={usd(c.gastos + c.extras)} sub={c.extras ? `inclui ${usd(c.extras)} de custos extras das viagens` : "lançadas na frota"} />
         <Kpi rotulo="Saldo em caixa" valor={usd(c.saldo)} sub={`com tudo recebido: ${usd(c.saldo + c.aReceber)}`} />

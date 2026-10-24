@@ -45,16 +45,16 @@ export default async function Custos({ searchParams }: { searchParams: Promise<{
               {linhas.map((i) => (
                 <tr key={i.id}>
                   <td><Placa placa={i.placa} /></td>
-                  {COLUNAS.map((c) => <td key={c} className="n">{i.composicao[c] ? num(i.composicao[c]) : "–"}</td>)}
-                  <td className="n"><b>{num(i.custoTotal)}</b></td>
+                  {COLUNAS.map((c) => <td key={c} className="n">{i.composicao[c] ? num(i.composicao[c], 2) : "–"}</td>)}
+                  <td className="n"><b>{num(i.custoTotal, 2)}</b></td>
                   <td className="n">{num(i.km)}</td>
                   <td className="n">{num(i.custoKm, 2)}</td>
                 </tr>
               ))}
               <tr className="total">
                 <td><b>Frota</b></td>
-                {COLUNAS.map((c) => <td key={c} className="n"><b>{num(totalCat(c))}</b></td>)}
-                <td className="n"><b>{num(tot.custo)}</b></td>
+                {COLUNAS.map((c) => <td key={c} className="n"><b>{num(totalCat(c), 2)}</b></td>)}
+                <td className="n"><b>{num(tot.custo, 2)}</b></td>
                 <td className="n"><b>{num(tot.km)}</b></td>
                 <td className="n"><b>{num(tot.custoKm, 2)}</b></td>
               </tr>

@@ -66,11 +66,11 @@ export default async function Despesas({ searchParams }: { searchParams: Promise
                     <td><Placa placa={d.placa} /></td>
                     <td>{es ? t.tipos[d.categoria] : NOME_CATEGORIA[d.categoria]}{d.origem !== "manual" && <> <span className="tag">{d.origem === "foto" ? "foto" : "áudio"}</span></>}</td>
                     <td>
-                      {[d.litros ? `${num(d.litros, 1)} l` : null, d.precoLitro ? `${SIMBOLO[d.moeda as Moeda]} ${num(d.precoLitro, d.moeda === "PYG" ? 0 : 2)}/l` : null, d.posto, d.odometroKm ? `${num(d.odometroKm)} km` : null, d.descricao]
+                      {[d.litros ? `${num(d.litros, 1)} l` : null, d.precoLitro ? `${SIMBOLO[d.moeda as Moeda]} ${num(d.precoLitro, 2)}/l` : null, d.posto, d.odometroKm ? `${num(d.odometroKm)} km` : null, d.descricao]
                         .filter(Boolean)
                         .join(" · ") || "–"}
                     </td>
-                    <td className="n">{d.moeda === "USD" ? "–" : `${SIMBOLO[d.moeda as Moeda]} ${num(d.valorOriginal, d.moeda === "PYG" ? 0 : 2)}`}</td>
+                    <td className="n">{d.moeda === "USD" ? "–" : `${SIMBOLO[d.moeda as Moeda]} ${num(d.valorOriginal, 2)}`}</td>
                     <td className="n">{num(d.valorUsd, 2)}</td>
                     <td className="n">{d.kmLTanque ? num(d.kmLTanque, 2) : "–"}</td>
                     <td>{d.temRecibo ? <a href={`/recibos/${d.id}`} target="_blank" rel="noopener">ver</a> : "–"}</td>

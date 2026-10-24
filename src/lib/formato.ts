@@ -3,7 +3,7 @@ export function num(n: number | null | undefined, casas = 0): string {
   return n.toLocaleString("pt-BR", { minimumFractionDigits: casas, maximumFractionDigits: casas });
 }
 
-export function usd(n: number | null | undefined, casas = 0): string {
+export function usd(n: number | null | undefined, casas = 2): string {
   return n === null || n === undefined ? "–" : `USD ${num(n, casas)}`;
 }
 

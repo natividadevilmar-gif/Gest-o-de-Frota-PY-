@@ -71,7 +71,7 @@ export async function lancarDespesa(_: Resultado, form: FormData): Promise<Resul
     },
   });
   revalidatePath("/", "layout");
-  const conv = d.moeda === "USD" ? "" : ` (${num(d.valor, d.moeda === "PYG" ? 0 : 2)} ${d.moeda} a ${num(taxa(d.moeda as Moeda, cot), 2)})`;
+  const conv = d.moeda === "USD" ? "" : ` (${num(d.valor, 2)} ${d.moeda} a ${num(taxa(d.moeda as Moeda, cot), 2)})`;
   return { ok: true, msg: `${usd(valorUsd, 2)}${conv} ${es ? "cargado en" : "lançado em"} ${cam.placa}${d.litros ? `, ${num(d.litros, 1)} litros` : ""}.` };
 }
 
