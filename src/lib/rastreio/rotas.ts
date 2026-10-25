@@ -2,7 +2,7 @@
 // enquanto os caminhões ainda não têm rastreador instalado.
 
 export type Ponto = { lat: number; lng: number };
-export type PosicaoSimulada = Ponto & { velocidadeKmh: number; direcao: number; ignicao: boolean; data: Date };
+export type PosicaoSimulada = Ponto & { velocidadeKmh: number; direcao: number; ignicao: boolean; data: Date; rpm: number; local: string };
 
 export const ROTAS: { nome: string; pontos: Ponto[] }[] = [
   {
@@ -75,7 +75,7 @@ export const ROTAS: { nome: string; pontos: Ponto[] }[] = [
     ],
   },
   {
-    nome: "Asunción → Formosa (AR)",
+    nome: "Asunción → Formosa (RN11)",
     pontos: [
       { lat: -25.2828, lng: -57.6359 }, { lat: -25.2900, lng: -57.7200 }, { lat: -25.6000, lng: -57.9500 },
       { lat: -26.1800, lng: -58.1800 },
@@ -154,7 +154,9 @@ function viagemDemo(caminhaoId: string, dia: Date) {
   const saida = inicioDia + (folga ? 30 : 3 + (h % 480) / 60) * 3600_000;
   const chegada = inicioDia + (17 + (hash(chave + "c") % 180) / 60) * 3600_000;
   const media = 58 + (h % 15);
-  return { pontos, total, saida, chegada, media, kmIni, nome: ida ? rota.nome : rota.nome.split(" → ").reverse().join(" → ").replace(/ \((.+)\)$/, "") };
+  const [, a, b, cod] = /^(.+) → (.+?)(?: \((.+)\))?$/.exec(rota.nome) ?? [];
+  const [origem, destino] = ida ? [a, b] : [b, a];
+  return { pontos, total, saida, chegada, media, kmIni, origem, destino, rodovia: cod ?? null, nome: ida ? rota.nome : rota.nome.split(" → ").reverse().join(" → ").replace(/ \((.+)\)$/, "") };
 }
 
 /** Distância percorrida `d` a partir de `kmIni`, indo e voltando numa rota de `total` km. */
@@ -182,7 +184,11 @@ export function posicaoDemo(caminhaoId: string, agora: Date): PosicaoSimulada {
   // Parados, cada um fica num ponto diferente da cidade (até ~1,5 km), como num pátio ou posto.
   const dLat = rodando ? 0 : ((hash(caminhaoId + "lat") % 1000) / 1000 - 0.5) * 0.028;
   const dLng = rodando ? 0 : ((hash(caminhaoId + "lng") % 1000) / 1000 - 0.5) * 0.03;
-  return { lat: p.lat + dLat, lng: p.lng + dLng, direcao, velocidadeKmh: vel, ignicao: rodando, data: agora };
+  const rpm = rodando ? Math.round(1100 + vel * 6 + Math.sin(t / 40_000 + hash(caminhaoId)) * 80) : 0;
+  // Ex.: "PY02, km 182 → Ciudad del Este" (km contado a partir da origem da rota).
+  const trecho = `${v.rodovia ? `${v.rodovia}, ` : ""}km ${Math.round(km)}`;
+  const local = rodando ? `${trecho} → ${volta ? v.origem : v.destino}` : trecho;
+  return { lat: p.lat + dLat, lng: p.lng + dLng, direcao, velocidadeKmh: vel, ignicao: rodando, data: agora, rpm, local };
 }
 
 /** Trajeto de demonstração do dia até `ate`, um ponto a cada 5 minutos. */

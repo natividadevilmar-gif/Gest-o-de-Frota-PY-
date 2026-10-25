@@ -1,5 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
+import { indicadoresFrota } from "@/lib/dados";
+import { mesAtual, planoPermite } from "@/lib/indicadores";
 import { ehImei, LIMITE_VELOCIDADE_KMH, resumirDia } from "@/lib/telemetria/posicoes";
 import { diaNoParaguai, posicaoDemo, rotaDemoNome, trajetoDemo } from "./rotas";
 
@@ -20,6 +22,9 @@ export type CaminhaoMapa = {
   direcao: number;
   atualizadoEm: string | null;
   rota: string | null;
+  /** Onde está e para onde vai (ex.: "PY02, km 182 → Ciudad del Este"); só na demonstração. */
+  local: string | null;
+  rpm: number | null;
 };
 
 const SEM_SINAL_MS = 30 * 60_000;
@@ -41,7 +46,7 @@ export async function frotaNoMapa(clienteId: string | null, agora = new Date()):
   return lista.map((c) => {
     const base = { id: c.id, placa: c.placa, modelo: c.modelo, motorista: c.motorista?.nome ?? null, cliente: c.cliente.nome };
     if (!c.rastreadorId) {
-      return { ...base, situacao: "sem-rastreador", demo: false, lat: null, lng: null, velocidadeKmh: 0, direcao: 0, atualizadoEm: null, rota: null };
+      return { ...base, situacao: "sem-rastreador", demo: false, lat: null, lng: null, velocidadeKmh: 0, direcao: 0, atualizadoEm: null, rota: null, local: null, rpm: null };
     }
     if (ehImei(c.rastreadorId)) {
       return {
@@ -54,6 +59,8 @@ export async function frotaNoMapa(clienteId: string | null, agora = new Date()):
         direcao: 0,
         atualizadoEm: c.ultimaPosicaoEm?.toISOString() ?? null,
         rota: null,
+        local: null,
+        rpm: null,
       };
     }
     const p = posicaoDemo(c.id, agora);
@@ -67,6 +74,8 @@ export async function frotaNoMapa(clienteId: string | null, agora = new Date()):
       direcao: p.direcao,
       atualizadoEm: agora.toISOString(),
       rota: rotaDemoNome(c.id, diaNoParaguai(agora)),
+      local: p.local,
+      rpm: p.rpm,
     };
   });
 }
@@ -128,5 +137,35 @@ export async function trajetoDoDia(clienteId: string | null, caminhaoId: string,
     inicio: pts[0]?.data.toISOString() ?? null,
     fim: pts.at(-1)?.data.toISOString() ?? null,
     demo: false,
+  };
+}
+
+export type ResumoCaminhao = {
+  odometroKm: number;
+  kmMes: number;
+  /** km/l medido pela rede CAN no mês (null sem CAN). */
+  kmL: number | null;
+  /** Custo por km do mês (null fora do plano Gestão ou sem custos lançados). */
+  custoKm: number | null;
+  /** RPM do último sinal do aparelho próprio. */
+  rpm: number | null;
+};
+
+/** Números do mês de um caminhão para o painel do mapa (os mesmos do Custo por km e do Consumo). */
+export async function resumoDoCaminhao(clienteId: string | null, caminhaoId: string): Promise<ResumoCaminhao | null> {
+  const c = await db.caminhao.findFirst({ where: { id: caminhaoId, ...(clienteId ? { clienteId } : {}) }, select: { id: true, clienteId: true, rastreadorId: true } });
+  if (!c) return null;
+  const [ind, ultima] = await Promise.all([
+    indicadoresFrota(c.clienteId, mesAtual()),
+    ehImei(c.rastreadorId) ? db.posicao.findFirst({ where: { caminhaoId: c.id, rpm: { not: null } }, orderBy: { data: "desc" }, select: { rpm: true } }) : null,
+  ]);
+  const i = ind.find((x) => x.id === c.id);
+  if (!i) return null;
+  return {
+    odometroKm: i.odometroKm,
+    kmMes: i.km,
+    kmL: i.kmL,
+    custoKm: planoPermite(i.plano, "custos") && i.custoTotal > 0 ? i.custoKm : null,
+    rpm: ultima?.rpm ?? null,
   };
 }

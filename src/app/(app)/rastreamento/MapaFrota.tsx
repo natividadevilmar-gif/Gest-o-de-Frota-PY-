@@ -3,7 +3,7 @@
 import "leaflet/dist/leaflet.css";
 import type * as Leaflet from "leaflet";
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { CaminhaoMapa, Situacao, Trajeto } from "@/lib/rastreio/dados";
+import type { CaminhaoMapa, ResumoCaminhao, Situacao, Trajeto } from "@/lib/rastreio/dados";
 
 const ROTULO: Record<Situacao, string> = {
   movimento: "Em movimento",
@@ -16,6 +16,7 @@ const ROTULO: Record<Situacao, string> = {
 const EVENTO: Record<string, string> = { freada: "Freada brusca", aceleracao: "Aceleração brusca", curva: "Curva brusca", excesso: "Excesso de velocidade" };
 const ATUALIZAR_MS = 30_000;
 
+const numero = (n: number, casas = 0) => n.toLocaleString("pt-BR", { minimumFractionDigits: casas, maximumFractionDigits: casas });
 const hora = (iso: string | null) =>
   iso ? new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Asuncion" }) : "–";
 const quando = (iso: string | null) => {
@@ -35,7 +36,7 @@ export function MapaFrota({ inicial, hoje, todos = false }: { inicial: CaminhaoM
   const [frota, setFrota] = useState(inicial);
   const [sel, setSel] = useState<string | null>(null);
   const [dia, setDia] = useState(hoje);
-  const [trajeto, setTrajeto] = useState<Trajeto | null>(null);
+  const [trajeto, setTrajeto] = useState<(Trajeto & { resumo: ResumoCaminhao | null }) | null>(null);
   const [carregando, setCarregando] = useState(false);
   const [filtro, setFiltro] = useState<Situacao | "todos">("todos");
 
@@ -175,9 +176,7 @@ export function MapaFrota({ inicial, hoje, todos = false }: { inicial: CaminhaoM
         .bindTooltip(`${EVENTO[e.tipo] ?? e.tipo} · ${hora(e.hora)} · ${e.velocidadeKmh} km/h`)
         .addTo(grupo);
     }
-    // No computador o painel fica à direita, por cima do mapa: deixamos espaço para ele.
-    const largo = m.getSize().x > 700;
-    m.fitBounds(trajeto.pontos, { paddingTopLeft: [40, 40], paddingBottomRight: [largo ? 380 : 40, 40] });
+    m.fitBounds(trajeto.pontos, { padding: [40, 40] });
   }, [trajeto, pronto]);
 
   const contagem = useMemo(() => {
@@ -187,6 +186,8 @@ export function MapaFrota({ inicial, hoje, todos = false }: { inicial: CaminhaoM
   }, [frota]);
   const lista = frota.filter((c) => filtro === "todos" || c.situacao === filtro);
   const escolhido = frota.find((c) => c.id === sel) ?? null;
+  const r = trajeto?.resumo ?? null;
+  const rpm = escolhido?.rpm ?? r?.rpm ?? null;
 
   function escolher(c: CaminhaoMapa) {
     setSel(c.id === sel ? null : c.id);
@@ -198,26 +199,40 @@ export function MapaFrota({ inicial, hoje, todos = false }: { inicial: CaminhaoM
       <div className="rastreio-mapa">
         <div ref={caixa} className="rastreio-leaflet" />
         {escolhido && (
-          <div className="rastreio-painel">
+          <div className="rastreio-painel card">
             <div className="rastreio-painel-h">
               <div>
-                <b>{escolhido.placa}</b> · {escolhido.modelo}
-                <div className="sub">{todos ? `${escolhido.cliente} · ` : ""}{escolhido.motorista ?? "sem motorista"}{escolhido.rota ? ` · ${escolhido.rota}` : ""}</div>
+                <div className="rastreio-titulo">
+                  <span className="plate">{escolhido.placa}</span> <b>{escolhido.modelo}</b>
+                  <span className={`pill sit-${escolhido.situacao}`}>{ROTULO[escolhido.situacao]}</span>
+                </div>
+                <div className="sub">
+                  {todos ? `${escolhido.cliente} · ` : ""}{escolhido.motorista ?? "sem motorista"}
+                  {escolhido.local ? ` · ${escolhido.local}` : escolhido.rota ? ` · ${escolhido.rota}` : ""}
+                </div>
               </div>
               <button type="button" className="fechar" onClick={() => setSel(null)} aria-label="Fechar">×</button>
             </div>
+            <dl className="rastreio-agora">
+              <div><dt>Velocidade</dt><dd>{escolhido.velocidadeKmh} km/h</dd></div>
+              <div><dt>Odômetro</dt><dd>{r ? numero(r.odometroKm) : "…"}</dd></div>
+              <div><dt>km no mês</dt><dd>{r ? numero(r.kmMes) : "…"}</dd></div>
+              <div><dt>Consumo CAN</dt><dd>{r ? (r.kmL != null ? `${numero(r.kmL, 2)} km/l` : "sem CAN") : "…"}</dd></div>
+              <div><dt>RPM agora</dt><dd>{rpm != null ? numero(rpm) : "–"}</dd></div>
+              <div><dt>Custo por km</dt><dd>{r ? (r.custoKm != null ? `USD ${numero(r.custoKm, 2)}` : "–") : "…"}</dd></div>
+            </dl>
             <label className="rastreio-dia">
               Trajeto do dia
               <input type="date" value={dia} max={hoje} onChange={(e) => e.target.value && setDia(e.target.value)} />
             </label>
-            {carregando ? (
+            {carregando && !trajeto ? (
               <p className="sub">Carregando…</p>
             ) : trajeto && trajeto.pontos.length > 1 ? (
               <dl className="rastreio-resumo">
-                <div><dt>Rodou</dt><dd>{trajeto.km.toLocaleString("pt-BR")} km</dd></div>
+                <div><dt>Rodou</dt><dd>{numero(trajeto.km)} km</dd></div>
                 <div><dt>Velocidade máx.</dt><dd>{trajeto.velocidadeMax} km/h</dd></div>
                 <div><dt>Saída · último ponto</dt><dd>{hora(trajeto.inicio)} · {hora(trajeto.fim)}</dd></div>
-                <div><dt>Diesel (CAN)</dt><dd>{trajeto.litros != null ? `${trajeto.litros.toLocaleString("pt-BR")} L` : "–"}</dd></div>
+                <div><dt>Diesel (CAN)</dt><dd>{trajeto.litros != null ? `${numero(trajeto.litros)} L` : "–"}</dd></div>
                 <div className="largo"><dt>Alertas</dt><dd>{trajeto.eventos.length ? trajeto.eventos.map((e) => `${EVENTO[e.tipo] ?? e.tipo} ${hora(e.hora)}`).join(" · ") : "nenhum"}</dd></div>
               </dl>
             ) : (
@@ -243,9 +258,12 @@ export function MapaFrota({ inicial, hoje, todos = false }: { inicial: CaminhaoM
                 <i className={`ponto ponto-${c.situacao}`} />
                 <span className="rastreio-item">
                   <b>{c.placa}{c.demo && <span className="tag-demo">demonstração</span>}</b>
-                  <small>{todos ? `${c.cliente} · ` : ""}{c.motorista ?? "sem motorista"} · {ROTULO[c.situacao]}{c.situacao === "movimento" ? ` · ${c.velocidadeKmh} km/h` : ""}</small>
+                  <small>{todos ? `${c.cliente} · ` : ""}{c.motorista ?? "sem motorista"} · {ROTULO[c.situacao]}</small>
                 </span>
-                <small className="quando">{c.situacao === "sem-rastreador" ? "" : quando(c.atualizadoEm)}</small>
+                <span className="quando">
+                  {c.situacao === "movimento" && <b>{c.velocidadeKmh} km/h</b>}
+                  <small>{c.situacao === "sem-rastreador" ? "" : quando(c.atualizadoEm)}</small>
+                </span>
               </button>
             </li>
           ))}
