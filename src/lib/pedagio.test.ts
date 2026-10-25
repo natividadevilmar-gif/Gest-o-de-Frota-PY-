@@ -8,8 +8,6 @@ describe("pedágio previsto", () => {
   it("cobra por eixo ou valor fixo do caminhão pesado", () => {
     expect(valorPraca(br, 6)).toBe(63);
     expect(valorPraca(py, 6)).toBe(60_000);
-    expect(valorPraca(py, 5)).toBe(60_000);
-    expect(valorPraca(py, 9)).toBe(90_000);
   });
   it("soma por moeda e em dólar", () => {
     const r = previstoRota([py, br, { ...br, id: "c", nome: "Sem tarifa", tarifaEixo: null }], 6, { USD: 1, PYG: 7500, BRL: 5 });

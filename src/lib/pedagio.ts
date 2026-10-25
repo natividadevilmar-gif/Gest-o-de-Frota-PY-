@@ -6,19 +6,10 @@ export type Praca = {
   tarifaEixo: number | null; tarifaFixa: number | null;
 };
 
-/** Eixos cobertos pela tarifa fixa de caminhão pesado (cavalo + carreta de 3 eixos). */
-export const EIXOS_TARIFA_FIXA = 6;
-
-/**
- * Valor de uma praça para um caminhão com `eixos` eixos, na moeda da praça.
- * Tarifa fixa vale até 6 eixos; acima disso (bitrem, rodotrem) cobra cada eixo a mais
- * pela proporção da tarifa, como fazem as praças que têm categoria por eixo excedente.
- */
+/** Valor de uma praça para um caminhão com `eixos` eixos, na moeda da praça. */
 export function valorPraca(p: Praca, eixos: number): number {
   if (p.tarifaEixo != null) return Math.round(p.tarifaEixo * eixos * 100) / 100;
-  const fixa = p.tarifaFixa ?? 0;
-  const fator = Math.max(1, eixos / EIXOS_TARIFA_FIXA);
-  return Math.round(fixa * fator * 100) / 100;
+  return p.tarifaFixa ?? 0;
 }
 
 /** Unidades da moeda por 1 dólar (USD = 1). */
