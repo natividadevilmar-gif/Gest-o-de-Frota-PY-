@@ -3,7 +3,7 @@ import { clienteAtual } from "@/lib/acesso";
 import { db } from "@/lib/db";
 import { num, usd } from "@/lib/formato";
 import { mensalidadeTotal, NOME_PLANO, PRECO_MENSAL, type Plano } from "@/lib/indicadores";
-import { mudarEixos, mudarPlano } from "./actions";
+import { mudarCamera, mudarEixos, mudarPlano } from "./actions";
 import { CampoRastreador } from "./CampoRastreador";
 import { NovoCaminhao } from "./NovoCaminhao";
 import { Planos } from "./Planos";
@@ -67,6 +67,16 @@ export default async function Caminhoes() {
                     ) : (
                       <span className="tag">{NOME_PLANO[c.plano as Plano]}</span>
                     )}
+                    {c.plano === "VIDEO" && (pode ? (
+                      <form action={mudarCamera} className="form" style={{ flexWrap: "nowrap", marginTop: 6 }}>
+                        <input type="hidden" name="id" value={c.id} />
+                        <select name="camera" defaultValue={c.camera} aria-label={`Câmeras de ${c.placa}`}>
+                          <option value="dualcam">DualCam · 2 câmeras</option>
+                          <option value="mdvr4">MDVR · 4 câmeras</option>
+                        </select>
+                        <button type="submit">Salvar</button>
+                      </form>
+                    ) : <><br /><small className="muted">{c.camera === "mdvr4" ? "MDVR · 4 câmeras" : "DualCam · 2 câmeras"}</small></>)}
                   </td>
                 </tr>
               ))}

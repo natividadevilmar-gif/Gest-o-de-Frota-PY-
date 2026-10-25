@@ -77,3 +77,12 @@ export async function mudarEixos(form: FormData) {
   await db.caminhao.updateMany({ where: { id: String(form.get("id")), clienteId: cliente.id }, data: { eixos } });
   revalidatePath("/", "layout");
 }
+
+/** Câmeras do plano Vídeo: DualCam (2 câmeras, integrada) ou MDVR de 4 câmeras. */
+export async function mudarCamera(form: FormData) {
+  const { sessao, cliente } = await clienteAtual();
+  if (!soKmCero(sessao)) return;
+  const camera = z.enum(["dualcam", "mdvr4"]).parse(form.get("camera"));
+  await db.caminhao.updateMany({ where: { id: String(form.get("id")), clienteId: cliente.id }, data: { camera } });
+  revalidatePath("/", "layout");
+}

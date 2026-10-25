@@ -2,6 +2,8 @@ import Link from "next/link";
 import { clienteAtual } from "@/lib/acesso";
 import { processarComandos } from "@/lib/comandos/dados";
 import { NOME_GATILHO, dadosVideo } from "@/lib/video";
+import { db } from "@/lib/db";
+import { PainelMdvr } from "./PainelMdvr";
 import { Video } from "./Video";
 
 export const dynamic = "force-dynamic";
@@ -13,6 +15,7 @@ export default async function PaginaVideo({ searchParams }: { searchParams: Prom
   const todos = admin && sp.todos === "1";
   await processarComandos(todos ? null : cliente.id);
   const dados = await dadosVideo(todos ? null : cliente.id);
+  const mdvr = todos ? [] : await db.caminhao.findMany({ where: { clienteId: cliente.id, plano: "VIDEO", camera: "mdvr4" }, select: { placa: true }, orderBy: { placa: "asc" } });
   return (
     <>
       <div className="titulo-acoes">
@@ -24,12 +27,13 @@ export default async function PaginaVideo({ searchParams }: { searchParams: Prom
           </div>
         )}
       </div>
-      {dados.cameras.length === 0 ? (
+      {mdvr.length > 0 && <PainelMdvr placas={mdvr.map((c) => c.placa)} url={cliente.mdvrUrl} admin={admin} />}
+      {dados.cameras.length === 0 ? (mdvr.length > 0 ? null : (
         <div className="card">
           <p>Nenhum caminhão de {todos ? "nenhum cliente" : cliente.nome} está no plano Vídeo.</p>
-          <p className="note">No plano Vídeo o caminhão leva duas câmeras (estrada e cabine). Elas gravam sozinhas cada freada brusca, excesso ou impacto, e a central pode pedir uma foto ou vídeo a qualquer momento. Mude o plano do caminhão em Caminhões e planos.</p>
+          <p className="note">No plano Vídeo o caminhão leva duas câmeras (estrada e cabine) ou um MDVR de 4 câmeras. Elas gravam sozinhas cada freada brusca, excesso ou impacto, e a central pode pedir uma foto ou vídeo a qualquer momento. Mude o plano do caminhão em Caminhões e planos.</p>
         </div>
-      ) : (
+      )) : (
         <Video
           key={todos ? "todos" : cliente.id}
           inicial={dados}

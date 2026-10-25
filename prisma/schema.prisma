@@ -61,6 +61,8 @@ model Cliente {
   diaVencimento        Int           @default(10)
   contratoInicio       DateTime?
   endereco             String?
+  // Painel do fabricante do MDVR (4 câmeras), aberto pelo menu Vídeo até a integração completa.
+  mdvrUrl              String?
   criadoEm             DateTime      @default(now())
   usuarios             Usuario[]
   caminhoes            Caminhao[]
@@ -126,6 +128,8 @@ model Caminhao {
   cercaAtualId      String?
   // Eixos do conjunto (cavalo + carreta): o pedágio é cobrado por eixo na maioria das praças.
   eixos             Int             @default(6)
+  // Câmeras do plano Vídeo: "dualcam" (Teltonika, integrada) ou "mdvr4" (MDVR de 4 câmeras).
+  camera            String          @default("dualcam")
   // Saída do rastreador que corta o motor (DOUT1), confirmada pelo aparelho.
   motorBloqueado    Boolean         @default(false)
   motoristaId       String?

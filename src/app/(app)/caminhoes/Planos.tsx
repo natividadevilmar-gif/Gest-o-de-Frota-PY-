@@ -37,7 +37,7 @@ const COBERTURA: Record<Plano, { nome: string; resumo: string; base?: Plano; ite
     resumo: "Ver o que aconteceu, não só saber que aconteceu.",
     base: "GESTAO",
     itens: [
-      ["Duas câmeras", "Uma filma a estrada e outra a cabine (Teltonika DualCam)."],
+      ["Duas ou quatro câmeras", "DualCam (estrada e cabine) ou MDVR de 4 câmeras: frente, cabine, lateral e ré ou carga."],
       ["Vídeo automático dos eventos", "Freada brusca, curva, excesso ou impacto gravam o vídeo sozinhos."],
       ["Vídeo no alerta", "Na Central, o alerta já vem com o botão Ver vídeo."],
       ["Foto ou vídeo na hora", "A central pede uma foto ou os últimos 10 segundos quando quiser."],

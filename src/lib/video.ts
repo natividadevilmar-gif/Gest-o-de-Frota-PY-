@@ -112,7 +112,7 @@ export async function dadosVideo(clienteId: string | null, agora = new Date()) {
   await garantirMidiasDemo(clienteId, agora);
   const [frota, planos, midias, pedidos] = await Promise.all([
     frotaNoMapa(clienteId, agora),
-    db.caminhao.findMany({ where: { plano: "VIDEO", ...(clienteId ? { clienteId } : {}) }, select: { id: true } }),
+    db.caminhao.findMany({ where: { plano: "VIDEO", camera: "dualcam", ...(clienteId ? { clienteId } : {}) }, select: { id: true } }),
     midiasVista(clienteId ? { clienteId } : {}),
     db.comando.count({ where: { tipo: { in: ["foto", "video"] }, status: { in: ["pendente", "aguardando", "enviado"] }, ...(clienteId ? { clienteId } : {}) } }),
   ]);
