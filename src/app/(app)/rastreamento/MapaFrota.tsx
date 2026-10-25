@@ -86,8 +86,9 @@ export function MapaFrota({ inicial, hoje, todos = false }: { inicial: CaminhaoM
     if (!pronto || !mod || !grupo) return;
     grupo.clearLayers();
     // Com muitos caminhões, só o ponto colorido; a placa aparece ao passar o mouse e no escolhido.
-    const compacto = frota.filter((c) => c.lat != null).length > 30;
-    for (const c of frota) {
+    const visiveis = frota.filter((c) => filtro === "todos" || c.situacao === filtro);
+    const compacto = visiveis.filter((c) => c.lat != null).length > 30;
+    for (const c of visiveis) {
       if (c.lat == null || c.lng == null) continue;
       const comPlaca = !compacto || c.id === sel;
       const icone = mod.divIcon({
@@ -100,7 +101,17 @@ export function MapaFrota({ inicial, hoje, todos = false }: { inicial: CaminhaoM
         .on("click", () => setSel(c.id))
         .addTo(grupo);
     }
-  }, [frota, sel, pronto, todos]);
+  }, [frota, sel, pronto, todos, filtro]);
+
+  // Ao trocar o filtro, o mapa enquadra só os caminhões daquela situação.
+  useEffect(() => {
+    const m = mapa.current;
+    if (!pronto || !m) return;
+    const pts = frota.filter((c) => c.lat != null && (filtro === "todos" || c.situacao === filtro)).map((c) => [c.lat!, c.lng!] as [number, number]);
+    if (pts.length) m.fitBounds(pts, { padding: [40, 40], maxZoom: 10 });
+    setSel((atual) => (atual && frota.some((c) => c.id === atual && (filtro === "todos" || c.situacao === filtro)) ? atual : null));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtro, pronto]);
 
   // Trajeto do caminhão escolhido no dia escolhido.
   useEffect(() => {
