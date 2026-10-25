@@ -76,7 +76,8 @@ export function lerFalaLocal(frase: string): FalaLida {
 
 export type NotaLida = FalaLida & { data: string | null; posto: string | null };
 
-const NUM_DINHEIRO = /\d{1,3}(?:[.\s]\d{3})+(?:,\d{1,2})?|\d+,\d{1,2}|\d{3,7}/g;
+// Inclui centavos com ponto (426.21), comum no OCR de cupom brasileiro.
+const NUM_DINHEIRO = /\d{1,3}(?:[.\s]\d{3})+(?:,\d{1,2})?(?![.,]?\d)|\d+[.,]\d{2}(?!\d)|\d+,\d(?!\d)|\d{3,7}/g;
 const NAO_E_VALOR = /\b(ruc|timbrado|tel|telefone|cuit|cnpj|cpf|nro|n[ºo°]|factura|fatura|caja|cajero|ticket|autoriza)/i;
 
 function dinheiro(txt: string): number {
@@ -103,20 +104,30 @@ export function lerNotaLocal(texto: string, hoje = new Date()): NotaLida {
   const brutos = (l: string) => (NAO_E_VALOR.test(l) || /\d{2}[/-]\d{2}[/-]\d{2,4}|\d{2}:\d{2}/.test(l) ? [] : (l.match(NUM_DINHEIRO) ?? []));
   const valoresDa = (l: string) => brutos(l).map(dinheiro);
   // "TOTAL A PAGAR" costuma vir numa linha e o valor na de baixo (faturas com caixas).
-  const ehTotal = (l: string) => /total|a\s*pagar|importe|monto/i.test(l) && !/sub\s*-?total|total\s*iz/i.test(l);
-  const totais = linhas.flatMap((l, i) => {
-    if (!ehTotal(l)) return [];
+  const NAO_E_TOTAL = /sub\s*-?total|total\s*iz|qtd|quant|cantidad|\bite[nm]s?\b|descont|tributo|imposto|impuesto|\biva\b/i;
+  const ehTotal = (l: string) => /total|a\s*pagar|importe|monto/i.test(l) && !NAO_E_TOTAL.test(l);
+  // O que foi pago de fato, já com desconto: "VALOR A PAGAR", "TOTAL PAGO", "NETO A PAGAR".
+  const ehPago = (l: string) => /a\s*pagar|valor\s*pago|total\s*pago|neto|l[ií]quido/i.test(l) && !/descont/i.test(l);
+  const valoresDoRotulo = (l: string, i: number) => {
     const v = valoresDa(l);
     if (v.length) return v;
     // Só olha a linha de baixo quando o rótulo fecha a linha ("TOTAL A PAGAR", "Total:").
-    return /(total|pagar|importe|monto)[\s:|.]*$/i.test(l) ? valoresDa(linhas[i + 1] ?? "") : [];
-  });
+    return /(total|pagar|pago|importe|monto|neto|l[ií]quido)[\s:|.$R]*$/i.test(l) ? valoresDa(linhas[i + 1] ?? "") : [];
+  };
+  const pagos = linhas.flatMap((l, i) => (ehPago(l) ? valoresDoRotulo(l, i).slice(-1) : []));
+  let totais = pagos.length ? [pagos.at(-1)!] : linhas.flatMap((l, i) => (ehTotal(l) ? valoresDoRotulo(l, i) : []));
+  // Sem "a pagar", mas com desconto na nota: total menos o desconto.
+  if (!pagos.length && totais.length) {
+    const desconto = linhas.flatMap((l, i) => (/^\s*desconto?\b/i.test(l) && !/item/i.test(l) ? valoresDoRotulo(l, i) : [])).at(-1);
+    const total = Math.max(...totais);
+    if (desconto && desconto < total) totais = [Math.round((total - desconto) * 100) / 100];
+  }
   // Valores com centavos (471,65) ou milhar (2.145.000) valem mais que números soltos (leituras, CEP, matrícula).
   const candidatos = linhas.flatMap((l) => (/litros?|\blts?\b/i.test(l) ? [] : brutos(l)));
-  const fortes = candidatos.filter((c) => /,\d{2}$|\d\.\d{3}/.test(c) && !/\s/.test(c));
+  const fortes = candidatos.filter((c) => /[.,]\d{2}$|\d\.\d{3}/.test(c) && !/\s/.test(c));
   const todos = (fortes.length ? fortes : candidatos).map(dinheiro);
   const lista = totais.length ? totais : todos;
-  const valor = lista.length ? Math.max(...lista) : null;
+  const valor = pagos.length ? totais[0] : lista.length ? Math.max(...lista) : null;
 
   const ml = /(\d+(?:[.,]\d+)?)\s*(?:l|lt|lts|litros?)\b/i.exec(texto);
   const ml2 = ml ? Number(ml[1].replace(",", ".")) : 0;

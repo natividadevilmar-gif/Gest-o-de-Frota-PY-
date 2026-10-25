@@ -51,6 +51,28 @@ IVA 10% 195.000`);
   it("total na linha de baixo do rótulo", () => {
     expect(lerNotaLocal("TOTAL A PAGAR\nR$ 471,65\nConsumo 254,94\nLeitura 01160").valor).toBe(471.65);
   });
+  it("cupom com desconto: vale o valor a pagar, com centavos", () => {
+    const cupom = `035 07891024132371 CR.DENTAL COLGATE T.ACAO MENTA 180G
+2UN X 11,59 F1 23,18
+desconto item 035 -3,38
+036 07891021002127 FILTRO DE PAPEL BRIGITTA 103 C/30
+1UN X 3,89 T19,50% 3,89
+QTD. TOTAL DE ITENS 36
+VALOR TOTAL R$ 430,39
+DESCONTO R$ -4,18
+VALOR A PAGAR R$ 426.21
+Cartao de Credito R$ 426,21
+NFC-e 000384746 Serie 109 25/10/2026 08:57:54
+Tributos Incid. Lei Federal 12.741/12 - R$ 111,15
+TOTAL DESCONTOS: 4,18`;
+    expect(lerNotaLocal(cupom, new Date("2026-10-25T15:00:00Z"))).toMatchObject({ valor: 426.21, moeda: "BRL", data: "2026-10-25" });
+  });
+  it("sem 'a pagar', desconta o desconto do total", () => {
+    expect(lerNotaLocal("VALOR TOTAL R$ 430,39\nDESCONTO R$ -4,18\nCartao R$").valor).toBe(426.21);
+  });
+  it("centavos com ponto não viram número inteiro", () => {
+    expect(lerNotaLocal("TOTAL R$ 426.21").valor).toBe(426.21);
+  });
   it("nota argentina em pesos", () => {
     expect(lerNotaLocal("Gomeria Ruta 14\nCUIT 30-12345678-9\nReparacion cubierta\nTOTAL $ 25.500,00")).toMatchObject({ categoria: "PNEUS", valor: 25500, moeda: "ARS" });
   });

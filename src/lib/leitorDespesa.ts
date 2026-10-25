@@ -9,7 +9,7 @@ import { z } from "zod";
 
 export const DespesaLida = z.object({
   categoria: z.enum(["DIESEL", "ARLA32", "ALIMENTACAO", "PEDAGIO", "MANUTENCAO", "PNEUS", "OUTROS"]),
-  valor: z.number().nullable().describe("Valor total, na moeda em que foi pago"),
+  valor: z.number().nullable().describe("Valor pago, já com desconto e com centavos, na moeda em que foi pago"),
   moeda: z.enum(["USD", "PYG", "BRL", "ARS"]).nullable(),
   litros: z.number().nullable(),
   precoLitro: z.number().nullable().describe("Preço por litro na moeda do recibo"),
@@ -27,6 +27,7 @@ export type MidiaRecibo = { base64: string; tipo: "image/jpeg" | "image/png" | "
 const INSTRUCOES = `Você lê despesas de caminhões de transportadoras do Paraguai, a partir da foto de um recibo ou de uma frase falada em português ou espanhol.
 Extraia os campos pedidos. Regras:
 - Combustível diesel é DIESEL; Arla 32 (AdBlue, urea) é ARLA32. Pedágio/peaje é PEDAGIO. Peças, oficina, óleo e filtros são MANUTENCAO. Borracharia, gomería, conserto ou troca de pneu é PNEUS. Refeição, lanche, restaurante, comedor, almoço e janta são ALIMENTACAO.
+- O valor é o que foi pago de fato, já com os descontos: use "VALOR A PAGAR", "TOTAL PAGO" ou "NETO A PAGAR", não o "VALOR TOTAL" antes do desconto. Mantenha os centavos (426,21, não 426).
 - Informe o valor e a moeda exatamente como pagos; não converta. A conversão para dólar é feita pelo sistema.
 - Recibos argentinos vêm em pesos ($, ARS) e usam ponto como separador de milhar e vírgula nos centavos.
 - Recibos paraguaios costumam vir em guaranis (Gs., ₲, PYG); guaranis não têm centavos e usam ponto como separador de milhar (2.500.000 = dois milhões e meio).
