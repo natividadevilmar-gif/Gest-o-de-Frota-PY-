@@ -363,6 +363,7 @@ button.pri.perigo{background:var(--bad);border-color:var(--bad);color:#fff}
 .oc-whats label{display:grid;gap:4px;font-size:13px;font-weight:600}
 .oc-whats textarea,.oc-whats input{font:inherit;font-weight:400}
 .oc-whats button{justify-self:start}
+.oc-cel{display:grid;grid-template-columns:auto 1fr;gap:8px}
 .oc-video{background:var(--bad);border-color:var(--bad);color:var(--surface)}
 
 /* Planos */

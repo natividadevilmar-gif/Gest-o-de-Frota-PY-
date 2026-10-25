@@ -1,13 +1,39 @@
 // Mensagem de WhatsApp para o motorista, aberta pelo link wa.me (sem custo e sem API).
 
-const DDI: Record<string, string> = { PY: "595", BR: "55", AR: "54", UY: "598", BO: "591", CL: "56" };
+/** Código de cada país (DDI) e o tamanho mínimo do número internacional completo. */
+export const PAISES_DDI = [
+  { pais: "PY", ddi: "595", nome: "🇵🇾 +595", min: 12 },
+  { pais: "BR", ddi: "55", nome: "🇧🇷 +55", min: 12 },
+  { pais: "AR", ddi: "54", nome: "🇦🇷 +54", min: 12 },
+  { pais: "UY", ddi: "598", nome: "🇺🇾 +598", min: 11 },
+  { pais: "BO", ddi: "591", nome: "🇧🇴 +591", min: 11 },
+  { pais: "CL", ddi: "56", nome: "🇨🇱 +56", min: 11 },
+];
 
-/** Número no formato internacional só com dígitos. Celular local (0981…) recebe o código do país. */
-export function numeroInternacional(celular: string, pais: string): string {
+/**
+ * Separa o código do país e o número local. Número com código já incluído (sem o 0 da frente
+ * e com o tamanho de número internacional) mantém o código; senão usa o país padrão.
+ */
+export function separarNumero(celular: string, paisPadrao: string): { ddi: string; local: string } {
   const d = celular.replace(/\D/g, "");
-  if (!d) return "";
-  if (celular.trim().startsWith("+") || Object.values(DDI).some((c) => d.startsWith(c) && d.length >= c.length + 9)) return d;
-  return (DDI[pais] ?? DDI.PY) + d.replace(/^0+/, "");
+  const padrao = (PAISES_DDI.find((p) => p.pais === paisPadrao) ?? PAISES_DDI[0]).ddi;
+  if (!d.startsWith("0")) {
+    const p = PAISES_DDI.find((x) => d.startsWith(x.ddi) && d.length >= x.min);
+    if (p) return { ddi: p.ddi, local: d.slice(p.ddi.length) };
+  }
+  return { ddi: padrao, local: d.replace(/^0+/, "") };
+}
+
+/** Número internacional só com dígitos: código do país + número local sem o 0 da frente. */
+export function numeroInternacional(celular: string, pais: string): string {
+  const { ddi, local } = separarNumero(celular, pais);
+  return local ? ddi + local : "";
+}
+
+/** Junta o código escolhido com o número digitado (aceita o número já com o código). */
+export function juntarNumero(ddi: string, local: string): string {
+  const d = local.replace(/\D/g, "").replace(/^0+/, "");
+  return d ? ddi + (d.startsWith(ddi) && d.length > 9 ? d.slice(ddi.length) : d) : "";
 }
 
 export function linkWhatsapp(numero: string, texto: string): string {

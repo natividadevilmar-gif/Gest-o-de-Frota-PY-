@@ -95,6 +95,8 @@ model Motorista {
   cliente   Cliente       @relation(fields: [clienteId], references: [id], onDelete: Cascade)
   nome      String
   documento String?
+  // Código do país do celular (595, 55, 54…) para o WhatsApp; o login continua sendo o número local.
+  ddi       String?
   caminhoes Caminhao[]
   acesso    Usuario?
   viagens   Viagem[]

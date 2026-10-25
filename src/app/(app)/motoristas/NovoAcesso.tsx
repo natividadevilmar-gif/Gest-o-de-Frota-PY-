@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
+import { PAISES_DDI } from "@/lib/whatsapp";
 import { criarAcesso } from "./actions";
 
 type Props = {
@@ -8,7 +9,7 @@ type Props = {
   caminhoes: { id: string; placa: string; motorista: string | null; lanca: boolean }[];
 };
 
-export function NovoAcesso({ motoristas, caminhoes, idioma }: Props & { idioma: "pt" | "es" }) {
+export function NovoAcesso({ motoristas, caminhoes, idioma, pais }: Props & { idioma: "pt" | "es"; pais: string }) {
   const [r, acao, enviando] = useActionState(criarAcesso, null);
   const [quem, setQuem] = useState(motoristas[0]?.id ?? "novo");
   // Depois de criar, o motorista sai da lista: volta a seleção para um que ainda não tem acesso.
@@ -29,6 +30,11 @@ export function NovoAcesso({ motoristas, caminhoes, idioma }: Props & { idioma: 
         <select id="caminhaoId" name="caminhaoId" defaultValue="">
           <option value="">Manter como está</option>
           {caminhoes.map((c) => <option key={c.id} value={c.id}>{c.placa}{c.motorista ? ` (hoje: ${c.motorista})` : ""}{c.lanca ? "" : " · plano Básico, sem despesas"}</option>)}
+        </select>
+      </label>
+      <label htmlFor="ddi">País do celular
+        <select id="ddi" name="ddi" defaultValue={(PAISES_DDI.find((p) => p.pais === pais) ?? PAISES_DDI[0]).ddi}>
+          {PAISES_DDI.map((p) => <option key={p.ddi} value={p.ddi}>{p.nome}</option>)}
         </select>
       </label>
       <label htmlFor="celular">Celular (login)<input id="celular" name="celular" inputMode="tel" placeholder="celular do motorista, ex.: 09XX XXX XXX" required /></label>

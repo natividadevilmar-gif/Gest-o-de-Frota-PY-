@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { linkWhatsapp, mensagemOcorrencia, mensagemPedagio, numeroInternacional } from "./whatsapp";
+import { juntarNumero, linkWhatsapp, mensagemOcorrencia, mensagemPedagio, numeroInternacional } from "./whatsapp";
 
 describe("WhatsApp do motorista", () => {
   it("põe o código do país no celular local", () => {
@@ -7,6 +7,11 @@ describe("WhatsApp do motorista", () => {
     expect(numeroInternacional("45 99912-3456", "BR")).toBe("5545999123456");
     expect(numeroInternacional("+595 981 123456", "BR")).toBe("595981123456");
     expect(numeroInternacional("595981123456", "PY")).toBe("595981123456");
+    // DDD 55 do Rio Grande do Sul: número local, não código do país.
+    expect(numeroInternacional("55 99912-3456", "BR")).toBe("5555999123456");
+    expect(juntarNumero("55", "45 99912-3456")).toBe("5545999123456");
+    expect(juntarNumero("54", "011 1234-5678")).toBe("541112345678");
+    expect(juntarNumero("595", "+595 981 123456")).toBe("595981123456");
   });
   it("monta a cobrança no idioma do motorista", () => {
     const o = { nome: "Nelson Duarte", placa: "AABN 389", detalhe: "Passou por Iruña, Trinidad em 24/10/2026 (previsto USD 19,20) e lançou USD 0,00." };

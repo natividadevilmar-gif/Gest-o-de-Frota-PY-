@@ -16,6 +16,7 @@ const acesso = z.object({
   celular: z.string().transform(normalizarLogin).pipe(z.string().regex(/^\d{8,15}$/)),
   pin: z.string().regex(/^\d{6,8}$/),
   idioma: z.enum(["pt", "es"]),
+  ddi: z.enum(["595", "55", "54", "598", "591", "56"]),
 });
 
 /** Cria o acesso de um motorista (e o motorista, se for novo) com celular e PIN. */
@@ -39,6 +40,7 @@ export async function criarAcesso(_: Resultado, form: FormData): Promise<Resulta
   const mot = await db.motorista.findFirst({ where: { id: motoristaId, clienteId: cliente.id }, include: { acesso: true } });
   if (!mot) return { ok: false, msg: "Motorista não encontrado." };
   if (mot.acesso) return { ok: false, msg: `${mot.nome} já tem acesso, com o celular ${mot.acesso.email}. Para mudar, use Remover acesso na lista abaixo e crie de novo.` };
+  await db.motorista.update({ where: { id: mot.id }, data: { ddi: d.ddi } });
   if (d.caminhaoId) await db.caminhao.updateMany({ where: { id: d.caminhaoId, clienteId: cliente.id }, data: { motoristaId: mot.id } });
 
   await db.usuario.create({

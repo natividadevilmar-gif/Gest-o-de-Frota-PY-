@@ -28,6 +28,7 @@ export default async function Motoristas() {
         <div className="card-h"><h2>Criar acesso</h2><p>O motorista entra com o celular e o PIN e só vê a tela de lançar despesas do caminhão dele.</p></div>
         <NovoAcesso
           idioma={cliente.idioma}
+          pais={cliente.pais}
           motoristas={motoristas.filter((m) => !m.acesso).map((m) => ({ id: m.id, nome: m.nome }))}
           caminhoes={caminhoes.map((c) => ({ id: c.id, placa: c.placa, motorista: c.motorista?.nome ?? null, lanca: planoPermite(c.plano, "custos") }))}
         />
@@ -42,7 +43,7 @@ export default async function Motoristas() {
                 <tr key={m.id}>
                   <td><Link href={`/motoristas/${m.id}`}><b>{m.nome}</b></Link><br /><small className="muted">ver despesas</small></td>
                   <td>{m.caminhoes.length ? m.caminhoes.map((c) => <Placa key={c.placa} placa={c.placa} />) : "–"}</td>
-                  <td>{m.acesso?.email ?? <span className="muted">sem acesso</span>}</td>
+                  <td>{m.acesso ? <>{m.ddi ? `+${m.ddi} ` : ""}{m.acesso.email}</> : <span className="muted">sem acesso</span>}</td>
                   <td>
                     {m.acesso && (
                       <form action={mudarIdioma} className="form" style={{ flexWrap: "nowrap" }}>

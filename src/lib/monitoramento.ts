@@ -1,6 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { pedagiosSemRegistro } from "@/lib/pedagioDados";
+import { juntarNumero } from "@/lib/whatsapp";
 import { frotaNoMapa, type CaminhaoMapa } from "@/lib/rastreio/dados";
 import { diaNoParaguai, distanciaKm } from "@/lib/rastreio/rotas";
 import { ehImei, LIMITE_VELOCIDADE_KMH } from "@/lib/telemetria/posicoes";
@@ -117,7 +118,7 @@ export async function verificarFrota(clienteId: string | null, agora = new Date(
 export async function ocorrenciasAbertas(clienteId: string | null) {
   return db.ocorrencia.findMany({
     where: { status: { not: "resolvida" }, ...(clienteId ? { clienteId } : {}) },
-    include: { caminhao: { select: { placa: true, motorista: { select: { nome: true, acesso: { select: { email: true, idioma: true } } } } } }, cliente: { select: { nome: true, pais: true, idioma: true } }, midias: { select: { id: true }, orderBy: { data: "asc" }, take: 1 } },
+    include: { caminhao: { select: { placa: true, motorista: { select: { nome: true, ddi: true, acesso: { select: { email: true, idioma: true } } } } } }, cliente: { select: { nome: true, pais: true, idioma: true } }, midias: { select: { id: true }, orderBy: { data: "asc" }, take: 1 } },
     orderBy: { criadaEm: "desc" },
     take: 300,
   });
@@ -126,7 +127,7 @@ export async function ocorrenciasAbertas(clienteId: string | null) {
 export async function ocorrenciasResolvidas(clienteId: string | null) {
   return db.ocorrencia.findMany({
     where: { status: "resolvida", ...(clienteId ? { clienteId } : {}) },
-    include: { caminhao: { select: { placa: true, motorista: { select: { nome: true, acesso: { select: { email: true, idioma: true } } } } } }, cliente: { select: { nome: true, pais: true, idioma: true } }, midias: { select: { id: true }, orderBy: { data: "asc" }, take: 1 } },
+    include: { caminhao: { select: { placa: true, motorista: { select: { nome: true, ddi: true, acesso: { select: { email: true, idioma: true } } } } } }, cliente: { select: { nome: true, pais: true, idioma: true } }, midias: { select: { id: true }, orderBy: { data: "asc" }, take: 1 } },
     orderBy: { resolvidaEm: "desc" },
     take: 30,
   });
@@ -143,11 +144,17 @@ export type OcorrenciaVista = {
   criadaEm: string; atendidaPor: string | null; resolvidaEm: string | null; observacao: string | null;
 };
 
+/** Com o país salvo no acesso, o número já vai com o código; sem ele, vale o país do cliente. */
+function celularMotorista(ddi: string | null, login: string | undefined): string | null {
+  if (!login) return null;
+  return ddi ? juntarNumero(ddi, login) : login;
+}
+
 export function paraVista(o: Awaited<ReturnType<typeof ocorrenciasAbertas>>[number]): OcorrenciaVista {
   return {
     id: o.id, tipo: o.tipo, gravidade: o.gravidade, titulo: o.titulo, detalhe: o.detalhe, status: o.status,
     lat: o.lat, lng: o.lng, placa: o.caminhao.placa, caminhaoId: o.caminhaoId, cliente: o.cliente.nome, midiaId: o.midias[0]?.id ?? null,
-    motorista: o.caminhao.motorista ? { nome: o.caminhao.motorista.nome, celular: o.caminhao.motorista.acesso?.email ?? null, idioma: o.caminhao.motorista.acesso?.idioma ?? o.cliente.idioma } : null,
+    motorista: o.caminhao.motorista ? { nome: o.caminhao.motorista.nome, celular: celularMotorista(o.caminhao.motorista.ddi, o.caminhao.motorista.acesso?.email), idioma: o.caminhao.motorista.acesso?.idioma ?? o.cliente.idioma } : null,
     pais: o.cliente.pais,
     criadaEm: o.criadaEm.toISOString(), atendidaPor: o.atendidaPor, resolvidaEm: o.resolvidaEm?.toISOString() ?? null, observacao: o.observacao,
   };
