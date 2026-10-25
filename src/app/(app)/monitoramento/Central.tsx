@@ -231,8 +231,8 @@ export function Central({ inicial, todos, clienteNome, podeCercas, tiposCerca }:
                       <button type="button" className="pri" disabled={pendente} onClick={() => { setResolvendo(resolvendo === o.id ? null : o.id); setObs(""); }}>Resolver</button>
                     </div>
                     <div className="oc-links">
-                      {o.midiaId && <a href={`/video?midia=${o.midiaId}${todos ? "&todos=1" : ""}`}>▶ Ver vídeo</a>}
-                      <a href={`/comandos?caminhao=${o.caminhaoId}${todos ? "&todos=1" : ""}`}>Comandos</a>
+                      {o.midiaId && <a className="oc-btn oc-video" href={`/video?midia=${o.midiaId}${todos ? "&todos=1" : ""}`}><span aria-hidden="true">▶</span> Ver vídeo</a>}
+                      <a className="oc-btn" href={`/comandos?caminhao=${o.caminhaoId}${todos ? "&todos=1" : ""}`}><span aria-hidden="true">⚙</span> Comandos</a>
                     </div>
                     {resolvendo === o.id && (
                       <form className="oc-resolver" onSubmit={(e) => { e.preventDefault(); agir(async () => { await resolverOcorrencia(o.id, obs); setResolvendo(null); }); }}>
