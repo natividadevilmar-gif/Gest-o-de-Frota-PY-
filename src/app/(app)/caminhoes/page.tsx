@@ -1,5 +1,5 @@
 import { Placa } from "@/components/ui";
-import { clienteAtual, podeEditarCadastros } from "@/lib/acesso";
+import { clienteAtual } from "@/lib/acesso";
 import { db } from "@/lib/db";
 import { num, usd } from "@/lib/formato";
 import { mensalidadeTotal, NOME_PLANO, PRECO_MENSAL, type Plano } from "@/lib/indicadores";
@@ -10,7 +10,8 @@ import { Planos } from "./Planos";
 
 export default async function Caminhoes() {
   const { sessao, cliente } = await clienteAtual();
-  const pode = podeEditarCadastros(sessao);
+  // Só a equipe KM Cero cadastra caminhão, muda plano ou rastreador (depois de instalar o equipamento).
+  const pode = sessao.papel === "ADMIN";
   const lista = await db.caminhao.findMany({ where: { clienteId: cliente.id }, include: { motorista: true }, orderBy: { placa: "asc" } });
   return (
     <>
@@ -64,6 +65,9 @@ export default async function Caminhoes() {
           </table>
         </div>
       </div>
+      {!pode && (
+        <p className="note">Para incluir um caminhão ou mudar de plano, fale com a KM Cero: o caminhão entra no sistema depois que o rastreador é instalado.</p>
+      )}
       {pode && (
         <div className="card">
           <div className="card-h"><h2>Cadastrar caminhão</h2><p>Os custos fixos entram no custo por km todo mês.</p></div>

@@ -2,7 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { clienteAtual, podeEditarCadastros } from "@/lib/acesso";
+import { clienteAtual } from "@/lib/acesso";
+import type { Sessao } from "@/lib/sessao";
+
+// Caminhão, plano e rastreador só são alterados pela equipe KM Cero, depois da instalação do equipamento.
+const soKmCero = (s: Sessao) => s.papel === "ADMIN";
 import { db } from "@/lib/db";
 
 const novo = z.object({
@@ -22,7 +26,7 @@ export type Resultado = { ok: boolean; msg: string } | null;
 
 export async function criarCaminhao(_: Resultado, form: FormData): Promise<Resultado> {
   const { sessao, cliente } = await clienteAtual();
-  if (!podeEditarCadastros(sessao)) return { ok: false, msg: "Seu perfil não pode cadastrar caminhões." };
+  if (!soKmCero(sessao)) return { ok: false, msg: "Caminhões novos são cadastrados pela KM Cero, depois da instalação do rastreador." };
   const p = novo.safeParse(Object.fromEntries(form));
   if (!p.success) return { ok: false, msg: "Confira os campos: placa, modelo, consumo de referência e odômetro são obrigatórios." };
   const { motorista, rastreadorId, ...d } = p.data;
@@ -36,7 +40,7 @@ export async function criarCaminhao(_: Resultado, form: FormData): Promise<Resul
 
 export async function mudarPlano(form: FormData) {
   const { sessao, cliente } = await clienteAtual();
-  if (!podeEditarCadastros(sessao)) return;
+  if (!soKmCero(sessao)) return;
   const id = String(form.get("id"));
   const plano = z.enum(["BASICO", "GESTAO", "VIDEO"]).parse(form.get("plano"));
   // updateMany com clienteId garante que ninguém altere caminhão de outra transportadora.
@@ -47,7 +51,7 @@ export async function mudarPlano(form: FormData) {
 /** IMEI do aparelho no caminhão (15 dígitos, impresso na etiqueta do rastreador). Vazio remove. */
 export async function mudarRastreador(_: Resultado, form: FormData): Promise<Resultado> {
   const { sessao, cliente } = await clienteAtual();
-  if (!podeEditarCadastros(sessao)) return { ok: false, msg: "Seu perfil não pode alterar caminhões." };
+  if (!soKmCero(sessao)) return { ok: false, msg: "O rastreador é alterado pela KM Cero." };
   const id = String(form.get("id"));
   const imei = String(form.get("rastreadorId") ?? "").replace(/\s/g, "");
   // "SIM-..." são os rastreadores de demonstração, que continuam aceitos.
