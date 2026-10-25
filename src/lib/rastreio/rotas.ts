@@ -127,7 +127,7 @@ export function pontoNaRota(pontos: Ponto[], km: number): Ponto & { direcao: num
   return { ...pontos[n - 1], direcao: rumo(pontos[n - 2], pontos[n - 1]) };
 }
 
-function hash(texto: string): number {
+export function hash(texto: string): number {
   let h = 2166136261;
   for (const ch of texto) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
   return h >>> 0;

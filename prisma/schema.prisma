@@ -61,6 +61,8 @@ model Cliente {
   caixas       CaixaViagem[]
   cercas       Cerca[]
   ocorrencias  Ocorrencia[]
+  comandos     Comando[]
+  midias       Midia[]
 }
 
 model Usuario {
@@ -113,6 +115,8 @@ model Caminhao {
   ultimaIgnicao     Boolean?
   // Cerca onde o caminhão está agora (para detectar entrada e saída).
   cercaAtualId      String?
+  // Saída do rastreador que corta o motor (DOUT1), confirmada pelo aparelho.
+  motorBloqueado    Boolean         @default(false)
   motoristaId       String?
   motorista         Motorista?      @relation(fields: [motoristaId], references: [id], onDelete: SetNull)
   // Custos fixos mensais que entram no custo por km.
@@ -126,6 +130,8 @@ model Caminhao {
   caixas            CaixaViagem[]
   posicoes          Posicao[]
   ocorrencias       Ocorrencia[]
+  comandos          Comando[]
+  midias            Midia[]
   criadoEm          DateTime        @default(now())
 
   @@unique([clienteId, placa])
@@ -338,6 +344,67 @@ model Ocorrencia {
   resolvidaEm   DateTime?
   observacao    String?
   criadaEm      DateTime  @default(now())
+  midias        Midia[]
 
   @@index([clienteId, status, criadaEm])
+}
+
+// Ordem enviada ao rastreador (Codec 12): bloquear motor, pedir posição, foto...
+// O receptor envia quando o aparelho está conectado e grava a resposta.
+model Comando {
+  id           String    @id @default(cuid())
+  clienteId    String
+  cliente      Cliente   @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  caminhaoId   String
+  caminhao     Caminhao  @relation(fields: [caminhaoId], references: [id], onDelete: Cascade)
+  // bloquear, desbloquear, posicao, status, info, reiniciar, foto, video ou livre.
+  tipo         String
+  // Texto que vai para o aparelho, ex.: "setdigout 1".
+  texto        String
+  // pendente, aguardando (bloqueio esperando o caminhão parar), enviado, respondido, erro ou cancelado.
+  status       String    @default("pendente")
+  resposta     String?
+  motivo       String?
+  criadoPor    String
+  criadoEm     DateTime  @default(now())
+  enviadoEm    DateTime?
+  respondidoEm DateTime?
+
+  @@index([caminhaoId, status])
+  @@index([clienteId, criadoEm])
+}
+
+// Foto ou vídeo das câmeras do caminhão (Teltonika DualCam), pedido pela central
+// ou disparado por um evento (freada brusca, excesso, colisão...).
+model Midia {
+  id            String      @id @default(cuid())
+  clienteId     String
+  cliente       Cliente     @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  caminhaoId    String
+  caminhao      Caminhao    @relation(fields: [caminhaoId], references: [id], onDelete: Cascade)
+  ocorrenciaId  String?
+  ocorrencia    Ocorrencia? @relation(fields: [ocorrenciaId], references: [id], onDelete: SetNull)
+  // "foto" ou "video".
+  tipo          String
+  // "frontal" (estrada) ou "cabine".
+  camera        String
+  // pedido, freada, aceleracao, curva, excesso, colisao, panico ou evento.
+  gatilho       String
+  data          DateTime
+  lat           Float?
+  lng           Float?
+  velocidadeKmh Int?
+  duracaoS      Int?
+  // image/jpeg, video/mp4 ou video/h265 (sem conversão).
+  formato       String?
+  conteudo      Bytes?
+  tamanho       Int?
+  // Demonstração: sem arquivo, a tela desenha a cena.
+  demo          Boolean     @default(false)
+  // Evita gerar a mesma mídia de demonstração duas vezes.
+  chave         String?     @unique
+  criadoEm      DateTime    @default(now())
+
+  @@index([clienteId, data])
+  @@index([caminhaoId, data])
 }

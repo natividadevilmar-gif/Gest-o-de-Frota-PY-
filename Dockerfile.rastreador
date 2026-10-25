@@ -1,10 +1,10 @@
 # Receptor dos rastreadores (scripts/rastreador.ts). Roda fora da Vercel, num servidor
 # ligado 24 horas, porque precisa manter conexões TCP abertas com os aparelhos.
 #   docker build -f Dockerfile.rastreador -t kmcero-rastreador .
-#   docker run -d --restart=always --name rastreador -p 5027:5027 -p 8080:8080 \
+#   docker run -d --restart=always --name rastreador -p 5027:5027 -p 5028:5028 -p 8080:8080 \
 #     -e DATABASE_URL="postgresql://..." kmcero-rastreador
 FROM node:22-slim
-RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates ffmpeg && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --ignore-scripts --no-audit --no-fund
@@ -13,6 +13,6 @@ RUN npx prisma generate
 COPY tsconfig.json ./
 COPY scripts/rastreador.ts scripts/simular-aparelho.ts ./scripts/
 COPY src/lib/rastreio ./src/lib/rastreio
-ENV NODE_ENV=production PORTA_RASTREADOR=5027 PORTA_SAUDE=8080
-EXPOSE 5027 8080
+ENV NODE_ENV=production PORTA_RASTREADOR=5027 PORTA_CAMERAS=5028 PORTA_SAUDE=8080
+EXPOSE 5027 5028 8080
 CMD ["npx", "tsx", "scripts/rastreador.ts"]

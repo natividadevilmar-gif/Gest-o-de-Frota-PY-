@@ -14,7 +14,8 @@
     "db:seed": "tsx prisma/seed.ts",
     "sync:telemetria": "tsx scripts/sync-telemetria.ts",
     "rastreador": "tsx scripts/rastreador.ts",
-    "simular:aparelho": "tsx scripts/simular-aparelho.ts"
+    "simular:aparelho": "tsx scripts/simular-aparelho.ts",
+    "simular:camera": "tsx scripts/simular-camera.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

@@ -13,6 +13,8 @@ const MODULOS: { m: Modulo; href: string; rotulo: string }[] = [
   { m: "painel", href: "/painel", rotulo: "Painel" },
   { m: "painel", href: "/rastreamento", rotulo: "Mapa ao vivo" },
   { m: "painel", href: "/monitoramento", rotulo: "Central de monitoramento" },
+  { m: "painel", href: "/comandos", rotulo: "Comandos" },
+  { m: "video", href: "/video", rotulo: "Vídeo" },
   { m: "custos", href: "/despesas", rotulo: "Lançar despesa" },
   { m: "painel", href: "/fretes", rotulo: "Fretes e margem" },
   { m: "painel", href: "/caixa", rotulo: "Caixa dos motoristas" },

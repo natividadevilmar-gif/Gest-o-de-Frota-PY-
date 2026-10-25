@@ -205,6 +205,7 @@ export function MapaFrota({ inicial, hoje, todos = false }: { inicial: CaminhaoM
                 <div className="rastreio-titulo">
                   <span className="plate">{escolhido.placa}</span> <b>{escolhido.modelo}</b>
                   <span className={`pill sit-${escolhido.situacao}`}>{ROTULO[escolhido.situacao]}</span>
+                  {escolhido.bloqueado && <a className="pill bad" href={`/comandos?caminhao=${escolhido.id}`}>Motor bloqueado</a>}
                 </div>
                 <div className="sub">
                   {todos ? `${escolhido.cliente} · ` : ""}{escolhido.motorista ?? "sem motorista"}

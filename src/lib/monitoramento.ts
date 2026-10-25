@@ -112,7 +112,7 @@ export async function verificarFrota(clienteId: string | null, agora = new Date(
 export async function ocorrenciasAbertas(clienteId: string | null) {
   return db.ocorrencia.findMany({
     where: { status: { not: "resolvida" }, ...(clienteId ? { clienteId } : {}) },
-    include: { caminhao: { select: { placa: true } }, cliente: { select: { nome: true } } },
+    include: { caminhao: { select: { placa: true } }, cliente: { select: { nome: true } }, midias: { select: { id: true }, orderBy: { data: "asc" }, take: 1 } },
     orderBy: { criadaEm: "desc" },
     take: 300,
   });
@@ -121,7 +121,7 @@ export async function ocorrenciasAbertas(clienteId: string | null) {
 export async function ocorrenciasResolvidas(clienteId: string | null) {
   return db.ocorrencia.findMany({
     where: { status: "resolvida", ...(clienteId ? { clienteId } : {}) },
-    include: { caminhao: { select: { placa: true } }, cliente: { select: { nome: true } } },
+    include: { caminhao: { select: { placa: true } }, cliente: { select: { nome: true } }, midias: { select: { id: true }, orderBy: { data: "asc" }, take: 1 } },
     orderBy: { resolvidaEm: "desc" },
     take: 30,
   });
@@ -129,14 +129,16 @@ export async function ocorrenciasResolvidas(clienteId: string | null) {
 
 export type OcorrenciaVista = {
   id: string; tipo: string; gravidade: string; titulo: string; detalhe: string; status: string;
-  lat: number | null; lng: number | null; placa: string; cliente: string;
+  lat: number | null; lng: number | null; placa: string; caminhaoId: string; cliente: string;
+  /** Vídeo da câmera gravado no momento do alerta (plano Vídeo). */
+  midiaId: string | null;
   criadaEm: string; atendidaPor: string | null; resolvidaEm: string | null; observacao: string | null;
 };
 
 export function paraVista(o: Awaited<ReturnType<typeof ocorrenciasAbertas>>[number]): OcorrenciaVista {
   return {
     id: o.id, tipo: o.tipo, gravidade: o.gravidade, titulo: o.titulo, detalhe: o.detalhe, status: o.status,
-    lat: o.lat, lng: o.lng, placa: o.caminhao.placa, cliente: o.cliente.nome,
+    lat: o.lat, lng: o.lng, placa: o.caminhao.placa, caminhaoId: o.caminhaoId, cliente: o.cliente.nome, midiaId: o.midias[0]?.id ?? null,
     criadaEm: o.criadaEm.toISOString(), atendidaPor: o.atendidaPor, resolvidaEm: o.resolvidaEm?.toISOString() ?? null, observacao: o.observacao,
   };
 }

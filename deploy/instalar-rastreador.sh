@@ -15,7 +15,7 @@ PASTA=/opt/kmcero
 
 echo "1/5 Instalando Node.js 22 e git"
 apt-get update -qq
-apt-get install -y -qq ca-certificates curl git openssl >/dev/null
+apt-get install -y -qq ca-certificates curl git openssl ffmpeg >/dev/null
 if ! command -v node >/dev/null || [ "$(node -v | cut -d. -f1)" != "v22" ]; then
   curl -fsSL https://deb.nodesource.com/setup_22.x | bash - >/dev/null
   apt-get install -y -qq nodejs >/dev/null
@@ -33,17 +33,17 @@ echo "4/5 Configurando o serviço (liga sozinho quando o servidor reinicia)"
 id kmcero >/dev/null 2>&1 || useradd --system --home "$PASTA" kmcero
 chown -R kmcero "$PASTA"
 umask 077
-printf 'DATABASE_URL=%s\nPORTA_RASTREADOR=5027\nPORTA_SAUDE=8080\n' "$DATABASE_URL" > /etc/kmcero-rastreador.env
+printf 'DATABASE_URL=%s\nPORTA_RASTREADOR=5027\nPORTA_CAMERAS=5028\nPORTA_SAUDE=8080\n' "$DATABASE_URL" > /etc/kmcero-rastreador.env
 cp deploy/kmcero-rastreador.service /etc/systemd/system/
 systemctl daemon-reload
 systemctl enable --now kmcero-rastreador
 
-echo "5/5 Liberando a porta 5027 no firewall"
-if command -v ufw >/dev/null && ufw status | grep -q active; then ufw allow 5027/tcp >/dev/null; ufw allow 8080/tcp >/dev/null; fi
+echo "5/5 Liberando as portas 5027 (rastreadores) e 5028 (câmeras) no firewall"
+if command -v ufw >/dev/null && ufw status | grep -q active; then ufw allow 5027/tcp >/dev/null; ufw allow 5028/tcp >/dev/null; ufw allow 8080/tcp >/dev/null; fi
 
 sleep 3
 curl -fsS localhost:8080/saude && echo
 IP=$(curl -fsS https://api.ipify.org || hostname -I | cut -d' ' -f1)
 echo
-echo "Pronto. Configure os aparelhos Teltonika com servidor $IP e porta 5027 (TCP)."
+echo "Pronto. Configure os aparelhos Teltonika com servidor $IP e porta 5027 (TCP) e as câmeras DualCam com a porta 5028."
 echo "Ver o que está chegando:  journalctl -u kmcero-rastreador -f"

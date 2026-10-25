@@ -230,6 +230,10 @@ export function Central({ inicial, todos, clienteNome, podeCercas, tiposCerca }:
                       {o.status === "aberta" && <button type="button" disabled={pendente} onClick={() => agir(() => atenderOcorrencia(o.id))}>Atender</button>}
                       <button type="button" className="pri" disabled={pendente} onClick={() => { setResolvendo(resolvendo === o.id ? null : o.id); setObs(""); }}>Resolver</button>
                     </div>
+                    <div className="oc-links">
+                      {o.midiaId && <a href={`/video?midia=${o.midiaId}${todos ? "&todos=1" : ""}`}>▶ Ver vídeo</a>}
+                      <a href={`/comandos?caminhao=${o.caminhaoId}${todos ? "&todos=1" : ""}`}>Comandos</a>
+                    </div>
                     {resolvendo === o.id && (
                       <form className="oc-resolver" onSubmit={(e) => { e.preventDefault(); agir(async () => { await resolverOcorrencia(o.id, obs); setResolvendo(null); }); }}>
                         <label htmlFor={`obs-${o.id}`}>O que foi feito</label>

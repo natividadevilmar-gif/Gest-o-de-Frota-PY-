@@ -38,7 +38,7 @@ export function lerImei(buf: Buffer): { imei: string; usados: number } | null {
  * Lê um pacote AVL completo do início do buffer.
  * Retorna null se o pacote ainda não chegou inteiro; lança erro se estiver corrompido.
  */
-export function lerPacote(buf: Buffer): { registros: Registro[]; usados: number } | null {
+export function lerPacote(buf: Buffer): { registros: Registro[]; usados: number; resposta?: string } | null {
   if (buf.length < 8) return null;
   if (buf.readUInt32BE(0) !== 0) throw new Error("Pacote sem o preâmbulo de zeros");
   const tamanho = buf.readUInt32BE(4);
@@ -49,6 +49,7 @@ export function lerPacote(buf: Buffer): { registros: Registro[]; usados: number 
   if (crc16(dados) !== crc) throw new Error("CRC do pacote não confere");
 
   const codec = dados[0];
+  if (codec === 0x0c) return { registros: [], usados: total, resposta: lerCodec12(dados) };
   if (codec !== 0x08 && codec !== 0x8e) throw new Error(`Codec não suportado: 0x${codec.toString(16)}`);
   const estendido = codec === 0x8e;
   const qtd = dados[1];
@@ -94,6 +95,37 @@ export function lerPacote(buf: Buffer): { registros: Registro[]; usados: number 
   if (dados[p] !== qtd) throw new Error("Número de registros no fim do pacote não confere");
   return { registros, usados: total };
 }
+
+// ---- Codec 12: comandos do servidor para o aparelho (ex.: "setdigout 1") ----
+// Mesmo envelope dos pacotes AVL: zeros, tamanho, 0x0C, 1, tipo (5 = comando,
+// 6 = resposta), tamanho do texto, texto, 1 e CRC.
+
+function lerCodec12(dados: Buffer): string {
+  if (dados[1] !== 1 || dados.at(-1) !== 1) throw new Error("Codec 12 com quantidade inválida");
+  const n = dados.readUInt32BE(3);
+  return dados.subarray(7, 7 + n).toString("ascii").trim();
+}
+
+function montarCodec12(tipo: 5 | 6, texto: string): Buffer {
+  const txt = Buffer.from(texto, "ascii");
+  const dados = Buffer.alloc(3 + 4 + txt.length + 1);
+  dados[0] = 0x0c;
+  dados[1] = 1;
+  dados[2] = tipo;
+  dados.writeUInt32BE(txt.length, 3);
+  txt.copy(dados, 7);
+  dados[7 + txt.length] = 1;
+  const cab = Buffer.alloc(8);
+  cab.writeUInt32BE(dados.length, 4);
+  const crc = Buffer.alloc(4);
+  crc.writeUInt32BE(crc16(dados));
+  return Buffer.concat([cab, dados, crc]);
+}
+
+/** Comando de texto do servidor para o aparelho. */
+export const montarComando = (texto: string) => montarCodec12(5, texto);
+/** Resposta do aparelho a um comando (usada pelo simulador e pelos testes). */
+export const montarRespostaComando = (texto: string) => montarCodec12(6, texto);
 
 /** Resposta ao pacote: número de registros aceitos, em 4 bytes. */
 export function confirmacao(qtd: number): Buffer {

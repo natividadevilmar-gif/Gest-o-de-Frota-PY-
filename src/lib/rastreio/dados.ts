@@ -26,6 +26,8 @@ export type CaminhaoMapa = {
   /** Onde está e para onde vai (ex.: "PY02, km 182 → Ciudad del Este"); só na demonstração. */
   local: string | null;
   rpm: number | null;
+  /** Motor bloqueado por comando da central. */
+  bloqueado: boolean;
 };
 
 const SEM_SINAL_MS = 30 * 60_000;
@@ -45,7 +47,7 @@ export async function frotaNoMapa(clienteId: string | null, agora = new Date()):
     orderBy: [{ cliente: { nome: "asc" } }, { placa: "asc" }],
   });
   return lista.map((c) => {
-    const base = { id: c.id, placa: c.placa, modelo: c.modelo, motorista: c.motorista?.nome ?? null, cliente: c.cliente.nome, clienteId: c.clienteId };
+    const base = { id: c.id, placa: c.placa, modelo: c.modelo, motorista: c.motorista?.nome ?? null, cliente: c.cliente.nome, clienteId: c.clienteId, bloqueado: c.motorBloqueado };
     if (!c.rastreadorId) {
       return { ...base, situacao: "sem-rastreador", demo: false, lat: null, lng: null, velocidadeKmh: 0, direcao: 0, atualizadoEm: null, rota: null, local: null, rpm: null };
     }
@@ -62,6 +64,13 @@ export async function frotaNoMapa(clienteId: string | null, agora = new Date()):
         rota: null,
         local: null,
         rpm: null,
+      };
+    }
+    // Demonstração com motor bloqueado: fica onde parou até desbloquear.
+    if (c.motorBloqueado && c.ultimaLat != null && c.ultimaLng != null) {
+      return {
+        ...base, situacao: "desligado", demo: true, lat: c.ultimaLat, lng: c.ultimaLng, velocidadeKmh: 0, direcao: 0,
+        atualizadoEm: agora.toISOString(), rota: rotaDemoNome(c.id, diaNoParaguai(agora)), local: "Motor bloqueado pela central", rpm: 0,
       };
     }
     const p = posicaoDemo(c.id, agora);

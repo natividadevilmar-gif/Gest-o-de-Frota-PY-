@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { confirmacao, lerImei, lerPacote, montarImei, montarPacote, paraPosicao, IO, type Registro } from "./teltonika";
+import { confirmacao, lerImei, lerPacote, montarComando, montarImei, montarRespostaComando, montarPacote, paraPosicao, IO, type Registro } from "./teltonika";
 
 // Exemplo de Codec 8 da documentação da Teltonika.
 const EXEMPLO_CODEC8 =
@@ -49,6 +49,17 @@ describe("protocolo Teltonika", () => {
 });
 
 import { comprimentoKm, posicaoDemo, ROTAS, trajetoDemo } from "./rotas";
+
+describe("comandos (Codec 12)", () => {
+  it("monta o getinfo igual ao exemplo oficial", () => {
+    expect(montarComando("getinfo").toString("hex").toUpperCase()).toBe("000000000000000F0C010500000007676574696E666F0100004312");
+  });
+  it("lê a resposta do aparelho", () => {
+    const r = lerPacote(montarRespostaComando("DOUT1:1 DOUT2:0 Timeout:INFINITY"));
+    expect(r?.registros).toEqual([]);
+    expect(r?.resposta).toBe("DOUT1:1 DOUT2:0 Timeout:INFINITY");
+  });
+});
 
 describe("rotas de demonstração", () => {
   it("as rotas têm tamanhos reais", () => {
