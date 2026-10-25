@@ -25,7 +25,7 @@ export async function escolherCliente(form: FormData) {
   redirect(tela && tela !== "empresa" ? `/${tela}` : "/painel");
 }
 
-export type Resultado = { ok: boolean; msg: string } | null;
+export type Resultado = { ok: boolean; msg: string; contratoId?: string } | null;
 
 const novoCliente = z.object({
   nome: z.string().trim().min(2),
@@ -36,26 +36,37 @@ const novoCliente = z.object({
   gestorNome: z.string().trim().min(2),
   gestorEmail: z.string().trim().toLowerCase().email(),
   senha: z.string().min(8),
+  planoContratado: z.enum(["BASICO", "GESTAO", "VIDEO"]),
+  caminhoesContratados: z.coerce.number().int().min(1).max(2000),
+  prazoMeses: z.coerce.number().int().min(1).max(60),
+  diaVencimento: z.coerce.number().int().min(1).max(28),
+  endereco: z.string().trim().max(200).optional(),
 });
 
 export async function criarCliente(_: Resultado, form: FormData): Promise<Resultado> {
   await exigirAdmin();
   const p = novoCliente.safeParse(Object.fromEntries(form));
-  if (!p.success) return { ok: false, msg: "Confira os campos. A senha precisa ter pelo menos 8 caracteres." };
+  if (!p.success) return { ok: false, msg: "Confira os campos e escolha o plano. A senha precisa ter pelo menos 8 caracteres." };
   if (await db.usuario.findUnique({ where: { email: p.data.gestorEmail } })) return { ok: false, msg: "Esse e-mail já tem acesso." };
   const senhaHash = await bcrypt.hash(p.data.senha, 10);
-  await db.cliente.create({
+  const novo = await db.cliente.create({
     data: {
       nome: p.data.nome,
       cidade: p.data.cidade,
       ruc: p.data.ruc || null,
       idioma: p.data.idioma,
       pais: p.data.pais,
+      planoContratado: p.data.planoContratado,
+      caminhoesContratados: p.data.caminhoesContratados,
+      prazoMeses: p.data.prazoMeses,
+      diaVencimento: p.data.diaVencimento,
+      endereco: p.data.endereco || null,
+      contratoInicio: new Date(),
       usuarios: { create: { nome: p.data.gestorNome, email: p.data.gestorEmail, senhaHash, papel: "GESTOR" } },
     },
   });
   revalidatePath("/", "layout");
-  return { ok: true, msg: `${p.data.nome} cadastrado. O gestor entra com ${p.data.gestorEmail}.` };
+  return { ok: true, msg: `${p.data.nome} cadastrado. O gestor entra com ${p.data.gestorEmail}.`, contratoId: novo.id };
 }
 
 export async function atualizarAtraso(form: FormData) {

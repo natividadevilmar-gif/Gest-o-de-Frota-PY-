@@ -102,7 +102,7 @@ export default async function Empresa() {
         <div className="tw">
           <table>
             <thead>
-              <tr><th>Cliente</th><th className="n">Caminhões</th><th className="n">Andando agora</th><th className="n">km no mês</th><th className="n">Custo/km</th><th className="n">Saldo em caixa</th><th className="n">Alertas</th><th className="n">Mensal</th><th>Pagamento</th></tr>
+              <tr><th>Cliente</th><th className="n">Caminhões</th><th className="n">Andando agora</th><th className="n">km no mês</th><th className="n">Custo/km</th><th className="n">Saldo em caixa</th><th className="n">Alertas</th><th className="n">Mensal</th><th>Pagamento</th><th>Contrato</th></tr>
             </thead>
             <tbody>
               {linhas.map((l) => {
@@ -121,6 +121,7 @@ export default async function Empresa() {
                     <td className="n">{nAlertas ? <span className="pill bad">{nAlertas}</span> : <span className="muted">0</span>}</td>
                     <td className="n">{usd(l.mrr)}</td>
                     <td><span className={`pill ${l.situacao === "em_dia" ? "ok" : l.situacao === "atrasado" ? "warn" : "bad"}`}>{l.situacao === "em_dia" ? "em dia" : l.situacao === "atrasado" ? `atraso ${l.c.diasEmAtraso} dias` : "bloqueado"}</span></td>
+                    <td><Link className="link-alerta" href={`/contrato/${l.c.id}`}>{NOME_PLANO[l.c.planoContratado as Plano]} · {l.c.caminhoesContratados}</Link></td>
                   </tr>
                 );
               })}

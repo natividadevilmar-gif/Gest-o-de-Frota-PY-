@@ -18,12 +18,15 @@ export default async function Caminhoes() {
       <Planos
         precos={PRECO_MENSAL}
         quantos={{ BASICO: lista.filter((c) => c.plano === "BASICO").length, GESTAO: lista.filter((c) => c.plano === "GESTAO").length, VIDEO: lista.filter((c) => c.plano === "VIDEO").length }}
-        inicial="BASICO"
+        inicial={cliente.planoContratado as Plano}
       />
       <div className="card">
         <div className="card-h">
           <h2>Frota cadastrada</h2>
-          <p>Mensalidade total: <b>{usd(mensalidadeTotal(lista.map((c) => c.plano as Plano)))}</b> por mês</p>
+          <p>
+            Mensalidade total: <b>{usd(mensalidadeTotal(lista.map((c) => c.plano as Plano)))}</b> por mês
+            {sessao.papel !== "OPERADOR" && <> · Contrato: plano {NOME_PLANO[cliente.planoContratado as Plano]}, {cliente.caminhoesContratados} caminhões · <a href={`/contrato/${cliente.id}`}>ver contrato</a></>}
+          </p>
         </div>
         <div className="tw">
           <table>
@@ -64,7 +67,7 @@ export default async function Caminhoes() {
       {pode && (
         <div className="card">
           <div className="card-h"><h2>Cadastrar caminhão</h2><p>Os custos fixos entram no custo por km todo mês.</p></div>
-          <NovoCaminhao />
+          <NovoCaminhao plano={cliente.planoContratado} />
         </div>
       )}
     </>

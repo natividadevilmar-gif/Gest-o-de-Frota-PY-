@@ -45,24 +45,31 @@ enum Gatilho {
 }
 
 model Cliente {
-  id           String        @id @default(cuid())
-  nome         String
-  ruc          String?
-  cidade       String
-  idioma       Idioma        @default(pt)
+  id                   String        @id @default(cuid())
+  nome                 String
+  ruc                  String?
+  cidade               String
+  idioma               Idioma        @default(pt)
   // País de origem (ISO 3166, duas letras): define as cores da plataforma para o cliente.
-  pais         String        @default("PY")
+  pais                 String        @default("PY")
   // Dias desde o vencimento da mensalidade mais antiga em aberto (0 = em dia).
-  diasEmAtraso Int           @default(0)
-  criadoEm     DateTime      @default(now())
-  usuarios     Usuario[]
-  caminhoes    Caminhao[]
-  motoristas   Motorista[]
-  caixas       CaixaViagem[]
-  cercas       Cerca[]
-  ocorrencias  Ocorrencia[]
-  comandos     Comando[]
-  midias       Midia[]
+  diasEmAtraso         Int           @default(0)
+  // Contrato de prestação de serviço: plano, quantidade, prazo e vencimento.
+  planoContratado      Plano         @default(GESTAO)
+  caminhoesContratados Int           @default(1)
+  prazoMeses           Int           @default(12)
+  diaVencimento        Int           @default(10)
+  contratoInicio       DateTime?
+  endereco             String?
+  criadoEm             DateTime      @default(now())
+  usuarios             Usuario[]
+  caminhoes            Caminhao[]
+  motoristas           Motorista[]
+  caixas               CaixaViagem[]
+  cercas               Cerca[]
+  ocorrencias          Ocorrencia[]
+  comandos             Comando[]
+  midias               Midia[]
 }
 
 model Usuario {

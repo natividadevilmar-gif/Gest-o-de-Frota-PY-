@@ -3,14 +3,14 @@
 import { useActionState } from "react";
 import { criarCaminhao } from "./actions";
 
-export function NovoCaminhao() {
+export function NovoCaminhao({ plano = "GESTAO" }: { plano?: string }) {
   const [r, acao, enviando] = useActionState(criarCaminhao, null);
   return (
     <form className="form" action={acao}>
       <label htmlFor="placa">Placa<input id="placa" name="placa" placeholder="AAAA 000" required /></label>
       <label htmlFor="modelo">Modelo<input id="modelo" name="modelo" className="wide" placeholder="Scania R450" required /></label>
       <label htmlFor="plano">Plano
-        <select id="plano" name="plano" defaultValue="GESTAO">
+        <select id="plano" name="plano" defaultValue={plano}>
           <option value="BASICO">Básico (USD 16)</option>
           <option value="GESTAO">Gestão (USD 28)</option>
           <option value="VIDEO">Vídeo (USD 52)</option>
