@@ -6,6 +6,7 @@ import { mensalidadeTotal, NOME_PLANO, PRECO_MENSAL, type Plano } from "@/lib/in
 import { mudarPlano } from "./actions";
 import { CampoRastreador } from "./CampoRastreador";
 import { NovoCaminhao } from "./NovoCaminhao";
+import { Planos } from "./Planos";
 
 export default async function Caminhoes() {
   const { sessao, cliente } = await clienteAtual();
@@ -14,6 +15,11 @@ export default async function Caminhoes() {
   return (
     <>
       <h1>Caminhões e planos</h1>
+      <Planos
+        precos={PRECO_MENSAL}
+        quantos={{ BASICO: lista.filter((c) => c.plano === "BASICO").length, GESTAO: lista.filter((c) => c.plano === "GESTAO").length, VIDEO: lista.filter((c) => c.plano === "VIDEO").length }}
+        inicial="BASICO"
+      />
       <div className="card">
         <div className="card-h">
           <h2>Frota cadastrada</h2>
