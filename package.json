@@ -12,7 +12,9 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
-    "sync:telemetria": "tsx scripts/sync-telemetria.ts"
+    "sync:telemetria": "tsx scripts/sync-telemetria.ts",
+    "rastreador": "tsx scripts/rastreador.ts",
+    "simular:aparelho": "tsx scripts/simular-aparelho.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -23,6 +25,7 @@
     "bcryptjs": "^3.0.2",
     "exceljs": "^4.4.0",
     "jose": "^6.1.0",
+    "leaflet": "^1.9.4",
     "next": "^15.5.28",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
@@ -33,6 +36,7 @@
   "devDependencies": {
     "@tesseract.js-data/por": "^1.0.0",
     "@tesseract.js-data/spa": "^1.0.0",
+    "@types/leaflet": "^1.9.22",
     "@types/node": "^22.18.6",
     "@types/react": "^19.1.13",
     "@types/react-dom": "^19.1.9",

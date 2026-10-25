@@ -43,3 +43,23 @@ export async function mudarPlano(form: FormData) {
   await db.caminhao.updateMany({ where: { id, clienteId: cliente.id }, data: { plano } });
   revalidatePath("/", "layout");
 }
+
+/** IMEI do aparelho no caminhão (15 dígitos, impresso na etiqueta do rastreador). Vazio remove. */
+export async function mudarRastreador(_: Resultado, form: FormData): Promise<Resultado> {
+  const { sessao, cliente } = await clienteAtual();
+  if (!podeEditarCadastros(sessao)) return { ok: false, msg: "Seu perfil não pode alterar caminhões." };
+  const id = String(form.get("id"));
+  const imei = String(form.get("rastreadorId") ?? "").replace(/\s/g, "");
+  // "SIM-..." são os rastreadores de demonstração, que continuam aceitos.
+  if (imei && !/^\d{15}$/.test(imei) && !imei.startsWith("SIM-")) return { ok: false, msg: "O IMEI tem 15 números (está na etiqueta do aparelho)." };
+  if (imei) {
+    const outro = await db.caminhao.findFirst({ where: { rastreadorId: imei, NOT: { id } }, select: { placa: true } });
+    if (outro) return { ok: false, msg: `Esse IMEI já está no caminhão ${outro.placa}.` };
+  }
+  await db.caminhao.updateMany({
+    where: { id, clienteId: cliente.id },
+    data: { rastreadorId: imei || null, ultimaPosicaoEm: null, ultimaLat: null, ultimaLng: null, ultimaVelocidade: null, ultimaIgnicao: null },
+  });
+  revalidatePath("/", "layout");
+  return { ok: true, msg: imei ? "Rastreador salvo." : "Rastreador removido." };
+}

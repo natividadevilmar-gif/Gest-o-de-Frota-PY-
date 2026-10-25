@@ -19,7 +19,7 @@ export function NovoCaminhao() {
       <label htmlFor="consumoRefKmL">Consumo de referência (km/l)<input id="consumoRefKmL" name="consumoRefKmL" type="number" step="0.1" defaultValue="2.6" required /></label>
       <label htmlFor="odometroKm">Odômetro (km)<input id="odometroKm" name="odometroKm" type="number" min="0" required /></label>
       <label htmlFor="motorista">Motorista<input id="motorista" name="motorista" className="wide" /></label>
-      <label htmlFor="rastreadorId">ID do rastreador<input id="rastreadorId" name="rastreadorId" /></label>
+      <label htmlFor="rastreadorId">IMEI do rastreador<input id="rastreadorId" name="rastreadorId" inputMode="numeric" placeholder="15 números" /></label>
       <label htmlFor="salarioMotorista">Salário + encargos (USD/mês)<input id="salarioMotorista" name="salarioMotorista" type="number" min="0" defaultValue="1125" /></label>
       <label htmlFor="seguroMensal">Seguro (USD/mês)<input id="seguroMensal" name="seguroMensal" type="number" min="0" defaultValue="0" /></label>
       <label htmlFor="depreciacaoMensal">Depreciação (USD/mês)<input id="depreciacaoMensal" name="depreciacaoMensal" type="number" min="0" defaultValue="0" /></label>

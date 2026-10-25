@@ -103,6 +103,12 @@ model Caminhao {
   odometroKm        Int             @default(0)
   // Identificador do equipamento na plataforma de rastreamento.
   rastreadorId      String?
+  // Última posição recebida do rastreador próprio (atualizada pelo receptor).
+  ultimaPosicaoEm   DateTime?
+  ultimaLat         Float?
+  ultimaLng         Float?
+  ultimaVelocidade  Int?
+  ultimaIgnicao     Boolean?
   motoristaId       String?
   motorista         Motorista?      @relation(fields: [motoristaId], references: [id], onDelete: SetNull)
   // Custos fixos mensais que entram no custo por km.
@@ -114,6 +120,7 @@ model Caminhao {
   revisoes          ItemRevisao[]
   viagens           Viagem[]
   caixas            CaixaViagem[]
+  posicoes          Posicao[]
   criadoEm          DateTime        @default(now())
 
   @@unique([clienteId, placa])
@@ -258,4 +265,29 @@ model Cotacao {
   arsPorUsd Float?
   fonte     String
   criadoEm  DateTime @default(now())
+}
+
+// Cada registro enviado pelo aparelho no caminhão (receptor próprio, protocolo Teltonika).
+model Posicao {
+  id            BigInt   @id @default(autoincrement())
+  caminhaoId    String
+  caminhao      Caminhao @relation(fields: [caminhaoId], references: [id], onDelete: Cascade)
+  // Hora do GPS, em UTC.
+  data          DateTime
+  lat           Float
+  lng           Float
+  velocidadeKmh Int
+  direcao       Int      @default(0)
+  satelites     Int      @default(0)
+  ignicao       Boolean?
+  // Odômetro total em km (da rede CAN quando houver, senão o do GPS).
+  odometroKm    Float?
+  // Combustível consumido acumulado, em litros, lido da CAN.
+  litrosTotal   Float?
+  rpm           Int?
+  // Eventos de condução: "freada", "aceleracao", "curva", "excesso".
+  evento        String?
+  recebidoEm    DateTime @default(now())
+
+  @@index([caminhaoId, data])
 }

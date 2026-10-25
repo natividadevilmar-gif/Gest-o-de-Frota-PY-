@@ -6,7 +6,8 @@ import { sincronizarDia } from "../src/lib/telemetria/sincronizar";
 
 const db = new PrismaClient();
 const arg = process.argv[2];
-const dia = arg ? new Date(`${arg}T00:00:00Z`) : new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate() - 1));
+const hojePy = new Date(Date.now() - 3 * 3600_000);
+const dia = arg ? new Date(`${arg}T00:00:00Z`) : new Date(Date.UTC(hojePy.getUTCFullYear(), hojePy.getUTCMonth(), hojePy.getUTCDate() - 1));
 
 const fonte = fonteTelemetria();
 sincronizarDia(db, fonte, dia)

@@ -1,0 +1,15 @@
+[Unit]
+Description=KM Cero - receptor dos rastreadores Teltonika
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=kmcero
+WorkingDirectory=/opt/kmcero
+EnvironmentFile=/etc/kmcero-rastreador.env
+ExecStart=/usr/bin/npx tsx scripts/rastreador.ts
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { num, usd } from "@/lib/formato";
 import { mensalidadeTotal, NOME_PLANO, PRECO_MENSAL, type Plano } from "@/lib/indicadores";
 import { mudarPlano } from "./actions";
+import { CampoRastreador } from "./CampoRastreador";
 import { NovoCaminhao } from "./NovoCaminhao";
 
 export default async function Caminhoes() {
@@ -31,7 +32,7 @@ export default async function Caminhoes() {
                   <td>{c.motorista?.nome ?? "–"}</td>
                   <td className="n">{num(c.consumoRefKmL, 1)}</td>
                   <td className="n">{num(c.odometroKm)}</td>
-                  <td>{c.rastreadorId ? <span className="mono">{c.rastreadorId}</span> : <span className="pill warn">sem rastreador</span>}</td>
+                  <td>{pode ? <CampoRastreador id={c.id} placa={c.placa} atual={c.rastreadorId} /> : c.rastreadorId ? <span className="mono">{c.rastreadorId}</span> : <span className="pill warn">sem rastreador</span>}</td>
                   <td className="n">{usd(c.salarioMotorista + c.seguroMensal + c.depreciacaoMensal)}</td>
                   <td>
                     {pode ? (
