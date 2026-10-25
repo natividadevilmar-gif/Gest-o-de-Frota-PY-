@@ -67,6 +67,13 @@ Tributos Incid. Lei Federal 12.741/12 - R$ 111,15
 TOTAL DESCONTOS: 4,18`;
     expect(lerNotaLocal(cupom, new Date("2026-10-25T15:00:00Z"))).toMatchObject({ valor: 426.21, moeda: "BRL", data: "2026-10-25" });
   });
+  it("cupom real lido pelo celular (OCR com ruído)", () => {
+    const texto = require("node:fs").readFileSync(__dirname + "/__fixtures__/cupom-desconto.txt", "utf8");
+    expect(lerNotaLocal(texto, new Date("2026-10-25T15:00:00Z"))).toMatchObject({ valor: 426.21, moeda: "BRL", data: "2026-10-25" });
+  });
+  it("OCR perdeu o 'a pagar': usa a linha do cartão", () => {
+    expect(lerNotaLocal("QTD TOTAL DE ITENS 36\nVALOR TOTAL R$ 430,39\nDESC0NT0 R$ -4,18\nV@L0R À P4G4R\nCartao de Credito R$ 426,21\n1UN X 19008").valor).toBe(426.21);
+  });
   it("sem 'a pagar', desconta o desconto do total", () => {
     expect(lerNotaLocal("VALOR TOTAL R$ 430,39\nDESCONTO R$ -4,18\nCartao R$").valor).toBe(426.21);
   });

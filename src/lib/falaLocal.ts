@@ -107,15 +107,20 @@ export function lerNotaLocal(texto: string, hoje = new Date()): NotaLida {
   const NAO_E_TOTAL = /sub\s*-?total|total\s*iz|qtd|quant|cantidad|\bite[nm]s?\b|descont|tributo|imposto|impuesto|\biva\b/i;
   const ehTotal = (l: string) => /total|a\s*pagar|importe|monto/i.test(l) && !NAO_E_TOTAL.test(l);
   // O que foi pago de fato, já com desconto: "VALOR A PAGAR", "TOTAL PAGO", "NETO A PAGAR".
-  const ehPago = (l: string) => /a\s*pagar|valor\s*pago|total\s*pago|neto|l[ií]quido/i.test(l) && !/descont/i.test(l);
+  // O OCR troca "A" por "À"/"Á" e às vezes perde o "VALOR": basta "PAGAR" ou "PAGO" na linha.
+  const ehPago = (l: string) => /pagar|(valor|total|monto|importe)\s*pago|neto|l[ií]quido/i.test(l) && !/descont|troco|vuelto/i.test(l);
+  // Linha da forma de pagamento ("Cartao de Credito R$ 426,21"): também é o valor pago.
+  const ehPagamento = (l: string) => /cart[aã]o|cr[eé]dito|d[eé]bito|dinheiro|\bpix\b|efectivo|tarjeta/i.test(l) && !/descont|troco|vuelto/i.test(l);
   const valoresDoRotulo = (l: string, i: number) => {
     const v = valoresDa(l);
     if (v.length) return v;
     // Só olha a linha de baixo quando o rótulo fecha a linha ("TOTAL A PAGAR", "Total:").
     return /(total|pagar|pago|importe|monto|neto|l[ií]quido)[\s:|.$R]*$/i.test(l) ? valoresDa(linhas[i + 1] ?? "") : [];
   };
-  const pagos = linhas.flatMap((l, i) => (ehPago(l) ? valoresDoRotulo(l, i).slice(-1) : []));
-  let totais = pagos.length ? [pagos.at(-1)!] : linhas.flatMap((l, i) => (ehTotal(l) ? valoresDoRotulo(l, i) : []));
+  const comCentavos = (v: number[]) => (v.some((x) => !Number.isInteger(x)) ? v.filter((x) => !Number.isInteger(x)) : v);
+  let pagos = comCentavos(linhas.flatMap((l, i) => (ehPago(l) ? valoresDoRotulo(l, i).slice(-1) : [])));
+  if (!pagos.length) pagos = comCentavos(linhas.flatMap((l) => (ehPagamento(l) ? valoresDa(l).slice(-1) : [])));
+  let totais = pagos.length ? [pagos.at(-1)!] : comCentavos(linhas.flatMap((l, i) => (ehTotal(l) ? valoresDoRotulo(l, i) : [])));
   // Sem "a pagar", mas com desconto na nota: total menos o desconto.
   if (!pagos.length && totais.length) {
     const desconto = linhas.flatMap((l, i) => (/^\s*desconto?\b/i.test(l) && !/item/i.test(l) ? valoresDoRotulo(l, i) : [])).at(-1);
