@@ -1,5 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
+import { pedagiosSemRegistro } from "@/lib/pedagioDados";
 import { frotaNoMapa, type CaminhaoMapa } from "@/lib/rastreio/dados";
 import { diaNoParaguai, distanciaKm } from "@/lib/rastreio/rotas";
 import { ehImei, LIMITE_VELOCIDADE_KMH } from "@/lib/telemetria/posicoes";
@@ -18,6 +19,7 @@ export const NOME_OCORRENCIA: Record<string, string> = {
   freada: "Freada brusca",
   aceleracao: "Aceleração brusca",
   curva: "Curva brusca",
+  pedagio_sem_registro: "Pedágio não registrado",
 };
 
 /** Cerca "fora de todas": distingue de null, que é caminhão ainda nunca verificado. */
@@ -103,6 +105,9 @@ export async function verificarFrota(clienteId: string | null, agora = new Date(
       });
     }
   }
+
+  // Um erro no pedágio (cotação, praça sem dado) não pode derrubar a central.
+  novas.push(...(await pedagiosSemRegistro(clienteId, agora).catch(() => [])));
 
   await Promise.all(mudancasCerca.map((m) => db.caminhao.update({ where: { id: m.id }, data: { cercaAtualId: m.cerca } })));
   const r = novas.length ? await db.ocorrencia.createMany({ data: novas, skipDuplicates: true }) : { count: 0 };

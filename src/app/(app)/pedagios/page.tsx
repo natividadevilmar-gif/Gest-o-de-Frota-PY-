@@ -56,6 +56,8 @@ export default async function Pedagios() {
                             <input type="hidden" name="id" value={p.id} />
                             <input name="valor" type="number" step="any" min="0" defaultValue={valor ?? ""} aria-label={`Tarifa de ${p.nome}`} style={{ width: "8em" }} />
                             <input name="fonte" defaultValue={p.fonte} aria-label="Fonte" style={{ minWidth: "16em" }} />
+                            <input name="lat" type="number" step="any" defaultValue={p.lat} aria-label="Latitude" title="Latitude (local da cabine)" style={{ width: "7em" }} />
+                            <input name="lng" type="number" step="any" defaultValue={p.lng} aria-label="Longitude" title="Longitude (local da cabine)" style={{ width: "7em" }} />
                             <input name="vigencia" type="date" defaultValue={p.vigencia.toISOString().slice(0, 10)} aria-label="Vigência" />
                             <button type="submit">Salvar</button>
                           </form>
@@ -70,7 +72,7 @@ export default async function Pedagios() {
           </div>
         </div>
       ))}
-      <p className="note">Valores públicos levantados em outubro de 2026. Praças marcadas como estimado não têm tabela oficial publicada e devem ser conferidas no primeiro recibo. O pedágio real lançado pelo motorista entra no custo por km.</p>
+      <p className="note">Valores públicos levantados em outubro de 2026. Praças marcadas como estimado não têm tabela oficial publicada e devem ser conferidas no primeiro recibo. O pedágio real lançado pelo motorista entra no custo por km. Quando o GPS passa a menos de 3 km de uma praça e o motorista não lança o pedágio em 4 horas, a Central de monitoramento recebe o alerta "Pedágio não registrado".</p>
     </>
   );
 }
