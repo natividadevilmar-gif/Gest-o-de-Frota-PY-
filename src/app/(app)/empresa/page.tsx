@@ -6,7 +6,7 @@ import { DIAS_PARA_BLOQUEIO, mensalidadeTotal, NOME_PLANO, situacaoPagamento, ty
 import { cotacaoDoDia } from "@/lib/cotacao";
 import { Bandeira } from "@/components/Bandeira";
 import { temaDoPais, TEMAS } from "@/lib/temas";
-import { atualizarAtraso, atualizarPais, salvarCotacao } from "./actions";
+import { atualizarAtraso, atualizarPais, escolherCliente, salvarCotacao } from "./actions";
 import { NovoCliente } from "./NovoCliente";
 
 // Ponto de equilíbrio do ano 1 no plano de negócio.
@@ -45,7 +45,12 @@ export default async function Empresa() {
             <tbody>
               {linhas.map(({ c, planos, mrr, situacao }) => (
                 <tr key={c.id}>
-                  <td><b>{c.nome}</b><br /><small className="muted">{c.cidade} · {c.idioma === "es" ? "español" : "português"} · {temaDoPais(c.pais).nome}</small></td>
+                  <td>
+                    <form action={escolherCliente}>
+                      <input type="hidden" name="clienteId" value={c.id} />
+                      <button type="submit" className="link-cliente" title={`Abrir ${c.nome}`}>{c.nome} →</button>
+                    </form>
+                    <small className="muted">{c.cidade} · {c.idioma === "es" ? "español" : "português"} · {temaDoPais(c.pais).nome}</small></td>
                   {PLANOS.map((p) => <td key={p} className="n">{planos.filter((x) => x === p).length}</td>)}
                   <td className="n">{usd(mrr)}</td>
                   <td><span className={`pill ${situacao === "em_dia" ? "ok" : situacao === "atrasado" ? "warn" : "bad"}`}>{situacao === "em_dia" ? "em dia" : situacao === "atrasado" ? `atraso ${c.diasEmAtraso} dias` : "bloqueado"}</span></td>

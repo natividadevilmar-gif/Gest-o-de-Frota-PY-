@@ -32,13 +32,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   // O motorista vê o menu no idioma escolhido por ele.
   const es = sessao.papel === "MOTORISTA" && ((await db.usuario.findUnique({ where: { id: sessao.usuarioId }, select: { idioma: true } }))?.idioma ?? cliente?.idioma) === "es";
-  const itens: ItemNav[] = (sessao.papel === "MOTORISTA" ? MODULOS.filter((x) => x.href === "/despesas") : MODULOS).map((x, i) => ({
+  const admin = sessao.papel === "ADMIN";
+  const itensFrota: ItemNav[] = (sessao.papel === "MOTORISTA" ? MODULOS.filter((x) => x.href === "/despesas") : MODULOS).map((x, i) => ({
     href: x.href,
-    rotulo: es && x.href === "/despesas" ? "Cargar gasto" : x.rotulo,
-    grupo: i === 0 ? "Frota" : undefined,
+    rotulo: es && x.href === "/despesas" ? "Cargar gasto" : admin && x.href === "/painel" ? "Painel do cliente" : x.rotulo,
+    grupo: i === 0 ? (admin ? `Cliente: ${cliente?.nome ?? "nenhum"}` : "Frota") : undefined,
     bloqueadoPor: libera(x.m) ? undefined : NOME_PLANO[planoMinimo(x.m)],
   }));
-  if (sessao.papel === "ADMIN") itens.push({ href: "/empresa", rotulo: "Minha empresa", grupo: "Sua operação" });
+  // Para a equipe da KM Cero, o Painel é a própria empresa; as telas de frota são do cliente escolhido.
+  const itens: ItemNav[] = admin ? [{ href: "/empresa", rotulo: "Painel", grupo: "Minha empresa" }, ...itensFrota] : itensFrota;
 
   const clientes = sessao.papel === "ADMIN" ? await db.cliente.findMany({ orderBy: { nome: "asc" }, select: { id: true, nome: true } }) : [];
 
@@ -65,9 +67,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               {sessao.nome}
             </div>
           </div>
-          {sessao.papel === "ADMIN" && cliente && <SeletorCliente clientes={clientes} atual={cliente.id} />}
+          {admin && cliente && <SeletorCliente clientes={clientes} atual={cliente.id} />}
         </header>
-        <div className="content">{sessao.papel !== "MOTORISTA" && <VoltarInicio />}{children}</div>
+        <div className="content">{sessao.papel !== "MOTORISTA" && <VoltarInicio inicio={admin ? "/empresa" : "/painel"} />}{children}</div>
       </div>
     </div>
   );
