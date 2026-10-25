@@ -23,8 +23,7 @@ a{color:inherit}
 .app{display:grid;grid-template-columns:220px 1fr;min-height:100%}
 .side{background:var(--road);color:var(--road-ink);padding:18px 12px;display:flex;flex-direction:column;gap:4px;position:sticky;top:0;height:100vh}
 .logo{font-family:var(--f-display);font-weight:700;font-size:1.3rem;letter-spacing:.03em;padding:0 10px 14px;display:flex;align-items:center;gap:8px;line-height:1.1}
-.bandeira{display:inline-flex;flex-direction:column;flex:none;width:26px;height:18px;border-radius:2px;overflow:hidden;box-shadow:0 0 0 1px rgba(255,255,255,.25)}
-.bandeira span{flex:1}
+.bandeira{display:inline-block;flex:none;width:27px;height:18px;border-radius:2px;overflow:hidden;box-shadow:0 0 0 1px rgba(255,255,255,.25)}
 .navgrp{font-size:.68rem;letter-spacing:.12em;text-transform:uppercase;opacity:.55;padding:14px 10px 4px}
 .nav a{display:flex;align-items:center;justify-content:space-between;gap:8px;text-decoration:none;padding:8px 10px;border-radius:6px;font-weight:500}
 .nav a:hover{background:rgba(255,255,255,.07)}
