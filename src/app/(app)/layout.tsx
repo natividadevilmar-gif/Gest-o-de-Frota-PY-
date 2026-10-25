@@ -19,6 +19,7 @@ const MODULOS: { m: Modulo; href: string; rotulo: string }[] = [
   { m: "painel", href: "/fretes", rotulo: "Fretes e margem" },
   { m: "painel", href: "/caixa", rotulo: "Caixa dos motoristas" },
   { m: "caminhoes", href: "/caminhoes", rotulo: "Caminhões e planos" },
+  { m: "caminhoes", href: "/contrato", rotulo: "Contrato" },
   { m: "caminhoes", href: "/motoristas", rotulo: "Acesso dos motoristas" },
   { m: "custos", href: "/custos", rotulo: "Custo por km" },
   { m: "consumo", href: "/consumo", rotulo: "Consumo e motoristas" },
@@ -36,7 +37,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // O motorista vê o menu no idioma escolhido por ele.
   const es = sessao.papel === "MOTORISTA" && ((await db.usuario.findUnique({ where: { id: sessao.usuarioId }, select: { idioma: true } }))?.idioma ?? cliente?.idioma) === "es";
   const admin = sessao.papel === "ADMIN";
-  const itensFrota: ItemNav[] = (sessao.papel === "MOTORISTA" ? MODULOS.filter((x) => x.href === "/despesas") : MODULOS).map((x, i) => ({
+  const visiveis = sessao.papel === "MOTORISTA" ? MODULOS.filter((x) => x.href === "/despesas") : sessao.papel === "OPERADOR" ? MODULOS.filter((x) => x.href !== "/contrato") : MODULOS;
+  const itensFrota: ItemNav[] = visiveis.map((x, i) => ({
     href: x.href,
     rotulo: es && x.href === "/despesas" ? "Cargar gasto" : admin && x.href === "/painel" ? "Painel do cliente" : x.rotulo,
     grupo: i === 0 ? (admin ? `Cliente: ${cliente?.nome ?? "nenhum"}` : "Frota") : undefined,
