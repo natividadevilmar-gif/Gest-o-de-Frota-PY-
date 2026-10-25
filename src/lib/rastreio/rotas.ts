@@ -38,6 +38,55 @@ export const ROTAS: { nome: string; pontos: Ponto[] }[] = [
       { lat: -23.3800, lng: -55.9000 }, { lat: -22.5470, lng: -55.7330 },
     ],
   },
+  {
+    nome: "Asunción → Concepción (PY03/PY05)",
+    pontos: [
+      { lat: -25.2828, lng: -57.6359 }, { lat: -25.1700, lng: -57.4900 }, { lat: -25.0600, lng: -57.1000 },
+      { lat: -24.6500, lng: -56.4400 }, { lat: -23.8000, lng: -56.5100 }, { lat: -23.3400, lng: -57.0600 },
+      { lat: -23.4100, lng: -57.4300 },
+    ],
+  },
+  {
+    nome: "Asunción → Filadelfia (Transchaco)",
+    pontos: [
+      { lat: -25.2828, lng: -57.6359 }, { lat: -25.1000, lng: -57.5300 }, { lat: -24.4500, lng: -58.1500 },
+      { lat: -23.4900, lng: -58.7900 }, { lat: -22.6200, lng: -59.7300 }, { lat: -22.3500, lng: -60.0300 },
+    ],
+  },
+  {
+    nome: "Asunción → Pilar (PY04)",
+    pontos: [
+      { lat: -25.2828, lng: -57.6359 }, { lat: -25.5000, lng: -57.5600 }, { lat: -25.8800, lng: -57.8000 },
+      { lat: -26.1900, lng: -58.1300 }, { lat: -26.8600, lng: -58.3000 },
+    ],
+  },
+  {
+    nome: "Ciudad del Este → Salto del Guairá (PY07/PY10)",
+    pontos: [
+      { lat: -25.5097, lng: -54.6111 }, { lat: -25.4000, lng: -54.6400 }, { lat: -24.9300, lng: -55.2100 },
+      { lat: -24.2500, lng: -54.7600 }, { lat: -24.0600, lng: -54.3100 },
+    ],
+  },
+  {
+    nome: "Ciudad del Este → Cascavel (BR-277)",
+    pontos: [
+      { lat: -25.5097, lng: -54.6111 }, { lat: -25.5200, lng: -54.5500 }, { lat: -25.2900, lng: -54.0900 },
+      { lat: -25.1300, lng: -53.8500 }, { lat: -24.9600, lng: -53.4600 },
+    ],
+  },
+  {
+    nome: "Asunción → Formosa (AR)",
+    pontos: [
+      { lat: -25.2828, lng: -57.6359 }, { lat: -25.2900, lng: -57.7200 }, { lat: -25.6000, lng: -57.9500 },
+      { lat: -26.1800, lng: -58.1800 },
+    ],
+  },
+  {
+    nome: "Coronel Oviedo → Villarrica (PY08)",
+    pontos: [
+      { lat: -25.4473, lng: -56.4400 }, { lat: -25.6000, lng: -56.4300 }, { lat: -25.7500, lng: -56.4300 },
+    ],
+  },
 ];
 
 const R = 6371;
@@ -87,8 +136,10 @@ function hash(texto: string): number {
 const FUSO_PY_H = -3;
 
 /**
- * Viagem de demonstração do caminhão num dia: sempre a mesma para o mesmo caminhão
- * e dia. Sai entre 5h e 9h (hora do Paraguai), roda a ~65 km/h e para no destino.
+ * Jornada de demonstração do caminhão num dia: sempre a mesma para o mesmo caminhão
+ * e dia. Começa num ponto variado da sua rota, sai entre 3h e 11h (hora do Paraguai),
+ * roda a ~65 km/h indo e voltando pela rota e encosta entre 17h e 20h.
+ * Cerca de 1 em cada 10 caminhões fica parado o dia todo.
  */
 function viagemDemo(caminhaoId: string, dia: Date) {
   const chave = `${caminhaoId}:${dia.toISOString().slice(0, 10)}`;
@@ -96,12 +147,20 @@ function viagemDemo(caminhaoId: string, dia: Date) {
   const rota = ROTAS[hash(caminhaoId) % ROTAS.length];
   const ida = hash(chave + "s") % 2 === 0;
   const pontos = ida ? rota.pontos : [...rota.pontos].reverse();
+  const total = comprimentoKm(pontos);
+  const kmIni = total * ((hash(chave + "i") % 90) / 100);
   const inicioDia = Date.UTC(dia.getUTCFullYear(), dia.getUTCMonth(), dia.getUTCDate()) - FUSO_PY_H * 3600_000;
-  const saida = inicioDia + (5 + (h % 240) / 60) * 3600_000;
+  const folga = hash(chave + "folga") % 10 === 0;
+  const saida = inicioDia + (folga ? 30 : 3 + (h % 480) / 60) * 3600_000;
+  const chegada = inicioDia + (17 + (hash(chave + "c") % 180) / 60) * 3600_000;
   const media = 58 + (h % 15);
-  const km = comprimentoKm(pontos);
-  const chegada = saida + (km / media) * 3600_000;
-  return { pontos, saida, chegada, media, km, nome: ida ? rota.nome : rota.nome.split(" → ").reverse().join(" → ").replace(/ \((.+)\)$/, "") };
+  return { pontos, total, saida, chegada, media, kmIni, nome: ida ? rota.nome : rota.nome.split(" → ").reverse().join(" → ").replace(/ \((.+)\)$/, "") };
+}
+
+/** Distância percorrida `d` a partir de `kmIni`, indo e voltando numa rota de `total` km. */
+function vaiEVolta(kmIni: number, d: number, total: number): { km: number; volta: boolean } {
+  const m = (kmIni + d) % (2 * total);
+  return m <= total ? { km: m, volta: false } : { km: 2 * total - m, volta: true };
 }
 
 /** Data (meia-noite UTC) do dia no Paraguai em que cai o instante `t`. */
@@ -114,11 +173,16 @@ export function posicaoDemo(caminhaoId: string, agora: Date): PosicaoSimulada {
   const v = viagemDemo(caminhaoId, diaNoParaguai(agora));
   const t = agora.getTime();
   const rodando = t > v.saida && t < v.chegada;
-  const km = t <= v.saida ? 0 : ((Math.min(t, v.chegada) - v.saida) / 3600_000) * v.media;
+  const d = t <= v.saida ? 0 : ((Math.min(t, v.chegada) - v.saida) / 3600_000) * v.media;
+  const { km, volta } = vaiEVolta(v.kmIni, d, v.total);
   const p = pontoNaRota(v.pontos, km);
+  const direcao = volta ? (p.direcao + 180) % 360 : p.direcao;
   // Pequena variação de velocidade para parecer real.
   const vel = rodando ? Math.max(20, Math.round(v.media + Math.sin(t / 90_000 + hash(caminhaoId)) * 18)) : 0;
-  return { ...p, velocidadeKmh: vel, ignicao: rodando, data: agora };
+  // Parados, cada um fica num ponto diferente da cidade (até ~1,5 km), como num pátio ou posto.
+  const dLat = rodando ? 0 : ((hash(caminhaoId + "lat") % 1000) / 1000 - 0.5) * 0.028;
+  const dLng = rodando ? 0 : ((hash(caminhaoId + "lng") % 1000) / 1000 - 0.5) * 0.03;
+  return { lat: p.lat + dLat, lng: p.lng + dLng, direcao, velocidadeKmh: vel, ignicao: rodando, data: agora };
 }
 
 /** Trajeto de demonstração do dia até `ate`, um ponto a cada 5 minutos. */

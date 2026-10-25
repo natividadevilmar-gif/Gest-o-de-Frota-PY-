@@ -58,7 +58,7 @@ describe("rotas de demonstração", () => {
   it("o caminhão fica parado de madrugada e anda durante o dia", () => {
     expect(posicaoDemo("cam1", new Date("2026-10-25T05:00:00Z")).ignicao).toBe(false);
     const dia = trajetoDemo("cam1", new Date("2026-10-25T00:00:00Z"), new Date("2026-10-25T23:00:00Z"));
-    expect(dia.length).toBeGreaterThan(40);
+    expect(dia.length).toBeGreaterThan(10);
     expect(dia.some((p) => p.velocidadeKmh > 0)).toBe(true);
   });
 });

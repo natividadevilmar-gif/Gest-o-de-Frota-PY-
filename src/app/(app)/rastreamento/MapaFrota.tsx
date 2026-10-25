@@ -45,6 +45,7 @@ export function MapaFrota({ inicial, hoje, todos = false }: { inicial: CaminhaoM
   const marcas = useRef<Leaflet.LayerGroup | null>(null);
   const linha = useRef<Leaflet.LayerGroup | null>(null);
   const [pronto, setPronto] = useState(false);
+  const [zoom, setZoom] = useState(0);
 
   // Cria o mapa uma vez (o Leaflet só roda no navegador).
   useEffect(() => {
@@ -60,6 +61,7 @@ export function MapaFrota({ inicial, hoje, todos = false }: { inicial: CaminhaoM
       linha.current = mod.layerGroup().addTo(m);
       marcas.current = mod.layerGroup().addTo(m);
       mapa.current = m;
+      m.on("zoomend", () => setZoom(m.getZoom()));
       const pts = inicial.filter((c) => c.lat != null).map((c) => [c.lat!, c.lng!] as [number, number]);
       if (pts.length) m.fitBounds(pts, { padding: [40, 40], maxZoom: 10 });
       setPronto(true);
@@ -88,8 +90,8 @@ export function MapaFrota({ inicial, hoje, todos = false }: { inicial: CaminhaoM
     // Com muitos caminhões, só o ponto colorido; a placa aparece ao passar o mouse e no escolhido.
     const visiveis = frota.filter((c) => filtro === "todos" || c.situacao === filtro);
     const compacto = visiveis.filter((c) => c.lat != null).length > 30;
-    for (const c of visiveis) {
-      if (c.lat == null || c.lng == null) continue;
+    const m = mapa.current!;
+    const marcar = (c: CaminhaoMapa) => {
       const comPlaca = !compacto || c.id === sel;
       const icone = mod.divIcon({
         className: "",
@@ -97,11 +99,46 @@ export function MapaFrota({ inicial, hoje, todos = false }: { inicial: CaminhaoM
         iconSize: undefined,
         iconAnchor: [10, 12],
       });
-      mod.marker([c.lat, c.lng], { icon: icone, title: todos ? `${c.placa} · ${c.cliente}` : c.placa, zIndexOffset: c.id === sel ? 1000 : 0 })
+      mod.marker([c.lat!, c.lng!], { icon: icone, title: todos ? `${c.placa} · ${c.cliente}` : c.placa, zIndexOffset: c.id === sel ? 1000 : 0 })
         .on("click", () => setSel(c.id))
         .addTo(grupo);
+    };
+
+    // Caminhões a menos de ~28 px um do outro (ex.: parados no mesmo pátio) viram um grupo com a contagem.
+    const grupos: { x: number; y: number; itens: CaminhaoMapa[] }[] = [];
+    for (const c of visiveis) {
+      if (c.lat == null || c.lng == null) continue;
+      if (c.id === sel) { marcar(c); continue; }
+      const p = m.project([c.lat, c.lng], m.getZoom());
+      const g = grupos.find((g) => Math.hypot(g.x - p.x, g.y - p.y) < 28);
+      if (g) g.itens.push(c);
+      else grupos.push({ x: p.x, y: p.y, itens: [c] });
     }
-  }, [frota, sel, pronto, todos, filtro]);
+    for (const g of grupos) {
+      if (g.itens.length === 1) { marcar(g.itens[0]); continue; }
+      const sit = g.itens.every((c) => c.situacao === g.itens[0].situacao) ? g.itens[0].situacao : "misto";
+      const icone = mod.divIcon({ className: "", html: `<div class="mk mk-grupo mk-${sit}"><i></i>${g.itens.length}</div>`, iconSize: undefined, iconAnchor: [14, 13] });
+      const pts = g.itens.map((c) => [c.lat!, c.lng!] as [number, number]);
+      const lista = document.createElement("div");
+      lista.className = "mk-lista";
+      const titulo = document.createElement("b");
+      titulo.textContent = `${g.itens.length} caminhões aqui`;
+      lista.append(titulo);
+      for (const c of g.itens) {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.textContent = `${c.placa} · ${ROTULO[c.situacao]}${todos ? ` · ${c.cliente}` : ""}`;
+        b.onclick = () => { m.closePopup(); setSel(c.id); };
+        lista.append(b);
+      }
+      const marca = mod.marker(pts[0], { icon: icone, title: `${g.itens.length} caminhões`, zIndexOffset: 500 }).addTo(grupo);
+      const b = mod.latLngBounds(pts);
+      const mesmoLugar = m.project(b.getNorthEast(), 16).distanceTo(m.project(b.getSouthWest(), 16)) < 28;
+      // Afastados: aproxima o mapa. No mesmo lugar: mostra a lista de placas para escolher.
+      if (mesmoLugar || m.getZoom() >= 15) marca.bindPopup(lista, { maxHeight: 260 });
+      else marca.on("click", () => m.fitBounds(b, { padding: [60, 60], maxZoom: 16 }));
+    }
+  }, [frota, sel, pronto, todos, filtro, zoom]);
 
   // Ao trocar o filtro, o mapa enquadra só os caminhões daquela situação.
   useEffect(() => {
