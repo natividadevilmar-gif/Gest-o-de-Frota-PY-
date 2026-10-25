@@ -59,6 +59,8 @@ model Cliente {
   caminhoes    Caminhao[]
   motoristas   Motorista[]
   caixas       CaixaViagem[]
+  cercas       Cerca[]
+  ocorrencias  Ocorrencia[]
 }
 
 model Usuario {
@@ -109,6 +111,8 @@ model Caminhao {
   ultimaLng         Float?
   ultimaVelocidade  Int?
   ultimaIgnicao     Boolean?
+  // Cerca onde o caminhão está agora (para detectar entrada e saída).
+  cercaAtualId      String?
   motoristaId       String?
   motorista         Motorista?      @relation(fields: [motoristaId], references: [id], onDelete: SetNull)
   // Custos fixos mensais que entram no custo por km.
@@ -121,6 +125,7 @@ model Caminhao {
   viagens           Viagem[]
   caixas            CaixaViagem[]
   posicoes          Posicao[]
+  ocorrencias       Ocorrencia[]
   criadoEm          DateTime        @default(now())
 
   @@unique([clienteId, placa])
@@ -290,4 +295,49 @@ model Posicao {
   recebidoEm    DateTime @default(now())
 
   @@index([caminhaoId, data])
+}
+
+// Área circular no mapa: pátio, cliente, fronteira ou área de risco.
+// Entrar ou sair dela gera uma ocorrência na central de monitoramento.
+model Cerca {
+  id        String   @id @default(cuid())
+  clienteId String
+  cliente   Cliente  @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  nome      String
+  // "patio", "cliente", "fronteira" ou "risco".
+  tipo      String
+  lat       Float
+  lng       Float
+  raioM     Int
+  ativa     Boolean  @default(true)
+  criadoEm  DateTime @default(now())
+}
+
+// Alerta da central de monitoramento, do momento em que acontece até ser resolvido.
+model Ocorrencia {
+  id            String    @id @default(cuid())
+  clienteId     String
+  cliente       Cliente   @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  caminhaoId    String
+  caminhao      Caminhao  @relation(fields: [caminhaoId], references: [id], onDelete: Cascade)
+  // excesso, sem_sinal, ignicao_noturna, entrada_cerca, saida_cerca, freada, aceleracao, curva.
+  tipo          String
+  // "alta", "media" ou "baixa".
+  gravidade     String
+  titulo        String
+  detalhe       String
+  lat           Float?
+  lng           Float?
+  velocidadeKmh Int?
+  // Evita repetir o mesmo alerta (ex.: um excesso por caminhão por hora).
+  chave         String    @unique
+  // "aberta", "atendimento" ou "resolvida".
+  status        String    @default("aberta")
+  atendidaPor   String?
+  atendidaEm    DateTime?
+  resolvidaEm   DateTime?
+  observacao    String?
+  criadaEm      DateTime  @default(now())
+
+  @@index([clienteId, status, criadaEm])
 }

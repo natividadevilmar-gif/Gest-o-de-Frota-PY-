@@ -180,7 +180,7 @@ export function posicaoDemo(caminhaoId: string, agora: Date): PosicaoSimulada {
   const p = pontoNaRota(v.pontos, km);
   const direcao = volta ? (p.direcao + 180) % 360 : p.direcao;
   // Pequena variação de velocidade para parecer real.
-  const vel = rodando ? Math.max(20, Math.round(v.media + Math.sin(t / 90_000 + hash(caminhaoId)) * 18)) : 0;
+  const vel = rodando ? Math.max(20, Math.round(v.media + Math.sin(t / 90_000 + hash(caminhaoId)) * 14)) : 0;
   // Parados, cada um fica num ponto diferente da cidade (até ~1,5 km), como num pátio ou posto.
   const dLat = rodando ? 0 : ((hash(caminhaoId + "lat") % 1000) / 1000 - 0.5) * 0.028;
   const dLng = rodando ? 0 : ((hash(caminhaoId + "lng") % 1000) / 1000 - 0.5) * 0.03;

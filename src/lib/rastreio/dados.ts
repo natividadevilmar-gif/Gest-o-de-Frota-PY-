@@ -13,6 +13,7 @@ export type CaminhaoMapa = {
   modelo: string;
   motorista: string | null;
   cliente: string;
+  clienteId: string;
   situacao: Situacao;
   /** true quando o caminhão ainda não tem aparelho próprio e a posição é de demonstração. */
   demo: boolean;
@@ -44,7 +45,7 @@ export async function frotaNoMapa(clienteId: string | null, agora = new Date()):
     orderBy: [{ cliente: { nome: "asc" } }, { placa: "asc" }],
   });
   return lista.map((c) => {
-    const base = { id: c.id, placa: c.placa, modelo: c.modelo, motorista: c.motorista?.nome ?? null, cliente: c.cliente.nome };
+    const base = { id: c.id, placa: c.placa, modelo: c.modelo, motorista: c.motorista?.nome ?? null, cliente: c.cliente.nome, clienteId: c.clienteId };
     if (!c.rastreadorId) {
       return { ...base, situacao: "sem-rastreador", demo: false, lat: null, lng: null, velocidadeKmh: 0, direcao: 0, atualizadoEm: null, rota: null, local: null, rpm: null };
     }
