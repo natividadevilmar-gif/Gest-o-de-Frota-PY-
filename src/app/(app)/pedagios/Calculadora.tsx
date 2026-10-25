@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { num, usd } from "@/lib/formato";
-import { previstoRota, SIMBOLO_PEDAGIO, type RotaComPracas, type Taxas } from "@/lib/pedagio";
+import { EIXOS_TARIFA_FIXA, previstoRota, SIMBOLO_PEDAGIO, type RotaComPracas, type Taxas } from "@/lib/pedagio";
 
 type Cam = { id: string; placa: string; eixos: number };
 
@@ -42,7 +42,7 @@ export function Calculadora({ rotas, taxas, caminhoes }: { rotas: RotaComPracas[
                   <tr key={i.id}>
                     <td>{i.nome}</td>
                     <td>{i.pais} · {i.rodovia}</td>
-                    <td className="n">{i.tarifaEixo != null ? `${SIMBOLO_PEDAGIO[i.moeda]} ${num(i.tarifaEixo, 2)} × ${eixos} eixos` : "caminhão pesado"}</td>
+                    <td className="n">{i.tarifaEixo != null ? `${SIMBOLO_PEDAGIO[i.moeda]} ${num(i.tarifaEixo, 2)} × ${eixos} eixos` : eixos > EIXOS_TARIFA_FIXA ? `${SIMBOLO_PEDAGIO[i.moeda]} ${num(i.tarifaFixa, i.moeda === "PYG" ? 0 : 2)} + ${eixos - EIXOS_TARIFA_FIXA} eixos extras` : "caminhão pesado (até 6 eixos)"}</td>
                     <td className="n">{SIMBOLO_PEDAGIO[i.moeda]} {num(i.valor, i.moeda === "PYG" ? 0 : 2)}</td>
                     <td className="n">{usd(i.usd, 2)}</td>
                   </tr>
@@ -50,6 +50,7 @@ export function Calculadora({ rotas, taxas, caminhoes }: { rotas: RotaComPracas[
               </tbody>
             </table>
           </div>
+          {eixos > EIXOS_TARIFA_FIXA && p.itens.some((i) => i.tarifaEixo == null) && <p className="note">Nas praças com tarifa por caminhão, os eixos acima de 6 foram somados pela proporção da tarifa (estimativa). Confira no primeiro recibo do bitrem.</p>}
           {p.semValor.length > 0 && <p className="note">Sem tarifa: {p.semValor.join(", ")}.</p>}
         </>
       )}
