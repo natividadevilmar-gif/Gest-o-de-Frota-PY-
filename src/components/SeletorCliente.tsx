@@ -1,11 +1,14 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { escolherCliente } from "@/app/(app)/empresa/actions";
 
 export function SeletorCliente({ clientes, atual }: { clientes: { id: string; nome: string }[]; atual: string }) {
+  const caminho = usePathname();
   return (
     // key: refaz o seletor quando o cliente muda, para ele nunca mostrar o anterior.
     <form key={atual} action={escolherCliente} className="form">
+      <input type="hidden" name="voltar" value={caminho} />
       <label htmlFor="cliente">
         Ver dados do cliente
         <select id="cliente" name="clienteId" defaultValue={atual} onChange={(e) => e.currentTarget.form?.requestSubmit()}>

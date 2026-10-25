@@ -52,7 +52,7 @@ async function main() {
         for (let i = 0; i < qtd; i++) {
           n++;
           await db.caminhao.create({
-            data: { clienteId: cliente.id, placa: `EX${String(n).padStart(3, "0")}`, modelo: "Exemplo", plano: plano as Plano, consumoRefKmL: 2.6 },
+            data: { clienteId: cliente.id, placa: `EX${String(n).padStart(3, "0")}`, modelo: "Exemplo", plano: plano as Plano, consumoRefKmL: 2.6, rastreadorId: `SIM-${cliente.id.slice(-4)}-${n}` },
           });
         }
       }

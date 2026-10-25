@@ -19,7 +19,10 @@ export async function escolherCliente(form: FormData) {
   if (await db.cliente.findUnique({ where: { id } })) {
     (await cookies()).set(COOKIE_CLIENTE, id, { httpOnly: true, sameSite: "lax", path: "/" });
   }
-  redirect("/painel");
+  // Continua na mesma tela, agora com o cliente novo. Telas de um registro (/caixa/<id>)
+  // voltam para a lista, porque o registro é do cliente anterior. De Minha empresa, abre o painel.
+  const tela = /^\/([a-z-]+)/.exec(String(form.get("voltar") ?? ""))?.[1];
+  redirect(tela && tela !== "empresa" ? `/${tela}` : "/painel");
 }
 
 export type Resultado = { ok: boolean; msg: string } | null;

@@ -10,6 +10,7 @@ export type CaminhaoMapa = {
   placa: string;
   modelo: string;
   motorista: string | null;
+  cliente: string;
   situacao: Situacao;
   /** true quando o caminhão ainda não tem aparelho próprio e a posição é de demonstração. */
   demo: boolean;
@@ -30,14 +31,15 @@ function situacao(em: Date | null, ignicao: boolean | null, vel: number, agora: 
   return vel > 3 ? "movimento" : "parado";
 }
 
-export async function frotaNoMapa(clienteId: string, agora = new Date()): Promise<CaminhaoMapa[]> {
+/** Caminhões de um cliente, ou de todos os clientes quando `clienteId` é null (só a equipe KM Cero). */
+export async function frotaNoMapa(clienteId: string | null, agora = new Date()): Promise<CaminhaoMapa[]> {
   const lista = await db.caminhao.findMany({
-    where: { clienteId },
-    include: { motorista: { select: { nome: true } } },
-    orderBy: { placa: "asc" },
+    where: clienteId ? { clienteId } : {},
+    include: { motorista: { select: { nome: true } }, cliente: { select: { nome: true } } },
+    orderBy: [{ cliente: { nome: "asc" } }, { placa: "asc" }],
   });
   return lista.map((c) => {
-    const base = { id: c.id, placa: c.placa, modelo: c.modelo, motorista: c.motorista?.nome ?? null };
+    const base = { id: c.id, placa: c.placa, modelo: c.modelo, motorista: c.motorista?.nome ?? null, cliente: c.cliente.nome };
     if (!c.rastreadorId) {
       return { ...base, situacao: "sem-rastreador", demo: false, lat: null, lng: null, velocidadeKmh: 0, direcao: 0, atualizadoEm: null, rota: null };
     }
@@ -80,9 +82,9 @@ export type Trajeto = {
   demo: boolean;
 };
 
-/** Trajeto de um caminhão num dia do Paraguai (`dia` = meia-noite UTC dessa data). */
-export async function trajetoDoDia(clienteId: string, caminhaoId: string, dia: Date, agora = new Date()): Promise<Trajeto | null> {
-  const c = await db.caminhao.findFirst({ where: { id: caminhaoId, clienteId }, select: { id: true, rastreadorId: true, odometroKm: true } });
+/** Trajeto de um caminhão num dia do Paraguai (`dia` = meia-noite UTC dessa data). `clienteId` null = qualquer cliente. */
+export async function trajetoDoDia(clienteId: string | null, caminhaoId: string, dia: Date, agora = new Date()): Promise<Trajeto | null> {
+  const c = await db.caminhao.findFirst({ where: { id: caminhaoId, ...(clienteId ? { clienteId } : {}) }, select: { id: true, rastreadorId: true, odometroKm: true } });
   if (!c || !c.rastreadorId) return null;
 
   if (!ehImei(c.rastreadorId)) {
