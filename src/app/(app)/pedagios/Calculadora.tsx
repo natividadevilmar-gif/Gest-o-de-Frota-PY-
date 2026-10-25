@@ -42,7 +42,7 @@ export function Calculadora({ rotas, taxas, caminhoes }: { rotas: RotaComPracas[
                   <tr key={i.id}>
                     <td>{i.nome}</td>
                     <td>{i.pais} · {i.rodovia}</td>
-                    <td className="n">{i.tarifaEixo != null ? `${SIMBOLO_PEDAGIO[i.moeda]} ${num(i.tarifaEixo, 2)} × ${eixos} eixos` : "caminhão pesado"}</td>
+                    <td className="n">{i.tarifaEixo != null ? `${SIMBOLO_PEDAGIO[i.moeda]} ${num(i.tarifaEixo, 2)} × ${eixos} eixos` : "preço fixo, caminhão pesado"}</td>
                     <td className="n">{SIMBOLO_PEDAGIO[i.moeda]} {num(i.valor, i.moeda === "PYG" ? 0 : 2)}</td>
                     <td className="n">{usd(i.usd, 2)}</td>
                   </tr>
