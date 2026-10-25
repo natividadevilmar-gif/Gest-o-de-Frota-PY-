@@ -18,6 +18,7 @@ export function NovoCaminhao({ plano = "GESTAO" }: { plano?: string }) {
       </label>
       <label htmlFor="consumoRefKmL">Consumo de referência (km/l)<input id="consumoRefKmL" name="consumoRefKmL" type="number" step="0.1" defaultValue="2.6" required /></label>
       <label htmlFor="odometroKm">Odômetro (km)<input id="odometroKm" name="odometroKm" type="number" min="0" required /></label>
+      <label htmlFor="eixos">Eixos (cavalo + carreta)<input id="eixos" name="eixos" type="number" min="2" max="12" defaultValue="6" required /></label>
       <label htmlFor="motorista">Motorista<input id="motorista" name="motorista" className="wide" /></label>
       <label htmlFor="rastreadorId">IMEI do rastreador<input id="rastreadorId" name="rastreadorId" inputMode="numeric" placeholder="15 números" /></label>
       <label htmlFor="salarioMotorista">Salário + encargos (USD/mês)<input id="salarioMotorista" name="salarioMotorista" type="number" min="0" defaultValue="1125" /></label>

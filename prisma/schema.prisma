@@ -122,6 +122,8 @@ model Caminhao {
   ultimaIgnicao     Boolean?
   // Cerca onde o caminhão está agora (para detectar entrada e saída).
   cercaAtualId      String?
+  // Eixos do conjunto (cavalo + carreta): o pedágio é cobrado por eixo na maioria das praças.
+  eixos             Int             @default(6)
   // Saída do rastreador que corta o motor (DOUT1), confirmada pelo aparelho.
   motorBloqueado    Boolean         @default(false)
   motoristaId       String?
@@ -221,10 +223,10 @@ model ServicoRevisao {
 }
 
 model Viagem {
-  id              String     @id @default(cuid())
+  id              String       @id @default(cuid())
   caminhaoId      String
-  caminhao        Caminhao   @relation(fields: [caminhaoId], references: [id], onDelete: Cascade)
-  data            DateTime   @db.Date
+  caminhao        Caminhao     @relation(fields: [caminhaoId], references: [id], onDelete: Cascade)
+  data            DateTime     @db.Date
   origem          String
   destino         String
   carga           String
@@ -234,21 +236,24 @@ model Viagem {
   kmVazio         Float
   // Detalhes do frete. Origem/destino são as cidades; os países ficam em ISO de duas letras.
   embarcador      String?
-  paisOrigem      String     @default("PY")
-  paisDestino     String     @default("PY")
-  moeda           String     @default("USD")
+  paisOrigem      String       @default("PY")
+  paisDestino     String       @default("PY")
+  moeda           String       @default("USD")
   valorOriginal   Float?
   precoTonelada   Float?
   motoristaId     String?
-  motorista       Motorista? @relation(fields: [motoristaId], references: [id], onDelete: SetNull)
-  dataEntrega     DateTime?  @db.Date
+  motorista       Motorista?   @relation(fields: [motoristaId], references: [id], onDelete: SetNull)
+  dataEntrega     DateTime?    @db.Date
   documento       String?
   // Aduana, despachante, balança, chapa: custos só desta viagem, em USD, fora do custo por km.
-  custosExtrasUsd Float      @default(0)
-  recebido        Boolean    @default(false)
-  vencimento      DateTime?  @db.Date
+  custosExtrasUsd Float        @default(0)
+  recebido        Boolean      @default(false)
+  vencimento      DateTime?    @db.Date
   observacao      String?
-  criadoEm        DateTime   @default(now())
+  // Rota de pedágio escolhida no frete, para o pedágio previsto.
+  rotaPedagioId   String?
+  rotaPedagio     RotaPedagio? @relation(fields: [rotaPedagioId], references: [id], onDelete: SetNull)
+  criadoEm        DateTime     @default(now())
 
   @@index([caminhaoId, data])
 }
@@ -414,4 +419,36 @@ model Midia {
 
   @@index([clienteId, data])
   @@index([caminhaoId, data])
+}
+
+// Praça de pedágio (peaje) com a tarifa de caminhão pesado.
+// Tarifa por eixo (Brasil, Argentina) ou valor fixo por caminhão pesado (Paraguai, Uruguai).
+model PracaPedagio {
+  id           String   @id
+  pais         String
+  rodovia      String
+  nome         String
+  lat          Float
+  lng          Float
+  moeda        String
+  // Valor por eixo; quando null, vale `tarifaFixa` para o caminhão pesado inteiro.
+  tarifaEixo   Float?
+  tarifaFixa   Float?
+  // Cobrança só num sentido (algumas praças do Brasil): o valor já é o da ida.
+  sentido      String?
+  fonte        String
+  vigencia     DateTime @db.Date
+  atualizadoEm DateTime @updatedAt
+}
+
+// Rota (corredor) com as praças que o caminhão passa, em ordem.
+model RotaPedagio {
+  id      String   @id
+  nome    String
+  origem  String
+  destino String
+  paises  String
+  km      Int
+  pracas  String[]
+  viagens Viagem[]
 }

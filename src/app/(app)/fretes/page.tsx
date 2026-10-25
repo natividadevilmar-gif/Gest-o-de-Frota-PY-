@@ -8,6 +8,8 @@ import { indicadoresFrota, viagensCliente } from "@/lib/dados";
 import { db } from "@/lib/db";
 import { dataBr, mesValido, nomeMes, num, usd } from "@/lib/formato";
 import { mesAtual } from "@/lib/indicadores";
+import { previstoRota } from "@/lib/pedagio";
+import { rotasPedagio, taxasDoDia } from "@/lib/pedagioDados";
 import { marcarRecebido } from "./actions";
 import { ExcluirFrete } from "./Excluir";
 import { NovoFrete, PAISES } from "./NovoFrete";
@@ -18,14 +20,35 @@ export default async function Fretes({ searchParams }: { searchParams: Promise<{
   const { sessao, cliente } = await clienteAtual();
   if (!podeEditarCadastros(sessao)) redirect("/despesas");
   const mes = mesValido((await searchParams).mes, mesAtual());
-  const [ind, motoristas, cotacao] = await Promise.all([
+  const [ind, motoristas, cotacao, rotas, taxas] = await Promise.all([
     indicadoresFrota(cliente.id, mes),
     db.motorista.findMany({ where: { clienteId: cliente.id }, select: { id: true, nome: true }, orderBy: { nome: "asc" } }),
     cotacaoDoDia(),
+    rotasPedagio(),
+    taxasDoDia(),
   ]);
-  const caminhoes = await db.caminhao.findMany({ where: { clienteId: cliente.id }, select: { id: true, motoristaId: true }, orderBy: { placa: "asc" } });
+  const caminhoes = await db.caminhao.findMany({ where: { clienteId: cliente.id }, select: { id: true, motoristaId: true, eixos: true }, orderBy: { placa: "asc" } });
   const motDe = new Map(caminhoes.map((c) => [c.id, c.motoristaId]));
+  const eixosDe = new Map(caminhoes.map((c) => [c.id, c.eixos]));
   const fretes = await viagensCliente(cliente.id, mes, ind);
+
+  // Pedágio previsto da rota escolhida contra o pedágio lançado pelo motorista entre o carregamento e a entrega.
+  const rotaDe = new Map(rotas.map((r) => [r.id, r]));
+  const comRota = fretes.filter((f) => f.rotaPedagioId && rotaDe.has(f.rotaPedagioId));
+  const pedagiosLancados = comRota.length
+    ? await db.despesa.findMany({
+        where: { categoria: "PEDAGIO", caminhaoId: { in: comRota.map((f) => f.caminhaoId) }, data: { gte: new Date(Math.min(...comRota.map((f) => f.data.getTime()))) } },
+        select: { caminhaoId: true, data: true, valorUsd: true },
+      })
+    : [];
+  const pedagio = new Map(
+    comRota.map((f) => {
+      const ate = (f.dataEntrega ?? new Date(f.data.getTime() + 3 * 86_400_000)).getTime();
+      const lancado = pedagiosLancados.filter((d) => d.caminhaoId === f.caminhaoId && d.data.getTime() >= f.data.getTime() && d.data.getTime() <= ate).reduce((a, d) => a + d.valorUsd, 0);
+      const r = rotaDe.get(f.rotaPedagioId!)!;
+      return [f.id, { previsto: previstoRota(r.pracas, f.caminhao.eixos, taxas).usd, lancado }];
+    }),
+  );
 
   // Margem por caminhão: soma dos fretes do mês menos o custo das viagens.
   const porCaminhao = ind
@@ -58,7 +81,9 @@ export default async function Fretes({ searchParams }: { searchParams: Promise<{
       <div className="card" id="novo">
         <div className="card-h"><h2>Lançar frete</h2><p>A margem aparece enquanto você preenche</p></div>
         <NovoFrete
-          caminhoes={ind.map((i) => ({ id: i.id, placa: i.placa, custoKm: i.custoKm, motoristaId: motDe.get(i.id) ?? null }))}
+          caminhoes={ind.map((i) => ({ id: i.id, placa: i.placa, custoKm: i.custoKm, motoristaId: motDe.get(i.id) ?? null, eixos: eixosDe.get(i.id) ?? 6 }))}
+          rotas={rotas}
+          taxas={taxas}
           motoristas={motoristas}
           cotacao={cotacao}
           hoje={hoje}
@@ -110,7 +135,7 @@ export default async function Fretes({ searchParams }: { searchParams: Promise<{
                       <td>{dataBr(f.data)}{f.dataEntrega && <><br /><small className="muted">entrega {dataBr(f.dataEntrega)}</small></>}</td>
                       <td><Placa placa={f.caminhao.placa} />{f.motorista && <><br /><small className="muted">{f.motorista.nome}</small></>}</td>
                       <td>{f.embarcador ?? "–"}{f.documento && <><br /><small className="muted">{f.documento}</small></>}</td>
-                      <td>{pais(f.paisOrigem)} {f.origem} → {pais(f.paisDestino)} {f.destino}<br /><small className="muted">{num(f.kmCarregado)} km + {num(f.kmVazio)} vazio</small></td>
+                      <td>{pais(f.paisOrigem)} {f.origem} → {pais(f.paisDestino)} {f.destino}<br /><small className="muted">{num(f.kmCarregado)} km + {num(f.kmVazio)} vazio</small>{pedagio.has(f.id) && (() => { const pg = pedagio.get(f.id)!; return <><br /><small className={pg.lancado > pg.previsto * 1.1 ? "t-bad" : "muted"}>pedágio previsto {usd(pg.previsto, 2)} · lançado {usd(pg.lancado, 2)}</small></>; })()}</td>
                       <td>{f.carga}, {num(f.toneladas, 1)} t{f.precoTonelada && <><br /><small className="muted">{SIMBOLO[f.moeda as Moeda]} {num(f.precoTonelada, 2)}/t</small></>}</td>
                       <td className="n">{usd(f.freteUsd)}{f.valorOriginal && <><br /><small className="muted">{SIMBOLO[f.moeda as Moeda]} {num(f.valorOriginal, 2)}</small></>}</td>
                       <td className="n">{usd(f.margem?.custoUsd)}{f.custosExtrasUsd > 0 && <><br /><small className="muted">+{usd(f.custosExtrasUsd)} extras</small></>}</td>

@@ -3,7 +3,7 @@ import { clienteAtual } from "@/lib/acesso";
 import { db } from "@/lib/db";
 import { num, usd } from "@/lib/formato";
 import { mensalidadeTotal, NOME_PLANO, PRECO_MENSAL, type Plano } from "@/lib/indicadores";
-import { mudarPlano } from "./actions";
+import { mudarEixos, mudarPlano } from "./actions";
 import { CampoRastreador } from "./CampoRastreador";
 import { NovoCaminhao } from "./NovoCaminhao";
 import { Planos } from "./Planos";
@@ -32,7 +32,7 @@ export default async function Caminhoes() {
         <div className="tw">
           <table>
             <thead>
-              <tr><th>Placa</th><th>Modelo</th><th>Motorista</th><th className="n">Ref. km/l</th><th className="n">Odômetro</th><th>Rastreador</th><th className="n">Custos fixos/mês</th><th>Plano</th></tr>
+              <tr><th>Placa</th><th>Modelo</th><th>Motorista</th><th className="n">Ref. km/l</th><th className="n">Odômetro</th><th className="n">Eixos</th><th>Rastreador</th><th className="n">Custos fixos/mês</th><th>Plano</th></tr>
             </thead>
             <tbody>
               {lista.map((c) => (
@@ -42,6 +42,15 @@ export default async function Caminhoes() {
                   <td>{c.motorista?.nome ?? "–"}</td>
                   <td className="n">{num(c.consumoRefKmL, 1)}</td>
                   <td className="n">{num(c.odometroKm)}</td>
+                  <td className="n">
+                    {pode ? (
+                      <form action={mudarEixos} className="form" style={{ flexWrap: "nowrap" }}>
+                        <input type="hidden" name="id" value={c.id} />
+                        <input name="eixos" type="number" min="2" max="12" defaultValue={c.eixos} aria-label={`Eixos de ${c.placa}`} style={{ width: "4em" }} />
+                        <button type="submit">Salvar</button>
+                      </form>
+                    ) : c.eixos}
+                  </td>
                   <td>{pode ? <CampoRastreador id={c.id} placa={c.placa} atual={c.rastreadorId} /> : c.rastreadorId ? <span className="mono">{c.rastreadorId}</span> : <span className="pill warn">sem rastreador</span>}</td>
                   <td className="n">{usd(c.salarioMotorista + c.seguroMensal + c.depreciacaoMensal)}</td>
                   <td>

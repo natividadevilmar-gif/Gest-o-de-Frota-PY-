@@ -4,9 +4,10 @@ import { useActionState, useEffect, useRef, useState } from "react";
 import { paraUsd, SIMBOLO, type Cotacoes, type Moeda } from "@/lib/cambio";
 import { num, usd } from "@/lib/formato";
 import { margemViagem } from "@/lib/indicadores";
+import { previstoRota, SIMBOLO_PEDAGIO, type RotaComPracas, type Taxas } from "@/lib/pedagio";
 import { lancarFrete } from "./actions";
 
-type Cam = { id: string; placa: string; custoKm: number | null; motoristaId: string | null };
+type Cam = { id: string; placa: string; custoKm: number | null; motoristaId: string | null; eixos: number };
 type Mot = { id: string; nome: string };
 
 export const PAISES: Record<string, string> = {
@@ -16,12 +17,13 @@ const BANDEIRA: Record<Moeda, string> = { PYG: "🇵🇾", USD: "🇺🇸", BRL:
 const NOME_MOEDA: Record<Moeda, string> = { PYG: "Guarani", USD: "Dólar", BRL: "Real", ARS: "Peso arg." };
 const MOEDA_DO_PAIS: Record<string, Moeda> = { PY: "PYG", BR: "BRL", AR: "ARS" };
 
-export function NovoFrete({ caminhoes, motoristas, cotacao, hoje, paisCliente }: { caminhoes: Cam[]; motoristas: Mot[]; cotacao: Cotacoes; hoje: string; paisCliente: string }) {
+export function NovoFrete({ caminhoes, motoristas, cotacao, hoje, paisCliente, rotas, taxas }: { caminhoes: Cam[]; motoristas: Mot[]; cotacao: Cotacoes; hoje: string; paisCliente: string; rotas: RotaComPracas[]; taxas: Taxas }) {
   const [r, acao, enviando] = useActionState(lancarFrete, null);
   const formulario = useRef<HTMLFormElement>(null);
   const [cam, setCam] = useState(caminhoes[0]?.id ?? "");
   const [mot, setMot] = useState(caminhoes[0]?.motoristaId ?? "");
   const [moeda, setMoeda] = useState<Moeda>("USD");
+  const [rotaId, setRotaId] = useState("");
   const [cobranca, setCobranca] = useState<"tonelada" | "fechado">("tonelada");
   const [v, setV] = useState({ toneladas: "", precoTonelada: "", valor: "", kmCarregado: "", kmVazio: "", custosExtras: "" });
   const set = (k: keyof typeof v) => (e: React.ChangeEvent<HTMLInputElement>) => setV((x) => ({ ...x, [k]: e.target.value }));
@@ -30,6 +32,7 @@ export function NovoFrete({ caminhoes, motoristas, cotacao, hoje, paisCliente }:
     if (!r?.ok) return;
     formulario.current?.reset();
     setV({ toneladas: "", precoTonelada: "", valor: "", kmCarregado: "", kmVazio: "", custosExtras: "" });
+    setRotaId("");
   }, [r]);
 
   const c = caminhoes.find((x) => x.id === cam);
@@ -40,6 +43,8 @@ export function NovoFrete({ caminhoes, motoristas, cotacao, hoje, paisCliente }:
   const km = Number(v.kmCarregado) || 0;
   const m = c?.custoKm != null && km > 0 && freteUsd > 0 ? margemViagem(freteUsd, km, Number(v.kmVazio) || 0, c.custoKm, extrasUsd) : null;
   const casas = 2;
+  const rota = rotas.find((x) => x.id === rotaId);
+  const pedagio = rota && c ? previstoRota(rota.pracas, c.eixos, taxas) : null;
 
   return (
     <form ref={formulario} action={acao} className="frete">
@@ -76,6 +81,13 @@ export function NovoFrete({ caminhoes, motoristas, cotacao, hoje, paisCliente }:
           <select id="paisDestino" name="paisDestino" defaultValue={PAISES[paisCliente] ? paisCliente : "PY"}>{Object.entries(PAISES).map(([k, n]) => <option key={k} value={k}>{n}</option>)}</select>
         </label>
         <label htmlFor="destino">Cidade de destino<input id="destino" name="destino" placeholder="Porto de Villeta" required /></label>
+        <label htmlFor="rotaPedagioId" className="largo">Rota de pedágio
+          <select id="rotaPedagioId" name="rotaPedagioId" value={rotaId} onChange={(e) => { setRotaId(e.target.value); const r = rotas.find((x) => x.id === e.target.value); if (r && !v.kmCarregado) setV((x) => ({ ...x, kmCarregado: String(r.km) })); }}>
+            <option value="">Sem pedágio previsto</option>
+            {rotas.map((r) => <option key={r.id} value={r.id}>{r.nome} · {num(r.km)} km</option>)}
+          </select>
+        </label>
+        {pedagio && <p className="note largo">Pedágio previsto na ida: <b>{usd(pedagio.usd, 2)}</b> ({pedagio.porMoeda.map((m) => `${SIMBOLO_PEDAGIO[m.moeda]} ${num(m.valor, m.moeda === "PYG" ? 0 : 2)}`).join(" + ")}) em {pedagio.itens.length} praças, para {c?.eixos} eixos. Ele já entra no custo por km quando o motorista lança o recibo.</p>}
         <label htmlFor="kmCarregado">km carregado (ida)<input id="kmCarregado" name="kmCarregado" type="number" min="1" inputMode="numeric" value={v.kmCarregado} onChange={set("kmCarregado")} required /></label>
         <label htmlFor="kmVazio">km vazio (volta sem carga)<input id="kmVazio" name="kmVazio" type="number" min="0" inputMode="numeric" value={v.kmVazio} onChange={set("kmVazio")} placeholder="0 se volta carregado" /></label>
       </fieldset>

@@ -112,7 +112,7 @@ export async function viagensCliente(clienteId: string, mes: string, ind: Indica
   const { inicio, fim } = intervaloMes(mes);
   const viagens = await db.viagem.findMany({
     where: { caminhao: { clienteId }, data: { gte: inicio, lt: fim } },
-    include: { caminhao: { select: { id: true, placa: true } }, motorista: { select: { nome: true } } },
+    include: { caminhao: { select: { id: true, placa: true, eixos: true } }, motorista: { select: { nome: true } } },
     orderBy: [{ data: "desc" }, { criadoEm: "desc" }],
   });
   const custoKm = new Map(ind.map((i) => [i.id, i.custoKm]));

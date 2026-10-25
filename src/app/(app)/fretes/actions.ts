@@ -38,6 +38,7 @@ const frete = z.object({
   vencimento: dia,
   recebido: z.preprocess((v) => v === "on", z.boolean()),
   observacao: texto(300),
+  rotaPedagioId: texto(40),
 });
 
 const dataUtc = (d?: string) => (d ? new Date(`${d}T00:00:00Z`) : null);
@@ -81,6 +82,7 @@ export async function lancarFrete(_: Resultado, form: FormData): Promise<Resulta
       vencimento: dataUtc(f.vencimento),
       recebido: f.recebido,
       observacao: f.observacao ?? null,
+      rotaPedagioId: f.rotaPedagioId && (await db.rotaPedagio.findUnique({ where: { id: f.rotaPedagioId }, select: { id: true } })) ? f.rotaPedagioId : null,
     },
   });
   revalidatePath("/", "layout");

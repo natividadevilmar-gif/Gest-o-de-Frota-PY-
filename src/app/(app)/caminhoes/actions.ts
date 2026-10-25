@@ -15,6 +15,7 @@ const novo = z.object({
   plano: z.enum(["BASICO", "GESTAO", "VIDEO"]),
   consumoRefKmL: z.coerce.number().positive().max(10),
   odometroKm: z.coerce.number().int().min(0),
+  eixos: z.coerce.number().int().min(2).max(12).default(6),
   motorista: z.string().trim().optional(),
   rastreadorId: z.string().trim().optional(),
   salarioMotorista: z.coerce.number().min(0).default(0),
@@ -66,4 +67,13 @@ export async function mudarRastreador(_: Resultado, form: FormData): Promise<Res
   });
   revalidatePath("/", "layout");
   return { ok: true, msg: imei ? "Rastreador salvo." : "Rastreador removido." };
+}
+
+/** Eixos do conjunto, usados no pedágio previsto. */
+export async function mudarEixos(form: FormData) {
+  const { sessao, cliente } = await clienteAtual();
+  if (!soKmCero(sessao)) return;
+  const eixos = z.coerce.number().int().min(2).max(12).parse(form.get("eixos"));
+  await db.caminhao.updateMany({ where: { id: String(form.get("id")), clienteId: cliente.id }, data: { eixos } });
+  revalidatePath("/", "layout");
 }
