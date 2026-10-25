@@ -5,6 +5,7 @@ import type * as Leaflet from "leaflet";
 import { useActionState, useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { CercaVista, OcorrenciaVista } from "@/lib/monitoramento";
 import type { CaminhaoMapa } from "@/lib/rastreio/dados";
+import { CobrarWhatsapp } from "./CobrarWhatsapp";
 import { alternarCerca, atenderOcorrencia, criarCerca, excluirCerca, resolverOcorrencia, type Resultado } from "./actions";
 
 type Dados = { frota: CaminhaoMapa[]; novas: number; abertas: OcorrenciaVista[]; resolvidas: OcorrenciaVista[]; cercas: CercaVista[] };
@@ -52,6 +53,7 @@ export function Central({ inicial, todos, clienteNome, podeCercas, tiposCerca }:
   const [aba, setAba] = useState<"fila" | "resolvidas" | "cercas">("fila");
   const [som, setSom] = useState(false);
   const [foco, setFoco] = useState<string | null>(null);
+  const [cobrando, setCobrando] = useState<string | null>(null);
   const [resolvendo, setResolvendo] = useState<string | null>(null);
   const [obs, setObs] = useState("");
   const [marcando, setMarcando] = useState(false);
@@ -233,7 +235,13 @@ export function Central({ inicial, todos, clienteNome, podeCercas, tiposCerca }:
                     <div className="oc-links">
                       {o.midiaId && <a className="oc-btn oc-video" href={`/video?midia=${o.midiaId}${todos ? "&todos=1" : ""}`}><span aria-hidden="true">▶</span> Ver vídeo</a>}
                       <a className="oc-btn" href={`/comandos?caminhao=${o.caminhaoId}${todos ? "&todos=1" : ""}`}><span aria-hidden="true">⚙</span> Comandos</a>
+                      <button type="button" className="oc-btn oc-wa" aria-expanded={cobrando === o.id} onClick={() => setCobrando(cobrando === o.id ? null : o.id)}>
+                        <span aria-hidden="true">✆</span> WhatsApp do motorista
+                      </button>
                     </div>
+                    {cobrando === o.id && (
+                      <CobrarWhatsapp o={o} aoEnviar={() => { setCobrando(null); if (o.status === "aberta") agir(() => atenderOcorrencia(o.id)); }} />
+                    )}
                     {resolvendo === o.id && (
                       <form className="oc-resolver" onSubmit={(e) => { e.preventDefault(); agir(async () => { await resolverOcorrencia(o.id, obs); setResolvendo(null); }); }}>
                         <label htmlFor={`obs-${o.id}`}>O que foi feito</label>

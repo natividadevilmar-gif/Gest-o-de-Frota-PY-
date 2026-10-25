@@ -357,6 +357,12 @@ button.pri.perigo{background:var(--bad);border-color:var(--bad);color:#fff}
 .oc-btn:hover{filter:brightness(1.08)}
 .oc-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .oc-btn span{font-size:12px}
+.oc-wa{border-color:#1f8f4e;background:#e3f5ea;color:#17703c;cursor:pointer}
+.oc-wa:disabled{opacity:.5;cursor:not-allowed}
+.oc-whats{display:grid;gap:8px;margin-top:10px;padding:10px;border:1px solid var(--line, #ddd);border-radius:10px}
+.oc-whats label{display:grid;gap:4px;font-size:13px;font-weight:600}
+.oc-whats textarea,.oc-whats input{font:inherit;font-weight:400}
+.oc-whats button{justify-self:start}
 .oc-video{background:var(--bad);border-color:var(--bad);color:var(--surface)}
 
 /* Planos */
