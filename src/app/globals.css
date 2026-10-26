@@ -243,6 +243,10 @@ button.link{background:none;border:0;padding:0;min-height:0;color:var(--accent);
 .central-corpo{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:16px;align-items:start}
 .central-mapa{position:relative;min-width:0}
 .central-leaflet{height:calc(100vh - 240px);min-height:440px}
+.central-so-mapa{grid-template-columns:1fr}
+.tela-mapa{padding:12px;min-height:100vh;box-sizing:border-box;background:var(--bg)}
+.tela-mapa .central-leaflet{height:calc(100vh - 110px)}
+.ck-tela{cursor:pointer;font:inherit;border:1.5px solid var(--info);background:var(--info-soft);color:var(--info)}
 .central-marcando{position:absolute;left:50%;top:12px;transform:translateX(-50%);z-index:500;background:var(--accent);color:var(--accent-ink);padding:6px 12px;border-radius:999px;font-size:13px;font-weight:600;margin:0;white-space:nowrap}
 .central-painel{padding:10px;max-height:calc(100vh - 240px);min-height:440px;overflow:auto}
 .abas{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:8px;position:sticky;top:-10px;background:var(--surface);padding-top:2px;z-index:1}

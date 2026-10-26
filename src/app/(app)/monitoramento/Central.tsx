@@ -46,8 +46,13 @@ function bipe() {
   }
 }
 
-export function Central({ inicial, todos, clienteNome, podeCercas, tiposCerca }: {
+/** Liga a central à janela só do mapa (outra tela): o alerta escolhido numa aparece na outra. */
+const CANAL = "kmcero-central";
+
+export function Central({ inicial, todos, clienteNome, podeCercas, tiposCerca, soMapa = false }: {
   inicial: Dados; todos: boolean; clienteNome: string; podeCercas: boolean; tiposCerca: Record<string, string>;
+  /** Janela só com o mapa, para um segundo monitor. */
+  soMapa?: boolean;
 }) {
   const [dados, setDados] = useState(inicial);
   const [aba, setAba] = useState<"fila" | "resolvidas" | "cercas">("fila");
@@ -71,6 +76,35 @@ export function Central({ inicial, todos, clienteNome, podeCercas, tiposCerca }:
   somRef.current = som;
   marcandoRef.current = marcando;
   const [pronto, setPronto] = useState(false);
+  const canal = useRef<BroadcastChannel | null>(null);
+  const focoRemoto = useRef(false);
+
+  useEffect(() => {
+    if (typeof BroadcastChannel === "undefined") return;
+    const c = new BroadcastChannel(CANAL);
+    c.onmessage = (e: MessageEvent<{ foco?: string | null; atualizar?: boolean }>) => {
+      const v = e.data.foco;
+      if (v !== undefined) {
+        // Só marca como vindo de fora quando muda, senão o próximo clique daqui não seria enviado.
+        setFoco((atual) => {
+          if (atual === v) return atual;
+          focoRemoto.current = true;
+          return v;
+        });
+      }
+      if (e.data.atualizar) void atualizarRef.current();
+    };
+    canal.current = c;
+    return () => c.close();
+  }, []);
+
+  useEffect(() => {
+    if (focoRemoto.current) {
+      focoRemoto.current = false;
+      return;
+    }
+    if (foco) canal.current?.postMessage({ foco });
+  }, [foco]);
 
   const url = todos ? "/monitoramento/dados?todos=1" : "/monitoramento/dados";
   const atualizar = useCallback(async () => {
@@ -80,6 +114,9 @@ export function Central({ inicial, todos, clienteNome, podeCercas, tiposCerca }:
     setDados(d);
     if (d.novas > 0 && somRef.current) bipe();
   }, [url]);
+
+  const atualizarRef = useRef(atualizar);
+  atualizarRef.current = atualizar;
 
   useEffect(() => {
     const id = setInterval(atualizar, ATUALIZAR_MS);
@@ -188,7 +225,9 @@ export function Central({ inicial, todos, clienteNome, podeCercas, tiposCerca }:
   const hoje = new Date().toLocaleDateString("pt-BR", { timeZone: "America/Asuncion" });
   const resolvidasHoje = dados.resolvidas.filter((o) => o.resolvidaEm && new Date(o.resolvidaEm).toLocaleDateString("pt-BR", { timeZone: "America/Asuncion" }) === hoje).length;
 
-  const agir = (f: () => Promise<void>) => iniciar(async () => { await f(); await atualizar(); });
+  // Depois de atender ou resolver, a janela do mapa também atualiza na hora.
+  const agir = (f: () => Promise<void>) => iniciar(async () => { await f(); await atualizar(); canal.current?.postMessage({ atualizar: true }); });
+  const abrirMapa = () => window.open(`/central-mapa${todos ? "?todos=1" : ""}`, "kmcero-mapa", "popup,width=1280,height=800");
 
   return (
     <div className="central">
@@ -202,15 +241,16 @@ export function Central({ inicial, todos, clienteNome, podeCercas, tiposCerca }:
           <input type="checkbox" checked={som} onChange={(e) => { setSom(e.target.checked); if (e.target.checked) bipe(); }} />
           <span>Som de alerta</span>
         </label>
+        {!soMapa && <button type="button" className="ck ck-tela" onClick={abrirMapa} title="Abre o mapa numa janela própria, para arrastar ao outro monitor"><b aria-hidden="true">⧉</b><span>Mapa em outra tela</span></button>}
       </div>
 
-      <div className="central-corpo">
+      <div className={soMapa ? "central-corpo central-so-mapa" : "central-corpo"}>
         <div className="central-mapa">
           <div ref={caixa} className="rastreio-leaflet central-leaflet" />
           {marcando && <p className="central-marcando">Clique no mapa para marcar o centro da cerca.</p>}
         </div>
 
-        <div className="central-painel card">
+        {!soMapa && <div className="central-painel card">
           <div className="abas" role="tablist">
             <button role="tab" aria-selected={aba === "fila"} onClick={() => setAba("fila")}>Fila {dados.abertas.length}</button>
             <button role="tab" aria-selected={aba === "resolvidas"} onClick={() => setAba("resolvidas")}>Resolvidas</button>
@@ -314,7 +354,7 @@ export function Central({ inicial, todos, clienteNome, podeCercas, tiposCerca }:
               </ul>
             </div>
           )}
-        </div>
+        </div>}
       </div>
     </div>
   );
