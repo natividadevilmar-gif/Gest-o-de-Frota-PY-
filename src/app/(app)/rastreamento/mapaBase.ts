@@ -1,39 +1,26 @@
 import type * as Leaflet from "leaflet";
 
-// Fundos do mapa (mapa de ruas ou imagem de satélite) e o andar suave dos caminhões, usados no mapa ao vivo e na Central.
+// Fundos do mapa (ruas ou satélite) e o andar suave dos caminhões, usados no mapa ao vivo e na Central.
 
-const CHAVE_FUNDO = "kmcero-mapa-fundo";
 const ESRI = "https://server.arcgisonline.com/ArcGIS/rest/services";
+const ATRIB_ESRI = "Mapa &copy; Esri, HERE, Garmin, &copy; OpenStreetMap";
 
-/** Põe no mapa a escolha entre "Mapa" e "Satélite" (com nomes de ruas e cidades por cima) e lembra a última usada. */
+/** Mapa de ruas (visão geral) e imagem de satélite com ruas e cidades por cima (ao escolher um caminhão). */
 export function fundosDoMapa(L: typeof Leaflet, m: Leaflet.Map) {
-  const fundos: Record<string, Leaflet.Layer> = {
-    Mapa: L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      maxZoom: 19,
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-    }),
-    Satélite: L.layerGroup([
-      L.tileLayer(`${ESRI}/World_Imagery/MapServer/tile/{z}/{y}/{x}`, { maxZoom: 19, attribution: "Imagens &copy; Esri, Maxar, Earthstar Geographics" }),
-      L.tileLayer(`${ESRI}/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}`, { maxZoom: 19 }),
-      L.tileLayer(`${ESRI}/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}`, { maxZoom: 19 }),
-    ]),
+  const ruas = L.tileLayer(`${ESRI}/World_Street_Map/MapServer/tile/{z}/{y}/{x}`, { maxZoom: 19, attribution: ATRIB_ESRI });
+  const satelite = L.layerGroup([
+    L.tileLayer(`${ESRI}/World_Imagery/MapServer/tile/{z}/{y}/{x}`, { maxZoom: 19, attribution: "Imagens &copy; Esri, Maxar, Earthstar Geographics" }),
+    L.tileLayer(`${ESRI}/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}`, { maxZoom: 19 }),
+    L.tileLayer(`${ESRI}/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}`, { maxZoom: 19 }),
+  ]);
+  ruas.addTo(m);
+  return {
+    usar(fundo: "ruas" | "satelite") {
+      const [mostra, tira] = fundo === "satelite" ? [satelite, ruas] : [ruas, satelite];
+      if (!m.hasLayer(mostra)) mostra.addTo(m);
+      tira.remove();
+    },
   };
-  let escolhido = "Mapa";
-  try {
-    const salvo = localStorage.getItem(CHAVE_FUNDO);
-    if (salvo && salvo in fundos) escolhido = salvo;
-  } catch {
-    // Sem acesso ao armazenamento do navegador: começa no mapa de ruas.
-  }
-  fundos[escolhido].addTo(m);
-  L.control.layers(fundos, undefined, { collapsed: false, position: "topright" }).addTo(m);
-  m.on("baselayerchange", (e: Leaflet.LayersControlEvent) => {
-    try {
-      localStorage.setItem(CHAVE_FUNDO, e.name);
-    } catch {
-      // Segue sem lembrar a escolha.
-    }
-  });
 }
 
 type Ponto = [number, number];

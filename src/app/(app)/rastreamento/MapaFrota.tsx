@@ -51,6 +51,7 @@ export function MapaFrota({ inicial, hoje, todos = false }: { inicial: CaminhaoM
   const marcas = useRef<Leaflet.LayerGroup | null>(null);
   const soltos = useRef(new Map<string, { marca: Leaflet.Marker; html: string }>());
   const movimento = useRef(new Movimento());
+  const fundo = useRef<ReturnType<typeof fundosDoMapa> | null>(null);
   const linha = useRef<Leaflet.LayerGroup | null>(null);
   const [pronto, setPronto] = useState(false);
   const [zoom, setZoom] = useState(0);
@@ -62,7 +63,7 @@ export function MapaFrota({ inicial, hoje, todos = false }: { inicial: CaminhaoM
       if (!vivo || !caixa.current || mapa.current) return;
       L.current = mod;
       const m = mod.map(caixa.current, { zoomControl: true }).setView([-25.5, -56.5], 7);
-      fundosDoMapa(mod, m);
+      fundo.current = fundosDoMapa(mod, m);
       linha.current = mod.layerGroup().addTo(m);
       marcas.current = mod.layerGroup().addTo(m);
       mapa.current = m;
@@ -174,6 +175,27 @@ export function MapaFrota({ inicial, hoje, todos = false }: { inicial: CaminhaoM
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filtro, pronto]);
 
+  // Visão geral no mapa de ruas. Ao escolher um caminhão, o mapa aproxima nele em satélite e vai acompanhando.
+  useEffect(() => {
+    const m = mapa.current;
+    if (!pronto || !m) return;
+    if (!sel) {
+      fundo.current?.usar("ruas");
+      const pts = frota.filter((c) => c.lat != null && (filtro === "todos" || c.situacao === filtro)).map((c) => [c.lat!, c.lng!] as [number, number]);
+      if (pts.length) m.flyToBounds(pts, { padding: [40, 40], maxZoom: 10, duration: 0.8 });
+      return;
+    }
+    const c = frota.find((x) => x.id === sel);
+    fundo.current?.usar("satelite");
+    if (c?.lat != null && c.lng != null) m.flyTo([c.lat, c.lng], 17, { duration: 0.8 });
+    const id = setInterval(() => {
+      const marca = soltos.current.get(sel)?.marca;
+      if (marca && !m.getBounds().pad(-0.3).contains(marca.getLatLng())) m.panTo(marca.getLatLng(), { duration: 0.6 });
+    }, 1000);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sel, pronto]);
+
   // Trajeto do caminhão escolhido no dia escolhido.
   useEffect(() => {
     if (!sel) { setTrajeto(null); return; }
@@ -199,8 +221,9 @@ export function MapaFrota({ inicial, hoje, todos = false }: { inicial: CaminhaoM
         .bindTooltip(`${EVENTO[e.tipo] ?? e.tipo} · ${hora(e.hora)} · ${e.velocidadeKmh} km/h`)
         .addTo(grupo);
     }
-    m.fitBounds(trajeto.pontos, { padding: [40, 40] });
-  }, [trajeto, pronto]);
+    // Hoje o mapa fica no caminhão; num dia anterior, mostra o trajeto inteiro.
+    if (dia !== hoje) m.fitBounds(trajeto.pontos, { padding: [40, 40] });
+  }, [trajeto, pronto, dia, hoje]);
 
   const contagem = useMemo(() => {
     const n: Partial<Record<Situacao, number>> = {};
@@ -214,7 +237,6 @@ export function MapaFrota({ inicial, hoje, todos = false }: { inicial: CaminhaoM
 
   function escolher(c: CaminhaoMapa) {
     setSel(c.id === sel ? null : c.id);
-    if (c.lat != null && c.lng != null && c.id !== sel) mapa.current?.setView([c.lat, c.lng], Math.max(mapa.current.getZoom(), 9));
   }
 
   return (
