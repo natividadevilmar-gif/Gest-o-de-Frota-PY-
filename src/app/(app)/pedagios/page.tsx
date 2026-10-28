@@ -72,7 +72,7 @@ export default async function Pedagios() {
           </div>
         </div>
       ))}
-      <p className="note">Valores públicos levantados em outubro de 2026. Praças marcadas como estimado não têm tabela oficial publicada e devem ser conferidas no primeiro recibo. O pedágio real lançado pelo motorista entra no custo por km. Quando o GPS passa a menos de 3 km de uma praça e o motorista não lança o pedágio em 4 horas, a Central de monitoramento recebe o alerta "Pedágio não registrado".</p>
+      <p className="note">Valores públicos levantados em outubro de 2026. Praças marcadas como estimado não têm tabela oficial publicada e devem ser conferidas no primeiro recibo. O pedágio real lançado pelo motorista entra no custo por km. O alerta "Pedágio não registrado" da Central de monitoramento está suspenso.</p>
     </>
   );
 }
