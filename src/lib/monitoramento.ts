@@ -23,6 +23,10 @@ export const NOME_OCORRENCIA: Record<string, string> = {
   pedagio_sem_registro: "Pedágio não registrado",
 };
 
+/** Alerta de pedágio não registrado suspenso: não gera alertas novos e some da fila. */
+export const ALERTA_PEDAGIO_ATIVO = false;
+const SEM_PEDAGIO = ALERTA_PEDAGIO_ATIVO ? {} : { NOT: { tipo: "pedagio_sem_registro" } };
+
 /** Cerca "fora de todas": distingue de null, que é caminhão ainda nunca verificado. */
 const FORA = "fora";
 const VELOCIDADE_ALTA = 100;
@@ -108,7 +112,7 @@ export async function verificarFrota(clienteId: string | null, agora = new Date(
   }
 
   // Um erro no pedágio (cotação, praça sem dado) não pode derrubar a central.
-  novas.push(...(await pedagiosSemRegistro(clienteId, agora).catch(() => [])));
+  if (ALERTA_PEDAGIO_ATIVO) novas.push(...(await pedagiosSemRegistro(clienteId, agora).catch(() => [])));
 
   await Promise.all(mudancasCerca.map((m) => db.caminhao.update({ where: { id: m.id }, data: { cercaAtualId: m.cerca } })));
   const r = novas.length ? await db.ocorrencia.createMany({ data: novas, skipDuplicates: true }) : { count: 0 };
@@ -117,7 +121,7 @@ export async function verificarFrota(clienteId: string | null, agora = new Date(
 
 export async function ocorrenciasAbertas(clienteId: string | null) {
   return db.ocorrencia.findMany({
-    where: { status: { not: "resolvida" }, ...(clienteId ? { clienteId } : {}) },
+    where: { status: { not: "resolvida" }, ...SEM_PEDAGIO, ...(clienteId ? { clienteId } : {}) },
     include: { caminhao: { select: { placa: true, motorista: { select: { nome: true, ddi: true, acesso: { select: { email: true, idioma: true } } } } } }, cliente: { select: { nome: true, pais: true, idioma: true } }, midias: { select: { id: true }, orderBy: { data: "asc" }, take: 1 } },
     orderBy: { criadaEm: "desc" },
     take: 300,
@@ -126,7 +130,7 @@ export async function ocorrenciasAbertas(clienteId: string | null) {
 
 export async function ocorrenciasResolvidas(clienteId: string | null) {
   return db.ocorrencia.findMany({
-    where: { status: "resolvida", ...(clienteId ? { clienteId } : {}) },
+    where: { status: "resolvida", ...SEM_PEDAGIO, ...(clienteId ? { clienteId } : {}) },
     include: { caminhao: { select: { placa: true, motorista: { select: { nome: true, ddi: true, acesso: { select: { email: true, idioma: true } } } } } }, cliente: { select: { nome: true, pais: true, idioma: true } }, midias: { select: { id: true }, orderBy: { data: "asc" }, take: 1 } },
     orderBy: { resolvidaEm: "desc" },
     take: 30,
