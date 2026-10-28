@@ -49,6 +49,7 @@ export function MapaFrota({ inicial, hoje, todos = false, outraTela = false }: {
   const [trajeto, setTrajeto] = useState<(Trajeto & { resumo: ResumoCaminhao | null }) | null>(null);
   const [carregando, setCarregando] = useState(false);
   const [filtro, setFiltro] = useState<Situacao | "todos">("todos");
+  const [seguir, setSeguir] = useState(true);
 
   const caixa = useRef<HTMLDivElement>(null);
   const L = useRef<typeof Leaflet | null>(null);
@@ -162,13 +163,30 @@ export function MapaFrota({ inicial, hoje, todos = false, outraTela = false }: {
     const c = frota.find((x) => x.id === sel);
     fundo.current?.usar("satelite");
     if (c?.lat != null && c.lng != null) m.flyTo([c.lat, c.lng], 17, { duration: 0.8 });
+    setSeguir(true);
+    // Arrastar o mapa com o mouse para de acompanhar, para percorrer o trajeto do dia à vontade.
+    const soltar = () => setSeguir(false);
+    m.on("dragstart", soltar);
+    return () => { m.off("dragstart", soltar); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sel, pronto]);
+
+  // Enquanto acompanha (só no dia de hoje), traz o caminhão de volta quando ele chega perto da borda.
+  useEffect(() => {
+    const m = mapa.current;
+    if (!pronto || !m || !sel || !seguir || dia !== hoje) return;
     const id = setInterval(() => {
       const marca = soltos.current.get(sel)?.marca;
       if (marca && !m.getBounds().pad(-0.3).contains(marca.getLatLng())) m.panTo(marca.getLatLng(), { duration: 0.6 });
     }, 1000);
     return () => clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sel, pronto]);
+  }, [sel, pronto, seguir, dia, hoje]);
+
+  function voltarAoCaminhao() {
+    const marca = sel ? soltos.current.get(sel)?.marca : null;
+    if (marca) mapa.current?.flyTo(marca.getLatLng(), Math.max(mapa.current.getZoom(), 15), { duration: 0.6 });
+    setSeguir(true);
+  }
 
   // Trajeto do caminhão escolhido no dia escolhido.
   useEffect(() => {
@@ -244,6 +262,9 @@ export function MapaFrota({ inicial, hoje, todos = false, outraTela = false }: {
               <div><dt>RPM agora</dt><dd>{rpm != null ? numero(rpm) : "–"}</dd></div>
               <div><dt>Custo por km</dt><dd>{r ? (r.custoKm != null ? `USD ${numero(r.custoKm, 2)}` : "–") : "…"}</dd></div>
             </dl>
+            {(!seguir || dia !== hoje) && (
+              <button type="button" className="rastreio-voltar" onClick={voltarAoCaminhao}>Voltar ao caminhão</button>
+            )}
             <label className="rastreio-dia">
               Trajeto do dia
               <input type="date" value={dia} max={hoje} onChange={(e) => e.target.value && setDia(e.target.value)} />
