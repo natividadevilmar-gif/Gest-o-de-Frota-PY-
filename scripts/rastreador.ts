@@ -17,7 +17,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { PrismaClient } from "@prisma/client";
 import { confirmacao, lerImei, lerPacote, montarComando, paraPosicao } from "../src/lib/rastreio/teltonika";
-import { efeitoNoMotor, ESPERA_RESPOSTA_MS, podeEnviar } from "../src/lib/comandos/catalogo";
+import { BLOQUEIO_ATIVO, efeitoNoMotor, ehTextoDeBloqueio, ESPERA_RESPOSTA_MS, podeEnviar } from "../src/lib/comandos/catalogo";
 import { espelharWialon } from "../src/lib/rastreio/wialon";
 import { ARQUIVOS, ArquivoCamera, CMD, formatoArquivo, lerInicioCamera, lerMensagemCamera, montarMensagemCamera, u32 } from "../src/lib/rastreio/dualcam";
 
@@ -66,6 +66,12 @@ function atender(sock: Socket) {
           emEspera = null;
         } else if (c?.status === "enviado") return;
         else emEspera = null;
+      }
+      if (!BLOQUEIO_ATIVO) {
+        // Bloqueio do motor desligado: nada que ligue o relé sai para o aparelho.
+        const fila = await db.comando.findMany({ where: { caminhaoId: caminhao.id, status: { in: ["pendente", "aguardando"] } }, select: { id: true, tipo: true, texto: true } });
+        const barrados = fila.filter((c) => c.tipo === "bloquear" || ehTextoDeBloqueio(c.texto)).map((c) => c.id);
+        if (barrados.length) await db.comando.updateMany({ where: { id: { in: barrados } }, data: { status: "cancelado", resposta: "Bloqueio do motor desativado na plataforma." } });
       }
       const fila = await db.comando.findMany({ where: { caminhaoId: caminhao.id, status: { in: ["pendente", "aguardando"] } }, orderBy: { criadoEm: "asc" }, take: 5 });
       if (!fila.length) return;

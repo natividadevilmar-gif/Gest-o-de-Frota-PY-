@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
-import type { TipoComando } from "@/lib/comandos/catalogo";
+import { BLOQUEIO_ATIVO, type TipoComando } from "@/lib/comandos/catalogo";
 import type { CaminhaoComando, ComandoVista } from "@/lib/comandos/dados";
 import { cancelarComando, pedirComando, type Resultado } from "./actions";
 
@@ -144,6 +144,8 @@ export function Comandos({ inicial, todos, selecionadoInicial, papel, catalogo }
                   <div className="cmd-grade">
                     {cam.bloqueado
                       ? botao("desbloquear", { classe: "cmd-ok", bloqueado: !gestor ? "Só o gestor desbloqueia." : motorNaFila ? "Desbloqueio já pedido, esperando a resposta do aparelho." : undefined })
+                      : !BLOQUEIO_ATIVO
+                      ? <p className="note">O bloqueio do motor está desativado na plataforma.</p>
                       : botao("bloquear", {
                           classe: "cmd-perigo",
                           bloqueado: !gestor ? "Só o gestor bloqueia." : motorNaFila ? (motorNaFila.status === "aguardando" ? `Bloqueio pedido: esperando ${cam.placa} parar (agora a ${cam.velocidadeKmh} km/h).` : "Bloqueio pedido, esperando a resposta do aparelho.") : undefined,

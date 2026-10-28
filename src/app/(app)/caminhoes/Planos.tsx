@@ -13,7 +13,7 @@ const COBERTURA: Record<Plano, { nome: string; resumo: string; base?: Plano; ite
       ["Rastreador próprio KM Cero", "Posição a cada poucos segundos, sem contratar outra empresa."],
       ["Mapa ao vivo", "Onde está, velocidade, motorista e o trajeto do dia."],
       ["Central de monitoramento", "Alertas de excesso, sem sinal, rodando de madrugada e cercas (pátio, cliente, fronteira)."],
-      ["Comandos", "Bloquear e desbloquear o motor, pedir posição e status do aparelho."],
+      ["Comandos", "Pedir posição e status do aparelho e reiniciar o rastreador."],
       ["Painel da frota", "Km rodados, caminhões ativos e alertas do mês."],
       ["Fretes e caixa dos motoristas", "Frete de cada viagem e adiantamentos ao motorista."],
       ["Acesso dos motoristas", "Cada motorista entra pelo celular com PIN."],
