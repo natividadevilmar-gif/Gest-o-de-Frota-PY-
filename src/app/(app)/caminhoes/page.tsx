@@ -3,6 +3,8 @@ import { clienteAtual } from "@/lib/acesso";
 import { db } from "@/lib/db";
 import { num, usd } from "@/lib/formato";
 import { mensalidadeTotal, NOME_PLANO, PRECO_MENSAL, type Plano } from "@/lib/indicadores";
+import { clienteUsaWialon } from "@/lib/rastreio/wialon";
+import { ehImei } from "@/lib/telemetria/posicoes";
 import { mudarCamera, mudarEixos, mudarPlano } from "./actions";
 import { CampoRastreador } from "./CampoRastreador";
 import { NovoCaminhao } from "./NovoCaminhao";
@@ -12,6 +14,7 @@ export default async function Caminhoes() {
   const { sessao, cliente } = await clienteAtual();
   // Só a equipe KM Cero cadastra caminhão, muda plano ou rastreador (depois de instalar o equipamento).
   const pode = sessao.papel === "ADMIN";
+  const wialon = clienteUsaWialon(cliente.nome);
   const lista = await db.caminhao.findMany({ where: { clienteId: cliente.id }, include: { motorista: true }, orderBy: { placa: "asc" } });
   return (
     <>
@@ -51,7 +54,8 @@ export default async function Caminhoes() {
                       </form>
                     ) : c.eixos}
                   </td>
-                  <td>{pode ? <CampoRastreador id={c.id} placa={c.placa} atual={c.rastreadorId} /> : c.rastreadorId ? <span className="mono">{c.rastreadorId}</span> : <span className="pill warn">sem rastreador</span>}</td>
+                  <td>{pode ? <CampoRastreador id={c.id} placa={c.placa} atual={c.rastreadorId} /> : c.rastreadorId ? <span className="mono">{c.rastreadorId}</span> : <span className="pill warn">sem rastreador</span>}
+                    {wialon && ehImei(c.rastreadorId) && <span className="tag-demo tag-wialon" title="Posições trazidas do Wialon">Wialon</span>}</td>
                   <td className="n">{usd(c.salarioMotorista + c.seguroMensal + c.depreciacaoMensal)}</td>
                   <td>
                     {pode ? (

@@ -167,6 +167,13 @@ export function filtroClientesWialon(nomes = process.env.WIALON_CLIENTES) {
   return lista.length ? { cliente: { nome: { in: lista, mode: "insensitive" as const } } } : {};
 }
 
+/** true quando as posições deste cliente vêm do Wialon (token definido e cliente na lista). */
+export function clienteUsaWialon(nome: string, nomes = process.env.WIALON_CLIENTES) {
+  if (!process.env.WIALON_TOKEN) return false;
+  const lista = (nomes ?? "").split(",").map((n) => n.trim().toLowerCase()).filter(Boolean);
+  return !lista.length || lista.includes(nome.trim().toLowerCase());
+}
+
 /** Na primeira leitura de um caminhão, quanto do passado buscar. */
 const INICIO_MS = 48 * 3600_000;
 

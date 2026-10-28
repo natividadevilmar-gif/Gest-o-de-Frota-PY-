@@ -8,6 +8,8 @@ import type { CaminhaoMapa } from "@/lib/rastreio/dados";
 import { CobrarWhatsapp } from "./CobrarWhatsapp";
 import { alternarCerca, atenderOcorrencia, criarCerca, excluirCerca, resolverOcorrencia, type Resultado } from "./actions";
 
+const COR_WIALON = "#7b3fbf";
+
 type Dados = { frota: CaminhaoMapa[]; novas: number; abertas: OcorrenciaVista[]; resolvidas: OcorrenciaVista[]; cercas: CercaVista[] };
 
 const ATUALIZAR_MS = 15_000;
@@ -181,8 +183,9 @@ export function Central({ inicial, todos, clienteNome, podeCercas, tiposCerca, s
     c.frota.clearLayers();
     for (const f of dados.frota) {
       if (f.lat == null || f.lng == null) continue;
-      mod.circleMarker([f.lat, f.lng], { radius: 5, color: "#fff", weight: 1.5, fillColor: COR_SITUACAO[f.situacao] ?? "#7d8580", fillOpacity: 1 })
-        .bindTooltip(`${f.placa} · ${f.velocidadeKmh} km/h${todos ? ` · ${f.cliente}` : ""}`)
+      // Contorno roxo: posição trazida do Wialon.
+      mod.circleMarker([f.lat, f.lng], { radius: f.wialon ? 6 : 5, color: f.wialon ? COR_WIALON : "#fff", weight: f.wialon ? 2.5 : 1.5, fillColor: COR_SITUACAO[f.situacao] ?? "#7d8580", fillOpacity: 1 })
+        .bindTooltip(`${f.placa} · ${f.velocidadeKmh} km/h${f.wialon ? " · Wialon" : ""}${todos ? ` · ${f.cliente}` : ""}`)
         .addTo(c.frota);
     }
   }, [dados.frota, pronto, todos]);
@@ -248,6 +251,7 @@ export function Central({ inicial, todos, clienteNome, podeCercas, tiposCerca, s
         <div className="central-mapa">
           <div ref={caixa} className="rastreio-leaflet central-leaflet" />
           {marcando && <p className="central-marcando">Clique no mapa para marcar o centro da cerca.</p>}
+          {dados.frota.some((f) => f.wialon) && <p className="central-legenda"><i style={{ borderColor: COR_WIALON }} /> Rastreador no Wialon</p>}
         </div>
 
         {!soMapa && <div className="central-painel card">
