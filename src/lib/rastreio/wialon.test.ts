@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { filtroClientesWialon, ligarUnidades, paraPosicaoWialon } from "./wialon";
+import { filtroClientesWialon, imeisPelaPlaca, ligarUnidades, paraPosicaoWialon } from "./wialon";
 
 const pos = { x: -57.5, y: -25.3, s: 72.4, c: 181, sc: 14 };
 
@@ -28,5 +28,16 @@ describe("mensagens do Wialon", () => {
   it("limita aos clientes configurados", () => {
     expect(filtroClientesWialon(" AVM Truck , Outro ")).toEqual({ cliente: { nome: { in: ["AVM Truck", "Outro"], mode: "insensitive" } } });
     expect(filtroClientesWialon("")).toEqual({});
+  });
+  it("acha o IMEI pela placa no nome da unidade", () => {
+    const r = imeisPelaPlaca(
+      [{ placa: "AAFR 218" }, { placa: "AAGT 507" }, { placa: "AAHM 331" }],
+      [
+        { id: 1, nm: "AAFR-218", uid: "356307042441013" },
+        { id: 2, nm: "Scania R450 - AAGT507", uid: "356307042441014" },
+        { id: 3, nm: "AAHM 331", uid: "123" },
+      ],
+    );
+    expect(r.map((x) => x.unidade?.uid ?? null)).toEqual(["356307042441013", "356307042441014", null]);
   });
 });

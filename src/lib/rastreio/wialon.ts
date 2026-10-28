@@ -101,7 +101,8 @@ export class Wialon {
   private async enviar(svc: string, params: unknown, sid: string | null) {
     const corpo = new URLSearchParams({ svc, params: JSON.stringify(params) });
     if (sid) corpo.set("sid", sid);
-    const r = await fetch(`https://${this.host}/wialon/ajax.html`, { method: "POST", body: corpo, signal: AbortSignal.timeout(60_000) });
+    const r = await fetch(`https://${this.host}/wialon/ajax.html`, { method: "POST", body: corpo, signal: AbortSignal.timeout(60_000) })
+      .catch(() => { throw new Error(`Sem conexão com o Wialon (${this.host}).`); });
     if (!r.ok) throw new Error(`Wialon ${svc}: HTTP ${r.status}`);
     const j = await r.json();
     if (j && typeof j === "object" && "error" in j && j.error) throw new ErroWialon(j.error, svc);
@@ -172,6 +173,43 @@ export function clienteUsaWialon(nome: string, nomes = process.env.WIALON_CLIENT
   if (!process.env.WIALON_TOKEN) return false;
   const lista = (nomes ?? "").split(",").map((n) => n.trim().toLowerCase()).filter(Boolean);
   return !lista.length || lista.includes(nome.trim().toLowerCase());
+}
+
+export const normalizarPlaca = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]/g, "");
+
+/**
+ * Sugere o IMEI de cada caminhão pela unidade do Wialon com o mesmo nome da placa
+ * (ignorando espaços e traços). Só vale unidade com IMEI de 15 números.
+ */
+export function imeisPelaPlaca<C extends { placa: string }>(caminhoes: C[], unidades: UnidadeWialon[]) {
+  const porNome = new Map<string, UnidadeWialon>();
+  for (const u of unidades) {
+    if (!u.uid || !/^\d{15}$/.test(u.uid)) continue;
+    for (const pedaco of [u.nm, ...u.nm.split(/[\s/|(),-]+/)]) {
+      const k = normalizarPlaca(pedaco);
+      if (k.length >= 5 && !porNome.has(k)) porNome.set(k, u);
+    }
+  }
+  return caminhoes.map((c) => ({ caminhao: c, unidade: porNome.get(normalizarPlaca(c.placa)) ?? null }));
+}
+
+// O site também espelha o Wialon quando alguém abre o mapa ou a central, no máximo a cada
+// minuto. Assim funciona hospedado só na Vercel, sem o servidor do receptor.
+const ESPELHO_MIN_MS = 60_000;
+const ESPERA_MAX_MS = 8_000;
+let ultimoEspelho = 0;
+let apiSite: Wialon | null = null;
+
+export async function espelharSeDevido(db: PrismaClient, agora = new Date()) {
+  if (!process.env.WIALON_TOKEN || agora.getTime() - ultimoEspelho < ESPELHO_MIN_MS) return;
+  ultimoEspelho = agora.getTime();
+  apiSite ??= Wialon.doAmbiente();
+  const rodada = espelharWialon(db, apiSite, agora).then(
+    (r) => { if (r.erros.length) console.error("Wialon:", ...r.erros); },
+    (e) => console.error("Wialon:", (e as Error).message),
+  );
+  // Não segura a tela se o Wialon demorar: a próxima abertura já mostra o que chegou.
+  await Promise.race([rodada, new Promise((ok) => setTimeout(ok, ESPERA_MAX_MS))]);
 }
 
 /** Na primeira leitura de um caminhão, quanto do passado buscar. */

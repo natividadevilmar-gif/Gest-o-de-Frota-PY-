@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { indicadoresFrota } from "@/lib/dados";
 import { mesAtual, planoPermite } from "@/lib/indicadores";
 import { ehImei, LIMITE_VELOCIDADE_KMH, resumirDia } from "@/lib/telemetria/posicoes";
-import { clienteUsaWialon } from "./wialon";
+import { clienteUsaWialon, espelharSeDevido } from "./wialon";
 import { diaNoParaguai, posicaoDemo, rotaDemoNome, trajetoDemo } from "./rotas";
 
 export type Situacao = "movimento" | "parado" | "desligado" | "sem-sinal" | "aguardando" | "sem-rastreador";
@@ -44,6 +44,7 @@ function situacao(em: Date | null, ignicao: boolean | null, vel: number, agora: 
 
 /** Caminhões de um cliente, ou de todos os clientes quando `clienteId` é null (só a equipe KM Cero). */
 export async function frotaNoMapa(clienteId: string | null, agora = new Date()): Promise<CaminhaoMapa[]> {
+  await espelharSeDevido(db, agora);
   const lista = await db.caminhao.findMany({
     where: clienteId ? { clienteId } : {},
     include: { motorista: { select: { nome: true } }, cliente: { select: { nome: true } } },
