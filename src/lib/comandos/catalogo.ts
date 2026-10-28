@@ -15,6 +15,11 @@ export const COMANDOS: Record<TipoComando, { rotulo: string; descricao: string; 
   livre: { rotulo: "Comando livre", descricao: "Texto enviado como está ao aparelho (só equipe KM Cero).", texto: "" },
 };
 
+/** Bloqueio remoto do motor desligado na plataforma: não se pede nem se envia. O desbloqueio continua. */
+export const BLOQUEIO_ATIVO = false;
+/** Comando livre que liga a saída do relé (o mesmo que bloquear). */
+export const ehTextoDeBloqueio = (texto: string) => /setdigout\s*1/i.test(texto);
+
 /** O bloqueio espera o caminhão ficar abaixo desta velocidade, por segurança. */
 export const VELOCIDADE_MAX_BLOQUEIO = 10;
 /** Sem resposta neste tempo, o comando enviado vira erro. */

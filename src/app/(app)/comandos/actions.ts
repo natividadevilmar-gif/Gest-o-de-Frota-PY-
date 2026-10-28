@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { clienteAtual } from "@/lib/acesso";
 import { db } from "@/lib/db";
-import { COMANDOS, textoComando, type TipoComando } from "@/lib/comandos/catalogo";
+import { BLOQUEIO_ATIVO, COMANDOS, ehTextoDeBloqueio, textoComando, type TipoComando } from "@/lib/comandos/catalogo";
 
 export type Resultado = { ok: boolean; msg: string } | null;
 
@@ -28,6 +28,8 @@ export async function pedirComando(entrada: z.input<typeof pedido>): Promise<Res
   if (sessao.papel === "MOTORISTA") return { ok: false, msg: "Seu perfil não envia comandos." };
   if (SO_GESTOR.includes(tipo) && sessao.papel === "OPERADOR") return { ok: false, msg: "Só o gestor da frota pode bloquear, desbloquear ou reiniciar." };
   if (tipo === "livre" && sessao.papel !== "ADMIN") return { ok: false, msg: "Comando livre é só para a equipe KM Cero." };
+  if (tipo === "bloquear" && !BLOQUEIO_ATIVO) return { ok: false, msg: "O bloqueio do motor está desativado na plataforma." };
+  if (tipo === "livre" && !BLOQUEIO_ATIVO && ehTextoDeBloqueio(livre ?? "")) return { ok: false, msg: "O bloqueio do motor está desativado na plataforma." };
   if (tipo === "bloquear" && (motivo ?? "").length < 5) return { ok: false, msg: "Escreva o motivo do bloqueio." };
   if (tipo === "livre" && !livre) return { ok: false, msg: "Escreva o comando." };
 

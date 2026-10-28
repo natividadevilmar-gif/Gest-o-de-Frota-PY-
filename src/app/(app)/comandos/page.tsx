@@ -23,7 +23,7 @@ export default async function PaginaComandos({ searchParams }: { searchParams: P
           </div>
         )}
       </div>
-      <p className="note">Ordens enviadas ao rastreador do caminhão. O bloqueio do motor só é aplicado com o caminhão parado ou abaixo de 10 km/h; até lá ele fica esperando.</p>
+      <p className="note">Ordens enviadas ao rastreador do caminhão. O bloqueio do motor está desativado na plataforma.</p>
       <Comandos
         key={todos ? "todos" : cliente.id}
         inicial={dados}

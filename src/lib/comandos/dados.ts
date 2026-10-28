@@ -4,7 +4,7 @@ import { frotaNoMapa, type CaminhaoMapa } from "@/lib/rastreio/dados";
 import { posicaoDemo } from "@/lib/rastreio/rotas";
 import { ehImei } from "@/lib/telemetria/posicoes";
 import { criarMidiaDemo } from "@/lib/video";
-import { efeitoNoMotor, ESPERA_RESPOSTA_MS, podeEnviar, type TipoComando } from "./catalogo";
+import { BLOQUEIO_ATIVO, efeitoNoMotor, ESPERA_RESPOSTA_MS, podeEnviar, type TipoComando } from "./catalogo";
 
 // Nos caminhões com aparelho próprio, quem envia é o receptor (scripts/rastreador.ts).
 // Nos de demonstração, a resposta é simulada aqui, alguns segundos depois do pedido.
@@ -27,7 +27,16 @@ function respostaDemo(tipo: string, texto: string, p: { lat: number; lng: number
 }
 
 /** Avança os comandos: vence os sem resposta e simula a resposta dos caminhões de demonstração. */
+/** Com o bloqueio desligado, pedidos de bloqueio ainda na fila não saem mais. */
+async function cancelarBloqueios(clienteId: string | null) {
+  await db.comando.updateMany({
+    where: { tipo: "bloquear", status: { in: ["pendente", "aguardando"] }, ...(clienteId ? { clienteId } : {}) },
+    data: { status: "cancelado", resposta: "Bloqueio do motor desativado na plataforma." },
+  });
+}
+
 export async function processarComandos(clienteId: string | null, agora = new Date()) {
+  if (!BLOQUEIO_ATIVO) await cancelarBloqueios(clienteId);
   await db.comando.updateMany({
     where: { status: "enviado", enviadoEm: { lt: new Date(agora.getTime() - ESPERA_RESPOSTA_MS) }, ...(clienteId ? { clienteId } : {}) },
     data: { status: "erro", resposta: "O aparelho não respondeu." },
