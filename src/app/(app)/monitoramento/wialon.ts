@@ -145,3 +145,22 @@ export async function importarUnidadesWialon(_: Resultado): Promise<Resultado> {
     : "Nenhuma unidade nova: todas já estão na plataforma.";
   return { ok: novos.length > 0, msg: msg + (pulados.length ? ` Sem IMEI no Wialon: ${pulados.join(", ")}.` : "") };
 }
+
+/**
+ * Apaga os caminhões de demonstração do cliente (rastreador "SIM-…", dos dados de exemplo)
+ * e tudo ligado a eles: despesas, viagens, posições, alertas e caixas.
+ */
+export async function apagarDemonstracao(_: Resultado): Promise<Resultado> {
+  const cliente = await soAdmin();
+  if (!cliente) return { ok: false, msg: "Só a equipe KM Cero apaga caminhões." };
+  const demo = await db.caminhao.findMany({ where: { clienteId: cliente.id, rastreadorId: { startsWith: "SIM-" } }, select: { id: true, placa: true } });
+  if (!demo.length) return { ok: true, msg: "Não há caminhões de demonstração." };
+  const ids = demo.map((c) => c.id);
+  await db.$transaction([
+    // A caixa do motorista não apaga junto com o caminhão (fica sem caminhão); aqui ela vai também.
+    db.caixaViagem.deleteMany({ where: { caminhaoId: { in: ids } } }),
+    db.caminhao.deleteMany({ where: { id: { in: ids } } }),
+  ]);
+  revalidatePath("/", "layout");
+  return { ok: true, msg: `Apagados ${demo.length} caminhões de demonstração: ${demo.map((c) => c.placa).join(", ")}.` };
+}
