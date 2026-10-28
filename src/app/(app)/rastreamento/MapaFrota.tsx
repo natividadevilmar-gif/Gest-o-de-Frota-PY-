@@ -96,7 +96,7 @@ export function MapaFrota({ inicial, hoje, todos = false }: { inicial: CaminhaoM
       const comPlaca = !compacto || c.id === sel;
       const icone = mod.divIcon({
         className: "",
-        html: `<div class="mk mk-${c.situacao}${c.id === sel ? " mk-sel" : ""}${comPlaca ? "" : " mk-ponto"}"><i></i>${comPlaca ? esc(c.placa) : ""}</div>`,
+        html: `<div class="mk mk-${c.situacao}${c.id === sel ? " mk-sel" : ""}${c.wialon ? " mk-wialon" : ""}${comPlaca ? "" : " mk-ponto"}"><i></i>${comPlaca ? esc(c.placa) : ""}</div>`,
         iconSize: undefined,
         iconAnchor: [10, 12],
       });
@@ -258,7 +258,7 @@ export function MapaFrota({ inicial, hoje, todos = false }: { inicial: CaminhaoM
               <button type="button" className={c.id === sel ? "ativo" : ""} onClick={() => escolher(c)} disabled={c.lat == null}>
                 <i className={`ponto ponto-${c.situacao}`} />
                 <span className="rastreio-item">
-                  <b>{c.placa}{c.demo && <span className="tag-demo">demonstração</span>}</b>
+                  <b>{c.placa}{c.demo && <span className="tag-demo">demonstração</span>}{c.wialon && <span className="tag-demo tag-wialon" title="Posições trazidas do Wialon">Wialon</span>}</b>
                   <small>{todos ? `${c.cliente} · ` : ""}{c.motorista ?? "sem motorista"} · {ROTULO[c.situacao]}</small>
                 </span>
                 <span className="quando">

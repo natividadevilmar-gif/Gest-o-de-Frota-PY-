@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { indicadoresFrota } from "@/lib/dados";
 import { mesAtual, planoPermite } from "@/lib/indicadores";
 import { ehImei, LIMITE_VELOCIDADE_KMH, resumirDia } from "@/lib/telemetria/posicoes";
+import { clienteUsaWialon, espelharSeDevido } from "./wialon";
 import { diaNoParaguai, posicaoDemo, rotaDemoNome, trajetoDemo } from "./rotas";
 
 export type Situacao = "movimento" | "parado" | "desligado" | "sem-sinal" | "aguardando" | "sem-rastreador";
@@ -28,6 +29,8 @@ export type CaminhaoMapa = {
   rpm: number | null;
   /** Motor bloqueado por comando da central. */
   bloqueado: boolean;
+  /** Posições trazidas do Wialon em vez do receptor próprio. */
+  wialon: boolean;
 };
 
 const SEM_SINAL_MS = 30 * 60_000;
@@ -41,13 +44,15 @@ function situacao(em: Date | null, ignicao: boolean | null, vel: number, agora: 
 
 /** Caminhões de um cliente, ou de todos os clientes quando `clienteId` é null (só a equipe KM Cero). */
 export async function frotaNoMapa(clienteId: string | null, agora = new Date()): Promise<CaminhaoMapa[]> {
+  await espelharSeDevido(db, agora);
   const lista = await db.caminhao.findMany({
     where: clienteId ? { clienteId } : {},
     include: { motorista: { select: { nome: true } }, cliente: { select: { nome: true } } },
     orderBy: [{ cliente: { nome: "asc" } }, { placa: "asc" }],
   });
   return lista.map((c) => {
-    const base = { id: c.id, placa: c.placa, modelo: c.modelo, motorista: c.motorista?.nome ?? null, cliente: c.cliente.nome, clienteId: c.clienteId, bloqueado: c.motorBloqueado };
+    const base = { id: c.id, placa: c.placa, modelo: c.modelo, motorista: c.motorista?.nome ?? null, cliente: c.cliente.nome, clienteId: c.clienteId, bloqueado: c.motorBloqueado,
+      wialon: ehImei(c.rastreadorId) && clienteUsaWialon(c.cliente.nome) };
     if (!c.rastreadorId) {
       return { ...base, situacao: "sem-rastreador", demo: false, lat: null, lng: null, velocidadeKmh: 0, direcao: 0, atualizadoEm: null, rota: null, local: null, rpm: null };
     }

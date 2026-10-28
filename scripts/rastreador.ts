@@ -8,6 +8,7 @@
 // Uso: npm run rastreador
 // Variáveis: DATABASE_URL (obrigatória), PORTA_RASTREADOR (padrão 5027),
 //            PORTA_CAMERAS (padrão 5028), PORTA_SAUDE (padrão 8080, responde GET /saude).
+//            WIALON_TOKEN (opcional): espelha as posições do Wialon a cada WIALON_INTERVALO_S (padrão 60).
 import { createServer as criarTcp, type Socket } from "node:net";
 import { createServer as criarHttp } from "node:http";
 import { spawnSync } from "node:child_process";
@@ -17,6 +18,7 @@ import { join } from "node:path";
 import { PrismaClient } from "@prisma/client";
 import { confirmacao, lerImei, lerPacote, montarComando, paraPosicao } from "../src/lib/rastreio/teltonika";
 import { efeitoNoMotor, ESPERA_RESPOSTA_MS, podeEnviar } from "../src/lib/comandos/catalogo";
+import { espelharWialon, Wialon } from "../src/lib/rastreio/wialon";
 import { ARQUIVOS, ArquivoCamera, CMD, formatoArquivo, lerInicioCamera, lerMensagemCamera, montarMensagemCamera, u32 } from "../src/lib/rastreio/dualcam";
 
 const db = new PrismaClient();
@@ -30,6 +32,7 @@ const conectados = new Map<string, Date>();
 let gravadas = 0;
 let comandosEnviados = 0;
 let midiasRecebidas = 0;
+let wialonUltima: { em: Date; gravadas: number; erros: string[] } | null = null;
 
 function log(...x: unknown[]) {
   console.log(new Date().toISOString(), ...x);
@@ -317,8 +320,32 @@ criarTcp(atenderCamera).listen(PORTA_CAMERAS, () => log(`Câmeras DualCam na por
 criarHttp((req, res) => {
   if (req.url !== "/saude") { res.writeHead(404).end(); return; }
   res.writeHead(200, { "content-type": "application/json" });
-  res.end(JSON.stringify({ ok: true, posicoesGravadas: gravadas, comandosEnviados, midiasRecebidas, ultimosContatos: Object.fromEntries(conectados) }));
+  res.end(JSON.stringify({ ok: true, posicoesGravadas: gravadas, comandosEnviados, midiasRecebidas, ultimosContatos: Object.fromEntries(conectados), wialon: wialonUltima }));
 }).listen(PORTA_SAUDE);
+
+// Caminhões com rastreador no Wialon: as posições chegam por lá em vez de virem direto ao receptor.
+if (process.env.WIALON_TOKEN) {
+  const api = Wialon.doAmbiente();
+  const intervalo = Number(process.env.WIALON_INTERVALO_S ?? 60) * 1000;
+  let rodando = false;
+  const espelhar = async () => {
+    if (rodando) return;
+    rodando = true;
+    try {
+      const r = await espelharWialon(db, api);
+      wialonUltima = { em: new Date(), gravadas: r.gravadas, erros: r.erros };
+      if (r.gravadas || r.erros.length) log(`Wialon: ${r.gravadas} posições de ${r.unidades} unidades`, ...r.erros);
+    } catch (e) {
+      wialonUltima = { em: new Date(), gravadas: 0, erros: [(e as Error).message] };
+      log(`Wialon: ${(e as Error).message}`);
+    } finally {
+      rodando = false;
+    }
+  };
+  setInterval(espelhar, intervalo);
+  void espelhar();
+  log(`Espelhando o Wialon a cada ${intervalo / 1000} s`);
+}
 
 for (const sinal of ["SIGINT", "SIGTERM"] as const) {
   process.on(sinal, async () => {

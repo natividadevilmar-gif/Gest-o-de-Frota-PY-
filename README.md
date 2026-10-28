@@ -15,7 +15,8 @@ Este é o MVP do módulo próprio. Rastreamento ao vivo, mapa e vídeo ficam na 
 - **Revisões:** itens por km ou por data, aviso com 1.000 km ou 15 dias de antecedência, falhas lidas da CAN. Registrar o serviço zera o intervalo e lança o custo como manutenção.
 - **Margem por viagem:** frete menos custo por km × (km carregado + km vazio), e um simulador de frete com o frete mínimo por tonelada.
 - **Minha empresa (interno):** clientes, caminhões por plano, mensalidades, atraso e bloqueio automático após 15 dias.
-- **Telemetria:** contrato `FonteTelemetria` com um simulador e um esqueleto para o white-label (`src/lib/telemetria`). O script diário grava km, litros e eventos de cada caminhão.
+- **Telemetria:** contrato `FonteTelemetria` com um simulador e o Wialon (`src/lib/telemetria`). O script diário grava km, litros e eventos de cada caminhão.
+- **Wialon:** com `WIALON_TOKEN` definido, o receptor traz a cada minuto as mensagens das unidades do Wialon para as posições, ligando cada unidade ao caminhão pelo IMEI. `WIALON_CLIENTES` limita a quais clientes isso vale (hoje, só a AVM Truck). Sem o receptor, o próprio site espelha quando alguém abre o mapa ou a central (no máximo a cada minuto). Em Caminhões e planos, o botão "Buscar IMEIs no Wialon" liga cada caminhão à unidade com o nome da placa. Mapa, cercas, alertas e resumo diário usam esses dados como se viessem do receptor próprio. `npm run wialon` lista as unidades e mostra qual caminhão ficou ligado a cada uma.
 
 ## Rodar localmente
 
@@ -60,12 +61,13 @@ npm run sync:telemetria     # importa o dia de ontem da fonte de telemetria
 | `src/lib/indicadores.ts` | Todos os cálculos, sem banco, com testes |
 | `src/lib/dados.ts` | Consultas que montam os indicadores de cada tela |
 | `src/lib/acesso.ts` | Sessão, papel e cliente atual |
-| `src/lib/telemetria/` | Adaptadores de rastreamento (simulador, white-label) |
+| `src/lib/telemetria/` | Adaptadores de rastreamento (simulador, Wialon) |
+| `src/lib/rastreio/wialon.ts` | Cliente da Remote API do Wialon e espelho das posições |
 | `src/app/(app)/` | Telas da plataforma |
 
 ## Próximos passos
 
-1. Escolher o white-label e implementar `src/lib/telemetria/wialon.ts` (ou o adaptador do fornecedor escolhido).
+1. Conferir com a conta Wialon real os nomes dos parâmetros CAN de cada modelo de rastreador (`src/lib/rastreio/wialon.ts`).
 2. Integrar eventos e clipes do MDVR na tela de vídeo.
 3. Telas em espanhol (o idioma do cliente já está no cadastro).
 4. Cobrança automática e faturamento eletrônico SIFEN.
