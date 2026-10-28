@@ -14,6 +14,8 @@ export type PontoDia = {
   litrosTotal: number | null;
   rpm: number | null;
   evento: string | null;
+  /** Diesel no tanque, em litros (sensor de nível ou CAN). */
+  nivelCombustivelL?: number | null;
 };
 
 export const LIMITE_VELOCIDADE_KMH = 80;
@@ -64,5 +66,75 @@ export function resumirDia(pontos: PontoDia[], odometroAnteriorKm: number): Dado
     excessosVelocidade: eventosExcesso || cruzamentos,
     frenagensBruscas: ps.filter((p) => p.evento === "freada").length,
     rpmAltoPct: pct(rpmAltoMs),
+  };
+}
+
+/** Relatório do dia no mesmo formato do relatório de viagem do Wialon. */
+export type RelatorioDia = {
+  km: number;
+  /** Diesel gasto com o caminhão andando (total menos o gasto parado). */
+  litrosViagem: number | null;
+  kmL: number | null;
+  l100km: number | null;
+  nivelInicialL: number | null;
+  nivelFinalL: number | null;
+  /** Tempo de motor ligado, em segundos. */
+  horasMotorS: number;
+  odometroFinalKm: number | null;
+  velocidadeMedia: number;
+  velocidadeMax: number;
+  /** Diesel gasto parado ou quase parado (motor ligado abaixo de 5 km/h). */
+  litrosParado: number | null;
+  litrosTotal: number | null;
+};
+
+const QUASE_PARADO_KMH = 5;
+const LACUNA_MAX_MS = 2 * 3600_000;
+const um = (x: number) => Math.round(x * 10) / 10;
+
+export function relatorioDoDia(pontos: PontoDia[]): RelatorioDia | null {
+  if (!pontos.length) return null;
+  const ps = [...pontos].sort((a, b) => a.data.getTime() - b.data.getTime());
+  const resumo = resumirDia(ps, 0);
+  const km = resumo?.km ?? 0;
+
+  let motorMs = 0, andandoMs = 0, parado = 0;
+  let ultimoLitros: number | null = null;
+  for (let i = 0; i < ps.length; i++) {
+    const p = ps[i];
+    if (p.litrosTotal != null) {
+      // Diesel gasto desde a leitura anterior conta como parado se o caminhão estava abaixo de 5 km/h.
+      const gasto = ultimoLitros != null ? p.litrosTotal - ultimoLitros : 0;
+      if (gasto > 0 && i > 0 && ps[i - 1].velocidadeKmh < QUASE_PARADO_KMH && p.velocidadeKmh < QUASE_PARADO_KMH) parado += gasto;
+      ultimoLitros = p.litrosTotal;
+    }
+    if (i === ps.length - 1) break;
+    // Sem sinal entre dois pontos com o motor ligado (ou andando) nas duas pontas: o tempo todo conta.
+    const q = ps[i + 1];
+    const passo = q.data.getTime() - p.data.getTime();
+    const dt = (ambos: boolean) => Math.min(passo, ambos ? LACUNA_MAX_MS : INTERVALO_MAX_MS);
+    const ligado = (x: PontoDia) => x.ignicao ?? x.velocidadeKmh > 0;
+    if (ligado(p)) motorMs += dt(ligado(q));
+    if (p.velocidadeKmh >= QUASE_PARADO_KMH) andandoMs += dt(q.velocidadeKmh >= QUASE_PARADO_KMH);
+  }
+
+  const litrosTotal = resumo?.litrosCan ?? null;
+  const litrosParado = litrosTotal == null ? null : um(Math.min(parado, litrosTotal));
+  const litrosViagem = litrosTotal == null ? null : um(litrosTotal - (litrosParado ?? 0));
+  const nivel = ps.filter((p) => p.nivelCombustivelL != null);
+  const odoFim = ps.findLast((p) => p.odometroKm != null)?.odometroKm;
+  return {
+    km,
+    litrosViagem,
+    kmL: litrosViagem && km ? Math.round((km / litrosViagem) * 100) / 100 : null,
+    l100km: litrosViagem && km ? um((litrosViagem / km) * 100) : null,
+    nivelInicialL: nivel.length ? um(nivel[0].nivelCombustivelL!) : null,
+    nivelFinalL: nivel.length ? um(nivel.at(-1)!.nivelCombustivelL!) : null,
+    horasMotorS: Math.round(motorMs / 1000),
+    odometroFinalKm: odoFim != null ? Math.round(odoFim) : null,
+    velocidadeMedia: andandoMs ? Math.round(km / (andandoMs / 3600_000)) : 0,
+    velocidadeMax: Math.max(0, ...ps.map((p) => p.velocidadeKmh)),
+    litrosParado,
+    litrosTotal,
   };
 }

@@ -302,6 +302,11 @@ export function MapaFrota({ inicial, hoje, todos = false, outraTela = false }: {
             ) : (
               <p className="sub">Nenhum trajeto registrado neste dia.</p>
             )}
+            {!todos && (
+              <a className="rastreio-relatorio" href={`/telemetria?de=${dia}&ate=${dia}`} target={outraTela ? "_blank" : undefined}>
+                Telemetria do dia: diesel, km/l, tanque e horas de motor
+              </a>
+            )}
           </div>
         )}
       </div>

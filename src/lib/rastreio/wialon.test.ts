@@ -6,10 +6,10 @@ const pos = { x: -57.5, y: -25.3, s: 72.4, c: 181, sc: 14 };
 
 describe("mensagens do Wialon", () => {
   it("lê posição e parâmetros Teltonika (io_<código>)", () => {
-    const l = paraPosicaoWialon({ t: 1_761_400_000, pos, p: { io_239: 1, io_87: 1_250_500, io_83: 6002, io_85: 1450, io_253: 2 } })!;
+    const l = paraPosicaoWialon({ t: 1_761_400_000, pos, p: { io_239: 1, io_87: 1_250_500, io_83: 6002, io_84: 4105, io_85: 1450, io_253: 2 } })!;
     expect(l).toEqual({
       data: new Date(1_761_400_000_000), lat: -25.3, lng: -57.5, velocidadeKmh: 72, direcao: 181, satelites: 14,
-      ignicao: true, odometroKm: 1250.5, litrosTotal: 600.2, rpm: 1450, evento: "freada",
+      ignicao: true, odometroKm: 1250.5, litrosTotal: 600.2, nivelCombustivelL: 410.5, rpm: 1450, evento: "freada",
     });
   });
   it("sem CAN usa o odômetro do GPS e deixa o resto vazio", () => {
@@ -17,13 +17,13 @@ describe("mensagens do Wialon", () => {
     expect(l).toMatchObject({ odometroKm: 5, litrosTotal: null, ignicao: null, rpm: null, evento: "excesso" });
   });
   it("lê os nomes de CAN de outras marcas, já em km e litros", () => {
-    const l = paraPosicaoWialon({ t: 1, pos, p: { can_mileage: 812_345.6, can_fuel_used: 98_765.4, can_rpm: 1300, ign: 1 } })!;
-    expect(l).toMatchObject({ odometroKm: 812_345.6, litrosTotal: 98_765.4, rpm: 1300, ignicao: true });
+    const l = paraPosicaoWialon({ t: 1, pos, p: { can_mileage: 812_345.6, can_fuel_used: 98_765.4, can_rpm: 1300, ign: 1, fuel_level: 230 } })!;
+    expect(l).toMatchObject({ odometroKm: 812_345.6, litrosTotal: 98_765.4, rpm: 1300, ignicao: true, nivelCombustivelL: 230 });
     expect(paraPosicaoWialon({ t: 1, pos, p: { mileage: 812_345_600 } })!.odometroKm).toBe(812_345.6);
   });
   it("diz o que a unidade manda de telemetria", () => {
     expect(telemetriaDaMensagem({ t: 1, pos, p: { io_87: 1, io_85: 900, pwr_ext: 24.1 } })).toEqual({
-      odometro: true, diesel: false, rpm: true, ignicao: false, eventos: false, parametros: ["io_85", "io_87", "pwr_ext"],
+      odometro: true, diesel: false, tanque: false, rpm: true, ignicao: false, eventos: false, parametros: ["io_85", "io_87", "pwr_ext"],
     });
     expect(telemetriaDaMensagem(null).parametros).toEqual([]);
   });

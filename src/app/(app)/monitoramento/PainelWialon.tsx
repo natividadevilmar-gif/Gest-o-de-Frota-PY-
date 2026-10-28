@@ -65,7 +65,7 @@ export function PainelWialon({ cliente, conectado, servidor, servidores, ligados
           {lista?.ok && (
             <div className="tw">
               <table>
-                <thead><tr><th>Unidade no Wialon</th><th>IMEI</th><th>Caminhão na plataforma</th><th>Última mensagem</th><th>Odômetro</th><th>Diesel</th><th>RPM</th><th>Ignição</th><th>Freadas e excessos</th></tr></thead>
+                <thead><tr><th>Unidade no Wialon</th><th>IMEI</th><th>Caminhão na plataforma</th><th>Última mensagem</th><th>Odômetro</th><th>Diesel</th><th>Tanque</th><th>RPM</th><th>Ignição</th><th>Freadas e excessos</th></tr></thead>
                 <tbody>
                   {lista.unidades.map((u) => (
                     <tr key={`${u.nome}-${u.imei}`}>
@@ -75,6 +75,7 @@ export function PainelWialon({ cliente, conectado, servidor, servidores, ligados
                       <td>{u.ultima ? new Date(u.ultima).toLocaleString("pt-BR", { timeZone: "America/Asuncion" }) : "sem mensagens"}</td>
                       <td>{sim(u.telemetria.odometro)}</td>
                       <td>{sim(u.telemetria.diesel)}</td>
+                      <td>{sim(u.telemetria.tanque)}</td>
                       <td>{sim(u.telemetria.rpm)}</td>
                       <td>{sim(u.telemetria.ignicao)}</td>
                       <td>{sim(u.telemetria.eventos)}</td>
