@@ -221,6 +221,7 @@ button.link{background:none;border:0;padding:0;min-height:0;color:var(--accent);
 .mk-lista b{margin-bottom:4px}
 .mk-lista button{all:unset;cursor:pointer;padding:4px 6px;border-radius:6px}
 .mk-lista button:hover,.mk-lista button:focus-visible{background:#eceeea}
+.mk-lista .mk-aproximar{margin-top:4px;border-top:1px solid #e2e5e0;border-radius:0 0 6px 6px;color:#2c5d8a;font-weight:600}
 .link-num,.link-alerta{all:unset;cursor:pointer;color:var(--fg);text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px}
 .link-num{font-weight:700;color:var(--ok)}
 .link-num:hover,.link-alerta:hover{color:var(--accent)}
