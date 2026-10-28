@@ -94,8 +94,9 @@ export function MapaFrota({ inicial, hoje, todos = false }: { inicial: CaminhaoM
     // Os marcadores ficam no mapa entre uma atualização e outra, para andarem até a posição nova.
     const usados = new Set<string>();
     // Cada caminhão aparece separado, só com o ponto (ou a seta, em movimento). A placa aparece
-    // ao passar o mouse e no caminhão escolhido.
-    const visiveis = frota.filter((c) => filtro === "todos" || c.situacao === filtro);
+    // ao passar o mouse e no caminhão escolhido. Com um caminhão escolhido, o mapa mostra só ele
+    // e o trajeto dele; ao fechar, os outros voltam.
+    const visiveis = frota.filter((c) => (sel ? c.id === sel : filtro === "todos" || c.situacao === filtro));
     const m = mapa.current;
     if (!m) return;
     const marcar = (c: CaminhaoMapa) => {
@@ -168,6 +169,8 @@ export function MapaFrota({ inicial, hoje, todos = false }: { inicial: CaminhaoM
   useEffect(() => {
     if (!sel) { setTrajeto(null); return; }
     let vivo = true;
+    // Tira na hora o trajeto do caminhão anterior.
+    setTrajeto(null);
     setCarregando(true);
     fetch(`/rastreamento/trajeto?caminhao=${sel}&dia=${dia}`, { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
