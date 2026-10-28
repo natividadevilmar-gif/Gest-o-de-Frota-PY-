@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { credenciaisWialon, imeisPelaPlaca, ligarUnidades, paraPosicaoWialon } from "./wialon";
+import { diasDoParaguai } from "../telemetria/sincronizar";
+import { credenciaisWialon, imeisPelaPlaca, ligarUnidades, paraPosicaoWialon, telemetriaDaMensagem } from "./wialon";
 
 const pos = { x: -57.5, y: -25.3, s: 72.4, c: 181, sc: 14 };
 
@@ -14,6 +15,21 @@ describe("mensagens do Wialon", () => {
   it("sem CAN usa o odômetro do GPS e deixa o resto vazio", () => {
     const l = paraPosicaoWialon({ t: 1, pos, p: { io_16: 5000, io_255: 95 } })!;
     expect(l).toMatchObject({ odometroKm: 5, litrosTotal: null, ignicao: null, rpm: null, evento: "excesso" });
+  });
+  it("lê os nomes de CAN de outras marcas, já em km e litros", () => {
+    const l = paraPosicaoWialon({ t: 1, pos, p: { can_mileage: 812_345.6, can_fuel_used: 98_765.4, can_rpm: 1300, ign: 1 } })!;
+    expect(l).toMatchObject({ odometroKm: 812_345.6, litrosTotal: 98_765.4, rpm: 1300, ignicao: true });
+    expect(paraPosicaoWialon({ t: 1, pos, p: { mileage: 812_345_600 } })!.odometroKm).toBe(812_345.6);
+  });
+  it("diz o que a unidade manda de telemetria", () => {
+    expect(telemetriaDaMensagem({ t: 1, pos, p: { io_87: 1, io_85: 900, pwr_ext: 24.1 } })).toEqual({
+      odometro: true, diesel: false, rpm: true, ignicao: false, eventos: false, parametros: ["io_85", "io_87", "pwr_ext"],
+    });
+    expect(telemetriaDaMensagem(null).parametros).toEqual([]);
+  });
+  it("separa as posições pelos dias do Paraguai (UTC-3)", () => {
+    const dias = diasDoParaguai([new Date("2026-10-28T02:59:00Z"), new Date("2026-10-28T03:00:00Z"), new Date("2026-10-27T12:00:00Z")]);
+    expect(dias.map((d) => d.toISOString().slice(0, 10))).toEqual(["2026-10-27", "2026-10-28"]);
   });
   it("ignora mensagem sem posição", () => {
     expect(paraPosicaoWialon({ t: 1, pos: null })).toBeNull();

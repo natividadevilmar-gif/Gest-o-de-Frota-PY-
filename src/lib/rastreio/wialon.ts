@@ -1,4 +1,5 @@
 import type { PrismaClient } from "@prisma/client";
+import { diasDoParaguai, gravarDia } from "../telemetria/sincronizar";
 import { IO } from "./teltonika";
 
 // Wialon (Gurtam) como mais uma entrada de posições, ao lado do receptor próprio.
@@ -20,16 +21,24 @@ export type MensagemWialon = {
 
 export type UnidadeWialon = { id: number; nm: string; uid?: string; lmsg?: MensagemWialon | null };
 
-/** Nomes dos parâmetros no Wialon: aparelhos Teltonika chegam como io_<código>. */
+/**
+ * Nomes dos parâmetros no Wialon: aparelhos Teltonika chegam como io_<código>; outras
+ * marcas usam nomes como can_mileage e can_fuel_used, já em km e litros.
+ */
 const P = {
-  ignicao: [`io_${IO.ignicao}`, "ignition", "ign"],
+  ignicao: [`io_${IO.ignicao}`, "ignition", "ign", "can_ignition"],
   odometroCanM: [`io_${IO.odometroCan}`],
+  odometroKm: ["can_mileage", "can_odometer", "can_total_mileage", "vehicle_mileage", "odometer", "mileage"],
   odometroGpsM: [`io_${IO.odometroGps}`],
   combustivelDecilitros: [`io_${IO.combustivelCan}`],
-  rpm: [`io_${IO.rpm}`, "rpm", "engine_rpm"],
+  combustivelL: ["can_fuel_used", "can_fuel_consumed", "can_total_fuel_used", "total_fuel_used", "fuel_used", "can_fuel_total"],
+  rpm: [`io_${IO.rpm}`, "can_rpm", "can_engine_rpm", "engine_rpm", "rpm"],
   conducao: [`io_${IO.conducao}`],
   excesso: [`io_${IO.excesso}`],
 };
+
+/** Odômetro em km; um valor grande demais para km (mais de 5 milhões) veio em metros. */
+const kmDe = (v: number | undefined) => (v === undefined ? undefined : v > 5_000_000 ? v / 1000 : v);
 
 function ler(p: MensagemWialon["p"], nomes: string[]): number | undefined {
   for (const n of nomes) {
@@ -42,8 +51,10 @@ function ler(p: MensagemWialon["p"], nomes: string[]): number | undefined {
 export function paraPosicaoWialon(m: MensagemWialon) {
   if (!m.pos) return null;
   const p = m.p;
-  const odoM = ler(p, P.odometroCanM) ?? ler(p, P.odometroGpsM);
-  const comb = ler(p, P.combustivelDecilitros);
+  const odoM = ler(p, P.odometroCanM);
+  const odoKm = odoM !== undefined ? odoM / 1000 : kmDe(ler(p, P.odometroKm)) ?? (ler(p, P.odometroGpsM) ?? NaN) / 1000;
+  const decilitros = ler(p, P.combustivelDecilitros);
+  const litros = decilitros !== undefined ? decilitros / 10 : ler(p, P.combustivelL);
   const ign = ler(p, P.ignicao);
   const conducao = ler(p, P.conducao);
   const evento =
@@ -56,10 +67,26 @@ export function paraPosicaoWialon(m: MensagemWialon) {
     direcao: Math.round(m.pos.c),
     satelites: m.pos.sc,
     ignicao: ign === undefined ? null : ign === 1,
-    odometroKm: odoM === undefined ? null : odoM / 1000,
-    litrosTotal: comb === undefined ? null : comb / 10,
+    odometroKm: Number.isFinite(odoKm) ? odoKm : null,
+    litrosTotal: litros ?? null,
     rpm: ler(p, P.rpm) ?? null,
     evento,
+  };
+}
+
+export type TelemetriaUnidade = { odometro: boolean; diesel: boolean; rpm: boolean; ignicao: boolean; eventos: boolean; parametros: string[] };
+
+/** O que a última mensagem da unidade traz de telemetria, para conferir na central. */
+export function telemetriaDaMensagem(m: MensagemWialon | null | undefined): TelemetriaUnidade {
+  const p = m?.p;
+  const tem = (nomes: string[]) => ler(p, nomes) !== undefined;
+  return {
+    odometro: tem([...P.odometroCanM, ...P.odometroKm, ...P.odometroGpsM]),
+    diesel: tem([...P.combustivelDecilitros, ...P.combustivelL]),
+    rpm: tem(P.rpm),
+    ignicao: tem(P.ignicao),
+    eventos: tem([...P.conducao, ...P.excesso]),
+    parametros: Object.keys(p ?? {}).sort(),
   };
 }
 
@@ -262,9 +289,12 @@ export async function espelharWialon(db: PrismaClient, agora = new Date()) {
   return { unidades, gravadas, erros };
 }
 
+const RESUMO_MIN_MS = 10 * 60_000;
+const resumidoEm = new Map<string, number>();
+
 async function espelharConta(db: PrismaClient, api: Wialon, clienteId: string, agora: Date) {
   const [caminhoes, unidades] = await Promise.all([
-    db.caminhao.findMany({ where: { clienteId }, select: { id: true, placa: true, rastreadorId: true, ultimaPosicaoEm: true } }),
+    db.caminhao.findMany({ where: { clienteId }, select: { id: true, placa: true, rastreadorId: true, ultimaPosicaoEm: true, odometroKm: true, plano: true } }),
     api.unidades(),
   ]);
   let gravadas = 0;
@@ -289,9 +319,71 @@ async function espelharConta(db: PrismaClient, api: Wialon, clienteId: string, a
         },
       });
       gravadas += linhas.length;
+      // O resumo do dia (km, diesel, alertas) acompanha as posições que chegam, sem esperar a madrugada.
+      // O de hoje é refeito no máximo a cada 10 minutos, para não reler o dia inteiro a cada minuto.
+      for (const dia of diasDoParaguai(linhas.map((l) => l.data))) {
+        const chave = `${c.id}|${dia.getTime()}`;
+        if (agora.getTime() - (resumidoEm.get(chave) ?? 0) < RESUMO_MIN_MS) continue;
+        await gravarDia(db, null, c, dia);
+        resumidoEm.set(chave, agora.getTime());
+      }
     } catch (e) {
       erros.push(`${c.placa}: ${(e as Error).message}`);
     }
   }
   return { unidades: unidades.length, gravadas, erros };
+}
+
+/** Pedaço do histórico lido por vez, para não trazer um mês inteiro numa resposta só. */
+const PEDACO_HISTORICO_MS = 2 * 86_400_000;
+
+/**
+ * Traz do Wialon o histórico de posições e telemetria desde `desde`, para os caminhões
+ * ligados da conta que ainda não têm esse período. Para quando o prazo acaba; chamar
+ * de novo continua de onde parou. Devolve quantos caminhões ainda faltam.
+ */
+export async function historicoWialon(db: PrismaClient, api: Wialon, clienteId: string, desde: Date, prazoMs: number) {
+  const fimDoPrazo = Date.now() + prazoMs;
+  const [caminhoes, unidades] = await Promise.all([
+    db.caminhao.findMany({ where: { clienteId }, select: { id: true, placa: true, rastreadorId: true, odometroKm: true, plano: true } }),
+    api.unidades(),
+  ]);
+  const ligados = ligarUnidades(caminhoes, unidades);
+  let gravadas = 0, faltam = 0;
+  const erros: string[] = [];
+  for (const { caminhao: c, unidade: u } of ligados) {
+    // O que já existe vem do espelho; o histórico preenche só antes da primeira posição.
+    const primeira = await db.posicao.findFirst({ where: { caminhaoId: c.id }, orderBy: { data: "asc" }, select: { data: true } });
+    let ate = primeira ? new Date(primeira.data.getTime() - 1000) : new Date(u.lmsg ? u.lmsg.t * 1000 : Date.now());
+    if (ate <= desde) continue;
+    if (Date.now() > fimDoPrazo) { faltam++; continue; }
+    try {
+      const dias = new Set<number>();
+      while (ate > desde && Date.now() < fimDoPrazo) {
+        const de = new Date(Math.max(desde.getTime(), ate.getTime() - PEDACO_HISTORICO_MS));
+        const linhas = (await api.mensagens(u.id, de, ate))
+          .map(paraPosicaoWialon)
+          .filter((l) => l !== null)
+          .map((l) => ({ caminhaoId: c.id, ...l }));
+        if (linhas.length) await db.posicao.createMany({ data: linhas });
+        if (!primeira && linhas.length) {
+          // Caminhão sem nenhuma posição ainda: marca a mais nova, para o espelho não trazer de novo as mesmas.
+          const u2 = linhas.reduce((x, y) => (y.data > x.data ? y : x));
+          await db.caminhao.updateMany({
+            where: { id: c.id, ultimaPosicaoEm: null },
+            data: { ultimaPosicaoEm: u2.data, ultimaLat: u2.lat, ultimaLng: u2.lng, ultimaVelocidade: u2.velocidadeKmh, ultimaIgnicao: u2.ignicao },
+          });
+        }
+        for (const d of diasDoParaguai(linhas.map((l) => l.data))) dias.add(d.getTime());
+        gravadas += linhas.length;
+        ate = new Date(de.getTime() - 1000);
+      }
+      if (ate > desde) faltam++;
+      // Do dia mais antigo para o mais novo, para o odômetro de cada dia partir do anterior.
+      for (const t of [...dias].sort((a, b) => a - b)) await gravarDia(db, null, c, new Date(t));
+    } catch (e) {
+      erros.push(`${c.placa}: ${(e as Error).message}`);
+    }
+  }
+  return { caminhoes: ligados.length, gravadas, faltam, erros };
 }
