@@ -74,3 +74,93 @@ export async function ligarCaminhoesWialon(_: Resultado): Promise<Resultado> {
     (semUnidade.length ? ` Sem unidade com essa placa no Wialon: ${semUnidade.join(", ")} (cole o IMEI em Caminhões e planos).` : "");
   return { ok: ligados.length > 0, msg };
 }
+
+export type ListaUnidades = { ok: boolean; msg: string; unidades: { nome: string; imei: string | null; placa: string | null; ultima: string | null }[] } | null;
+
+/** Unidades da conta Wialon, com o caminhão da plataforma ligado a cada uma. */
+export async function listarUnidadesWialon(_: ListaUnidades): Promise<ListaUnidades> {
+  const cliente = await soAdmin();
+  if (!cliente) return { ok: false, msg: "Só a equipe KM Cero liga o Wialon.", unidades: [] };
+  const api = apiDoCliente(cliente);
+  if (!api) return { ok: false, msg: "Conecte o Wialon primeiro.", unidades: [] };
+  try {
+    const [unidades, caminhoes] = await Promise.all([
+      api.unidades(),
+      db.caminhao.findMany({ where: { clienteId: cliente.id, rastreadorId: { not: null } }, select: { placa: true, rastreadorId: true } }),
+    ]);
+    const porImei = new Map(caminhoes.map((c) => [c.rastreadorId!, c.placa]));
+    return {
+      ok: true,
+      msg: `${unidades.length} unidades no Wialon`,
+      unidades: unidades.map((u) => ({
+        nome: u.nm,
+        imei: u.uid ?? null,
+        placa: (u.uid && porImei.get(u.uid)) || null,
+        ultima: u.lmsg ? new Date(u.lmsg.t * 1000).toISOString() : null,
+      })),
+    };
+  } catch (e) {
+    return { ok: false, msg: (e as Error).message, unidades: [] };
+  }
+}
+
+/**
+ * Cadastra como caminhão cada unidade do Wialon que ainda não está na plataforma
+ * (pelo IMEI). A placa é o nome da unidade; modelo e consumo de referência ficam para
+ * completar em Caminhões e planos.
+ */
+export async function importarUnidadesWialon(_: Resultado): Promise<Resultado> {
+  const cliente = await soAdmin();
+  if (!cliente) return { ok: false, msg: "Só a equipe KM Cero liga o Wialon." };
+  const api = apiDoCliente(cliente);
+  if (!api) return { ok: false, msg: "Conecte o Wialon primeiro." };
+  let unidades;
+  try {
+    unidades = await api.unidades();
+  } catch (e) {
+    return { ok: false, msg: (e as Error).message };
+  }
+  const [comImei, placas] = await Promise.all([
+    db.caminhao.findMany({ where: { rastreadorId: { not: null } }, select: { rastreadorId: true } }),
+    db.caminhao.findMany({ where: { clienteId: cliente.id }, select: { placa: true } }),
+  ]);
+  const imeis = new Set(comImei.map((c) => c.rastreadorId));
+  const usadas = new Set(placas.map((c) => c.placa.toUpperCase()));
+  const novos: string[] = [], pulados: string[] = [];
+  for (const u of unidades) {
+    if (!u.uid || !/^\d{15}$/.test(u.uid)) { pulados.push(`${u.nm} (sem IMEI)`); continue; }
+    if (imeis.has(u.uid)) continue;
+    let placa = u.nm.trim().toUpperCase().slice(0, 30) || u.uid;
+    if (usadas.has(placa)) placa = `${placa} (${u.uid.slice(-4)})`;
+    await db.caminhao.create({
+      data: { clienteId: cliente.id, placa, modelo: "Importado do Wialon", consumoRefKmL: 2.5, plano: cliente.planoContratado, rastreadorId: u.uid },
+    });
+    usadas.add(placa);
+    imeis.add(u.uid);
+    novos.push(placa);
+  }
+  revalidatePath("/", "layout");
+  const msg = novos.length
+    ? `${novos.length} caminhões cadastrados a partir do Wialon. Em até 1 minuto aparecem no mapa com a posição real. Complete modelo e consumo em Caminhões e planos.`
+    : "Nenhuma unidade nova: todas já estão na plataforma.";
+  return { ok: novos.length > 0, msg: msg + (pulados.length ? ` Sem IMEI no Wialon: ${pulados.join(", ")}.` : "") };
+}
+
+/**
+ * Apaga os caminhões de demonstração do cliente (rastreador "SIM-…", dos dados de exemplo)
+ * e tudo ligado a eles: despesas, viagens, posições, alertas e caixas.
+ */
+export async function apagarDemonstracao(_: Resultado): Promise<Resultado> {
+  const cliente = await soAdmin();
+  if (!cliente) return { ok: false, msg: "Só a equipe KM Cero apaga caminhões." };
+  const demo = await db.caminhao.findMany({ where: { clienteId: cliente.id, rastreadorId: { startsWith: "SIM-" } }, select: { id: true, placa: true } });
+  if (!demo.length) return { ok: true, msg: "Não há caminhões de demonstração." };
+  const ids = demo.map((c) => c.id);
+  await db.$transaction([
+    // A caixa do motorista não apaga junto com o caminhão (fica sem caminhão); aqui ela vai também.
+    db.caixaViagem.deleteMany({ where: { caminhaoId: { in: ids } } }),
+    db.caminhao.deleteMany({ where: { id: { in: ids } } }),
+  ]);
+  revalidatePath("/", "layout");
+  return { ok: true, msg: `Apagados ${demo.length} caminhões de demonstração: ${demo.map((c) => c.placa).join(", ")}.` };
+}

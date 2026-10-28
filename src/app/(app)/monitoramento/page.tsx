@@ -15,9 +15,11 @@ export default async function Monitoramento({ searchParams }: { searchParams: Pr
   const todos = admin && (await searchParams).todos === "1";
   const dados = await dadosCentral(todos ? null : cliente.id);
   const cred = credenciaisWialon(cliente);
-  const ligados = admin && !todos && cred
-    ? (await db.caminhao.findMany({ where: { clienteId: cliente.id }, select: { rastreadorId: true } })).filter((c) => ehImei(c.rastreadorId)).length
-    : 0;
+  const rastreadores = admin && !todos
+    ? (await db.caminhao.findMany({ where: { clienteId: cliente.id }, select: { rastreadorId: true } })).map((c) => c.rastreadorId)
+    : [];
+  const ligados = cred ? rastreadores.filter(ehImei).length : 0;
+  const demo = rastreadores.filter((r) => r?.startsWith("SIM-")).length;
   return (
     <>
       <div className="titulo-acoes">
@@ -37,6 +39,7 @@ export default async function Monitoramento({ searchParams }: { searchParams: Pr
           servidores={SERVIDORES_WIALON.map((sv) => ({ ...sv, link: linkTokenWialon(sv.site) }))}
           ligados={ligados}
           total={dados.frota.length}
+          demo={demo}
         />
       )}
       <Central key={todos ? "todos" : cliente.id} inicial={dados} todos={todos} clienteNome={cliente.nome} podeCercas={sessao.papel !== "OPERADOR"} tiposCerca={TIPOS_CERCA} />
