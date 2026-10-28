@@ -99,13 +99,11 @@ export function MapaFrota({ inicial, hoje, todos = false }: { inicial: CaminhaoM
     // Os grupos são refeitos a cada vez.
     grupo.clearLayers();
     const usados = new Set<string>();
-    // Com muitos caminhões, só o ponto colorido; a placa aparece ao passar o mouse e no escolhido.
+    // Cada caminhão mostra a placa e abre o quadro dele ao clicar.
     const visiveis = frota.filter((c) => filtro === "todos" || c.situacao === filtro);
-    const compacto = visiveis.filter((c) => c.lat != null).length > 30;
     const m = mapa.current!;
     const marcar = (c: CaminhaoMapa) => {
-      const comPlaca = !compacto || c.id === sel;
-      const html = `<div class="mk mk-${c.situacao}${c.id === sel ? " mk-sel" : ""}${c.wialon ? " mk-wialon" : ""}${comPlaca ? "" : " mk-ponto"}">${c.situacao === "movimento" ? seta(c.direcao) : "<i></i>"}${comPlaca ? esc(c.placa) : ""}</div>`;
+      const html = `<div class="mk mk-${c.situacao}${c.id === sel ? " mk-sel" : ""}${c.wialon ? " mk-wialon" : ""}">${c.situacao === "movimento" ? seta(c.direcao) : "<i></i>"}${esc(c.placa)}</div>`;
       const icone = () => mod.divIcon({ className: "", html, iconSize: undefined, iconAnchor: [10, 12] });
       usados.add(c.id);
       let s = soltos.current.get(c.id);
@@ -141,21 +139,27 @@ export function MapaFrota({ inicial, hoje, todos = false }: { inicial: CaminhaoM
       const lista = document.createElement("div");
       lista.className = "mk-lista";
       const titulo = document.createElement("b");
-      titulo.textContent = `${g.itens.length} caminhões aqui`;
+      titulo.textContent = `${g.itens.length} caminhões aqui · escolha um para abrir`;
       lista.append(titulo);
-      for (const c of g.itens) {
-        const b = document.createElement("button");
-        b.type = "button";
-        b.textContent = `${c.placa} · ${ROTULO[c.situacao]}${todos ? ` · ${c.cliente}` : ""}`;
-        b.onclick = () => { m.closePopup(); setSel(c.id); };
-        lista.append(b);
-      }
-      const marca = mod.marker(pts[0], { icon: icone, title: `${g.itens.length} caminhões`, zIndexOffset: 500 }).addTo(grupo);
       const b = mod.latLngBounds(pts);
       const mesmoLugar = m.project(b.getNorthEast(), 16).distanceTo(m.project(b.getSouthWest(), 16)) < 28;
-      // Afastados: aproxima o mapa. No mesmo lugar: mostra a lista de placas para escolher.
-      if (mesmoLugar || m.getZoom() >= 15) marca.bindPopup(lista, { maxHeight: 260 });
-      else marca.on("click", () => m.fitBounds(b, { padding: [60, 60], maxZoom: 16 }));
+      for (const c of g.itens) {
+        const bt = document.createElement("button");
+        bt.type = "button";
+        bt.textContent = `${c.placa} · ${ROTULO[c.situacao]}${todos ? ` · ${c.cliente}` : ""}`;
+        bt.onclick = () => { m.closePopup(); setSel(c.id); };
+        lista.append(bt);
+      }
+      // Afastados um do outro: também dá para aproximar o mapa e ver cada um separado.
+      if (!mesmoLugar && m.getZoom() < 15) {
+        const ver = document.createElement("button");
+        ver.type = "button";
+        ver.className = "mk-aproximar";
+        ver.textContent = "Aproximar o mapa para ver separados";
+        ver.onclick = () => { m.closePopup(); m.fitBounds(b, { padding: [60, 60], maxZoom: 16 }); };
+        lista.append(ver);
+      }
+      mod.marker(pts[0], { icon: icone, title: `${g.itens.length} caminhões`, zIndexOffset: 500 }).bindPopup(lista, { maxHeight: 300 }).addTo(grupo);
     }
     for (const [id, s] of soltos.current) {
       if (usados.has(id)) continue;
