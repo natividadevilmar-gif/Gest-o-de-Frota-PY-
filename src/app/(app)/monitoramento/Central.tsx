@@ -5,6 +5,7 @@ import type * as Leaflet from "leaflet";
 import { useActionState, useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { CercaVista, OcorrenciaVista } from "@/lib/monitoramento";
 import type { CaminhaoMapa } from "@/lib/rastreio/dados";
+import { fundosDoMapa, Movimento } from "../rastreamento/mapaBase";
 import { CobrarWhatsapp } from "./CobrarWhatsapp";
 import { alternarCerca, atenderOcorrencia, criarCerca, excluirCerca, resolverOcorrencia, type Resultado } from "./actions";
 
@@ -73,6 +74,8 @@ export function Central({ inicial, todos, clienteNome, podeCercas, tiposCerca, s
   const L = useRef<typeof Leaflet | null>(null);
   const mapa = useRef<Leaflet.Map | null>(null);
   const camadas = useRef<{ cercas: Leaflet.LayerGroup; frota: Leaflet.LayerGroup; alertas: Leaflet.LayerGroup; ponto: Leaflet.LayerGroup } | null>(null);
+  const pontosFrota = useRef(new Map<string, Leaflet.CircleMarker>());
+  const movimento = useRef(new Movimento());
   const somRef = useRef(som);
   const marcandoRef = useRef(marcando);
   somRef.current = som;
@@ -140,10 +143,7 @@ export function Central({ inicial, todos, clienteNome, podeCercas, tiposCerca, s
       if (!vivo || !caixa.current || mapa.current) return;
       L.current = mod;
       const m = mod.map(caixa.current).setView([-25.5, -56.5], 7);
-      mod.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        maxZoom: 18,
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-      }).addTo(m);
+      fundosDoMapa(mod, m);
       camadas.current = {
         cercas: mod.layerGroup().addTo(m),
         frota: mod.layerGroup().addTo(m),
@@ -158,8 +158,11 @@ export function Central({ inicial, todos, clienteNome, podeCercas, tiposCerca, s
       if (pts.length) m.fitBounds(pts, { padding: [30, 30], maxZoom: 10 });
       setPronto(true);
     });
+    const mov = movimento.current, pontos = pontosFrota.current;
     return () => {
       vivo = false;
+      mov.parar();
+      pontos.clear();
       mapa.current?.remove();
       mapa.current = null;
     };
@@ -180,13 +183,28 @@ export function Central({ inicial, todos, clienteNome, podeCercas, tiposCerca, s
   useEffect(() => {
     const mod = L.current, c = camadas.current;
     if (!pronto || !mod || !c) return;
-    c.frota.clearLayers();
+    // Os pontos ficam no mapa entre as atualizações para andarem até a posição nova.
+    const usados = new Set<string>();
     for (const f of dados.frota) {
       if (f.lat == null || f.lng == null) continue;
+      usados.add(f.id);
       // Contorno roxo: posição trazida do Wialon.
-      mod.circleMarker([f.lat, f.lng], { radius: f.wialon ? 6 : 5, color: f.wialon ? COR_WIALON : "#fff", weight: f.wialon ? 2.5 : 1.5, fillColor: COR_SITUACAO[f.situacao] ?? "#7d8580", fillOpacity: 1 })
-        .bindTooltip(`${f.placa} · ${f.velocidadeKmh} km/h${f.wialon ? " · Wialon" : ""}${todos ? ` · ${f.cliente}` : ""}`)
-        .addTo(c.frota);
+      const estilo = { radius: f.wialon ? 6 : 5, color: f.wialon ? COR_WIALON : "#fff", weight: f.wialon ? 2.5 : 1.5, fillColor: COR_SITUACAO[f.situacao] ?? "#7d8580", fillOpacity: 1 };
+      const dica = `${f.placa} · ${f.velocidadeKmh} km/h${f.wialon ? " · Wialon" : ""}${todos ? ` · ${f.cliente}` : ""}`;
+      let p = pontosFrota.current.get(f.id);
+      if (!p) {
+        p = mod.circleMarker([f.lat, f.lng], estilo).bindTooltip(dica).addTo(c.frota);
+        pontosFrota.current.set(f.id, p);
+      } else {
+        p.setStyle(estilo).setRadius(estilo.radius).setTooltipContent(dica);
+      }
+      movimento.current.ir(f.id, p, [f.lat, f.lng], f.atualizadoEm);
+    }
+    for (const [id, p] of pontosFrota.current) {
+      if (usados.has(id)) continue;
+      p.remove();
+      pontosFrota.current.delete(id);
+      movimento.current.esquecer(id);
     }
   }, [dados.frota, pronto, todos]);
 

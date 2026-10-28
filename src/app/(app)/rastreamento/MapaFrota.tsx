@@ -4,6 +4,7 @@ import "leaflet/dist/leaflet.css";
 import type * as Leaflet from "leaflet";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CaminhaoMapa, ResumoCaminhao, Situacao, Trajeto } from "@/lib/rastreio/dados";
+import { fundosDoMapa, Movimento } from "./mapaBase";
 
 const ROTULO: Record<Situacao, string> = {
   movimento: "Em movimento",
@@ -14,7 +15,7 @@ const ROTULO: Record<Situacao, string> = {
   "sem-rastreador": "Sem rastreador",
 };
 const EVENTO: Record<string, string> = { freada: "Freada brusca", aceleracao: "Aceleração brusca", curva: "Curva brusca", excesso: "Excesso de velocidade" };
-const ATUALIZAR_MS = 30_000;
+const ATUALIZAR_MS = 15_000;
 
 const numero = (n: number, casas = 0) => n.toLocaleString("pt-BR", { minimumFractionDigits: casas, maximumFractionDigits: casas });
 const hora = (iso: string | null) =>
@@ -32,6 +33,10 @@ function esc(s: string) {
   return s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
 }
 
+/** Em movimento, a bolinha vira uma seta apontando para onde o caminhão vai. */
+const seta = (graus: number) =>
+  `<i class="mk-seta" style="transform:rotate(${Math.round(graus)}deg)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1 14 14 8 10.5 2 14Z"/></svg></i>`;
+
 export function MapaFrota({ inicial, hoje, todos = false }: { inicial: CaminhaoMapa[]; hoje: string; todos?: boolean }) {
   const [frota, setFrota] = useState(inicial);
   const [sel, setSel] = useState<string | null>(null);
@@ -44,6 +49,9 @@ export function MapaFrota({ inicial, hoje, todos = false }: { inicial: CaminhaoM
   const L = useRef<typeof Leaflet | null>(null);
   const mapa = useRef<Leaflet.Map | null>(null);
   const marcas = useRef<Leaflet.LayerGroup | null>(null);
+  const soltos = useRef(new Map<string, { marca: Leaflet.Marker; html: string }>());
+  const movimento = useRef(new Movimento());
+  const fundo = useRef<ReturnType<typeof fundosDoMapa> | null>(null);
   const linha = useRef<Leaflet.LayerGroup | null>(null);
   const [pronto, setPronto] = useState(false);
   const [zoom, setZoom] = useState(0);
@@ -55,10 +63,7 @@ export function MapaFrota({ inicial, hoje, todos = false }: { inicial: CaminhaoM
       if (!vivo || !caixa.current || mapa.current) return;
       L.current = mod;
       const m = mod.map(caixa.current, { zoomControl: true }).setView([-25.5, -56.5], 7);
-      mod.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        maxZoom: 18,
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-      }).addTo(m);
+      fundo.current = fundosDoMapa(mod, m);
       linha.current = mod.layerGroup().addTo(m);
       marcas.current = mod.layerGroup().addTo(m);
       mapa.current = m;
@@ -67,14 +72,17 @@ export function MapaFrota({ inicial, hoje, todos = false }: { inicial: CaminhaoM
       if (pts.length) m.fitBounds(pts, { padding: [40, 40], maxZoom: 10 });
       setPronto(true);
     });
+    const mov = movimento.current, marcados = soltos.current;
     return () => {
       vivo = false;
+      mov.parar();
+      marcados.clear();
       mapa.current?.remove();
       mapa.current = null;
     };
   }, [inicial]);
 
-  // Atualiza as posições a cada 30 segundos.
+  // Atualiza as posições a cada 15 segundos.
   useEffect(() => {
     const id = setInterval(async () => {
       const r = await fetch(todos ? "/rastreamento/frota?todos=1" : "/rastreamento/frota", { cache: "no-store" }).catch(() => null);
@@ -87,22 +95,32 @@ export function MapaFrota({ inicial, hoje, todos = false }: { inicial: CaminhaoM
   useEffect(() => {
     const mod = L.current, grupo = marcas.current;
     if (!pronto || !mod || !grupo) return;
+    // Os caminhões sozinhos ficam no mapa entre uma atualização e outra, para andarem até a posição nova.
+    // Os grupos são refeitos a cada vez.
     grupo.clearLayers();
+    const usados = new Set<string>();
     // Com muitos caminhões, só o ponto colorido; a placa aparece ao passar o mouse e no escolhido.
     const visiveis = frota.filter((c) => filtro === "todos" || c.situacao === filtro);
     const compacto = visiveis.filter((c) => c.lat != null).length > 30;
     const m = mapa.current!;
     const marcar = (c: CaminhaoMapa) => {
       const comPlaca = !compacto || c.id === sel;
-      const icone = mod.divIcon({
-        className: "",
-        html: `<div class="mk mk-${c.situacao}${c.id === sel ? " mk-sel" : ""}${c.wialon ? " mk-wialon" : ""}${comPlaca ? "" : " mk-ponto"}"><i></i>${comPlaca ? esc(c.placa) : ""}</div>`,
-        iconSize: undefined,
-        iconAnchor: [10, 12],
-      });
-      mod.marker([c.lat!, c.lng!], { icon: icone, title: todos ? `${c.placa} · ${c.cliente}` : c.placa, zIndexOffset: c.id === sel ? 1000 : 0 })
-        .on("click", () => setSel(c.id))
-        .addTo(grupo);
+      const html = `<div class="mk mk-${c.situacao}${c.id === sel ? " mk-sel" : ""}${c.wialon ? " mk-wialon" : ""}${comPlaca ? "" : " mk-ponto"}">${c.situacao === "movimento" ? seta(c.direcao) : "<i></i>"}${comPlaca ? esc(c.placa) : ""}</div>`;
+      const icone = () => mod.divIcon({ className: "", html, iconSize: undefined, iconAnchor: [10, 12] });
+      usados.add(c.id);
+      let s = soltos.current.get(c.id);
+      if (!s) {
+        const marca = mod.marker([c.lat!, c.lng!], { icon: icone(), title: todos ? `${c.placa} · ${c.cliente}` : c.placa })
+          .on("click", () => setSel(c.id))
+          .addTo(m);
+        s = { marca, html };
+        soltos.current.set(c.id, s);
+      } else if (s.html !== html) {
+        s.marca.setIcon(icone());
+        s.html = html;
+      }
+      s.marca.setZIndexOffset(c.id === sel ? 1000 : 0);
+      movimento.current.ir(c.id, s.marca, [c.lat!, c.lng!], c.atualizadoEm);
     };
 
     // Caminhões a menos de ~28 px um do outro (ex.: parados no mesmo pátio) viram um grupo com a contagem.
@@ -139,6 +157,12 @@ export function MapaFrota({ inicial, hoje, todos = false }: { inicial: CaminhaoM
       if (mesmoLugar || m.getZoom() >= 15) marca.bindPopup(lista, { maxHeight: 260 });
       else marca.on("click", () => m.fitBounds(b, { padding: [60, 60], maxZoom: 16 }));
     }
+    for (const [id, s] of soltos.current) {
+      if (usados.has(id)) continue;
+      s.marca.remove();
+      soltos.current.delete(id);
+      movimento.current.esquecer(id);
+    }
   }, [frota, sel, pronto, todos, filtro, zoom]);
 
   // Ao trocar o filtro, o mapa enquadra só os caminhões daquela situação.
@@ -150,6 +174,27 @@ export function MapaFrota({ inicial, hoje, todos = false }: { inicial: CaminhaoM
     setSel((atual) => (atual && frota.some((c) => c.id === atual && (filtro === "todos" || c.situacao === filtro)) ? atual : null));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filtro, pronto]);
+
+  // Visão geral no mapa de ruas. Ao escolher um caminhão, o mapa aproxima nele em satélite e vai acompanhando.
+  useEffect(() => {
+    const m = mapa.current;
+    if (!pronto || !m) return;
+    if (!sel) {
+      fundo.current?.usar("ruas");
+      const pts = frota.filter((c) => c.lat != null && (filtro === "todos" || c.situacao === filtro)).map((c) => [c.lat!, c.lng!] as [number, number]);
+      if (pts.length) m.flyToBounds(pts, { padding: [40, 40], maxZoom: 10, duration: 0.8 });
+      return;
+    }
+    const c = frota.find((x) => x.id === sel);
+    fundo.current?.usar("satelite");
+    if (c?.lat != null && c.lng != null) m.flyTo([c.lat, c.lng], 17, { duration: 0.8 });
+    const id = setInterval(() => {
+      const marca = soltos.current.get(sel)?.marca;
+      if (marca && !m.getBounds().pad(-0.3).contains(marca.getLatLng())) m.panTo(marca.getLatLng(), { duration: 0.6 });
+    }, 1000);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sel, pronto]);
 
   // Trajeto do caminhão escolhido no dia escolhido.
   useEffect(() => {
@@ -176,8 +221,9 @@ export function MapaFrota({ inicial, hoje, todos = false }: { inicial: CaminhaoM
         .bindTooltip(`${EVENTO[e.tipo] ?? e.tipo} · ${hora(e.hora)} · ${e.velocidadeKmh} km/h`)
         .addTo(grupo);
     }
-    m.fitBounds(trajeto.pontos, { padding: [40, 40] });
-  }, [trajeto, pronto]);
+    // Hoje o mapa fica no caminhão; num dia anterior, mostra o trajeto inteiro.
+    if (dia !== hoje) m.fitBounds(trajeto.pontos, { padding: [40, 40] });
+  }, [trajeto, pronto, dia, hoje]);
 
   const contagem = useMemo(() => {
     const n: Partial<Record<Situacao, number>> = {};
@@ -191,7 +237,6 @@ export function MapaFrota({ inicial, hoje, todos = false }: { inicial: CaminhaoM
 
   function escolher(c: CaminhaoMapa) {
     setSel(c.id === sel ? null : c.id);
-    if (c.lat != null && c.lng != null && c.id !== sel) mapa.current?.setView([c.lat, c.lng], Math.max(mapa.current.getZoom(), 9));
   }
 
   return (
