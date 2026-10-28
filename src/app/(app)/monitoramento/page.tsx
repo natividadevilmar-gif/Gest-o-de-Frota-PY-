@@ -8,6 +8,8 @@ import { Central } from "./Central";
 import { PainelWialon } from "./PainelWialon";
 
 export const dynamic = "force-dynamic";
+// A rodada de histórico do Wialon trabalha até 40 segundos.
+export const maxDuration = 60;
 
 export default async function Monitoramento({ searchParams }: { searchParams: Promise<{ todos?: string }> }) {
   const { sessao, cliente } = await clienteAtual();

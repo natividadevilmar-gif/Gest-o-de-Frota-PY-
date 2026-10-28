@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { clienteAtual } from "@/lib/acesso";
 import { db } from "@/lib/db";
-import { apiDoCliente, imeisPelaPlaca, SERVIDORES_WIALON, Wialon } from "@/lib/rastreio/wialon";
+import { diaNoParaguai } from "@/lib/rastreio/rotas";
+import { apiDoCliente, historicoWialon, imeisPelaPlaca, SERVIDORES_WIALON, telemetriaDaMensagem, Wialon, type TelemetriaUnidade } from "@/lib/rastreio/wialon";
 
 // Conta Wialon do cliente, ligada pela equipe KM Cero na central de monitoramento.
 export type Resultado = { ok: boolean; msg: string } | null;
@@ -75,7 +76,7 @@ export async function ligarCaminhoesWialon(_: Resultado): Promise<Resultado> {
   return { ok: ligados.length > 0, msg };
 }
 
-export type ListaUnidades = { ok: boolean; msg: string; unidades: { nome: string; imei: string | null; placa: string | null; ultima: string | null }[] } | null;
+export type ListaUnidades = { ok: boolean; msg: string; unidades: { nome: string; imei: string | null; placa: string | null; ultima: string | null; telemetria: TelemetriaUnidade }[] } | null;
 
 /** Unidades da conta Wialon, com o caminhão da plataforma ligado a cada uma. */
 export async function listarUnidadesWialon(_: ListaUnidades): Promise<ListaUnidades> {
@@ -97,6 +98,7 @@ export async function listarUnidadesWialon(_: ListaUnidades): Promise<ListaUnida
         imei: u.uid ?? null,
         placa: (u.uid && porImei.get(u.uid)) || null,
         ultima: u.lmsg ? new Date(u.lmsg.t * 1000).toISOString() : null,
+        telemetria: telemetriaDaMensagem(u.lmsg),
       })),
     };
   } catch (e) {
@@ -163,4 +165,32 @@ export async function apagarDemonstracao(_: Resultado): Promise<Resultado> {
   ]);
   revalidatePath("/", "layout");
   return { ok: true, msg: `Apagados ${demo.length} caminhões de demonstração: ${demo.map((c) => c.placa).join(", ")}.` };
+}
+
+export type Historico = { ok: boolean; msg: string; faltam: number };
+
+/** Tempo de cada rodada do histórico, abaixo do limite da Vercel para a resposta. */
+const PRAZO_HISTORICO_MS = 40_000;
+
+/**
+ * Traz do Wialon as posições e a telemetria do mês (pelo menos 7 dias) dos caminhões ligados.
+ * Cada chamada trabalha até 40 segundos; a tela chama de novo enquanto faltar caminhão.
+ */
+export async function trazerHistoricoWialon(): Promise<Historico> {
+  const cliente = await soAdmin();
+  if (!cliente) return { ok: false, msg: "Só a equipe KM Cero liga o Wialon.", faltam: 0 };
+  const api = apiDoCliente(cliente);
+  if (!api) return { ok: false, msg: "Conecte o Wialon primeiro.", faltam: 0 };
+  const hoje = diaNoParaguai(new Date());
+  const inicioMes = new Date(Date.UTC(hoje.getUTCFullYear(), hoje.getUTCMonth(), 1) + 3 * 3600_000);
+  const desde = new Date(Math.min(inicioMes.getTime(), hoje.getTime() + 3 * 3600_000 - 7 * 86_400_000));
+  try {
+    const r = await historicoWialon(db, api, cliente.id, desde, PRAZO_HISTORICO_MS);
+    revalidatePath("/", "layout");
+    const base = `${r.gravadas.toLocaleString("pt-BR")} posições trazidas de ${r.caminhoes} caminhões.`;
+    const erros = r.erros.length ? ` Com erro: ${r.erros.join("; ")}.` : "";
+    return { ok: !r.erros.length, msg: r.faltam ? `${base} Faltam ${r.faltam} caminhões, continuando…` : `${base} Histórico completo.${erros}`, faltam: r.faltam };
+  } catch (e) {
+    return { ok: false, msg: (e as Error).message, faltam: 0 };
+  }
 }
