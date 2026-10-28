@@ -63,6 +63,9 @@ model Cliente {
   endereco             String?
   // Painel do fabricante do MDVR (4 câmeras), aberto pelo menu Vídeo até a integração completa.
   mdvrUrl              String?
+  // Conta Wialon do cliente: token da Remote API (só leitura) e servidor (ex.: hst-api.wialon.us).
+  wialonToken          String?
+  wialonHost           String?
   criadoEm             DateTime      @default(now())
   usuarios             Usuario[]
   caminhoes            Caminhao[]

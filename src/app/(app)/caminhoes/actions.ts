@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { clienteAtual } from "@/lib/acesso";
 import type { Sessao } from "@/lib/sessao";
-import { clienteUsaWialon, imeisPelaPlaca, Wialon } from "@/lib/rastreio/wialon";
 
 // Caminhão, plano e rastreador só são alterados pela equipe KM Cero, depois da instalação do equipamento.
 const soKmCero = (s: Sessao) => s.papel === "ADMIN";
@@ -88,35 +87,3 @@ export async function mudarCamera(form: FormData) {
   revalidatePath("/", "layout");
 }
 
-/** Preenche o IMEI dos caminhões pela unidade do Wialon com o nome da placa. */
-export async function buscarImeisWialon(_: Resultado): Promise<Resultado> {
-  const { sessao, cliente } = await clienteAtual();
-  if (!soKmCero(sessao)) return { ok: false, msg: "O rastreador é alterado pela KM Cero." };
-  if (!clienteUsaWialon(cliente.nome)) return { ok: false, msg: "Este cliente não está configurado para o Wialon." };
-  const api = Wialon.doAmbiente();
-  let unidades;
-  try {
-    unidades = await api.unidades();
-  } catch (e) {
-    return { ok: false, msg: (e as Error).message };
-  } finally {
-    await api.sair();
-  }
-  const caminhoes = await db.caminhao.findMany({ where: { clienteId: cliente.id }, select: { id: true, placa: true, rastreadorId: true } });
-  const ligados: string[] = [], semUnidade: string[] = [];
-  for (const { caminhao: c, unidade: u } of imeisPelaPlaca(caminhoes, unidades)) {
-    if (!u) { semUnidade.push(c.placa); continue; }
-    if (c.rastreadorId === u.uid) { ligados.push(c.placa); continue; }
-    const outro = await db.caminhao.findFirst({ where: { rastreadorId: u.uid, NOT: { id: c.id } }, select: { placa: true } });
-    if (outro) { semUnidade.push(`${c.placa} (IMEI já está no ${outro.placa})`); continue; }
-    await db.caminhao.update({
-      where: { id: c.id },
-      data: { rastreadorId: u.uid, ultimaPosicaoEm: null, ultimaLat: null, ultimaLng: null, ultimaVelocidade: null, ultimaIgnicao: null },
-    });
-    ligados.push(c.placa);
-  }
-  revalidatePath("/", "layout");
-  const msg = `${unidades.length} unidades no Wialon. Ligados: ${ligados.length ? ligados.join(", ") : "nenhum"}.` +
-    (semUnidade.length ? ` Sem unidade com essa placa: ${semUnidade.join(", ")}.` : "");
-  return { ok: ligados.length > 0, msg };
-}

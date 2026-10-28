@@ -6,7 +6,6 @@ import { mensalidadeTotal, NOME_PLANO, PRECO_MENSAL, type Plano } from "@/lib/in
 import { clienteUsaWialon } from "@/lib/rastreio/wialon";
 import { ehImei } from "@/lib/telemetria/posicoes";
 import { mudarCamera, mudarEixos, mudarPlano } from "./actions";
-import { BuscarWialon } from "./BuscarWialon";
 import { CampoRastreador } from "./CampoRastreador";
 import { NovoCaminhao } from "./NovoCaminhao";
 import { Planos } from "./Planos";
@@ -15,7 +14,7 @@ export default async function Caminhoes() {
   const { sessao, cliente } = await clienteAtual();
   // Só a equipe KM Cero cadastra caminhão, muda plano ou rastreador (depois de instalar o equipamento).
   const pode = sessao.papel === "ADMIN";
-  const wialon = clienteUsaWialon(cliente.nome);
+  const wialon = clienteUsaWialon(cliente);
   const lista = await db.caminhao.findMany({ where: { clienteId: cliente.id }, include: { motorista: true }, orderBy: { placa: "asc" } });
   return (
     <>
@@ -32,7 +31,6 @@ export default async function Caminhoes() {
             Mensalidade total: <b>{usd(mensalidadeTotal(lista.map((c) => c.plano as Plano)))}</b> por mês
             {sessao.papel !== "OPERADOR" && <> · Contrato: plano {NOME_PLANO[cliente.planoContratado as Plano]}, {cliente.caminhoesContratados} caminhões · <a href={`/contrato/${cliente.id}`}>ver contrato</a></>}
           </p>
-          {pode && wialon && <BuscarWialon />}
         </div>
         <div className="tw">
           <table>

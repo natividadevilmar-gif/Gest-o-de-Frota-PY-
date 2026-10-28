@@ -8,7 +8,7 @@
 // Uso: npm run rastreador
 // Variáveis: DATABASE_URL (obrigatória), PORTA_RASTREADOR (padrão 5027),
 //            PORTA_CAMERAS (padrão 5028), PORTA_SAUDE (padrão 8080, responde GET /saude).
-//            WIALON_TOKEN (opcional): espelha as posições do Wialon a cada WIALON_INTERVALO_S (padrão 60).
+//            WIALON_INTERVALO_S (padrão 60): de quanto em quanto tempo espelha as contas Wialon dos clientes.
 import { createServer as criarTcp, type Socket } from "node:net";
 import { createServer as criarHttp } from "node:http";
 import { spawnSync } from "node:child_process";
@@ -18,7 +18,7 @@ import { join } from "node:path";
 import { PrismaClient } from "@prisma/client";
 import { confirmacao, lerImei, lerPacote, montarComando, paraPosicao } from "../src/lib/rastreio/teltonika";
 import { efeitoNoMotor, ESPERA_RESPOSTA_MS, podeEnviar } from "../src/lib/comandos/catalogo";
-import { espelharWialon, Wialon } from "../src/lib/rastreio/wialon";
+import { espelharWialon } from "../src/lib/rastreio/wialon";
 import { ARQUIVOS, ArquivoCamera, CMD, formatoArquivo, lerInicioCamera, lerMensagemCamera, montarMensagemCamera, u32 } from "../src/lib/rastreio/dualcam";
 
 const db = new PrismaClient();
@@ -324,15 +324,14 @@ criarHttp((req, res) => {
 }).listen(PORTA_SAUDE);
 
 // Caminhões com rastreador no Wialon: as posições chegam por lá em vez de virem direto ao receptor.
-if (process.env.WIALON_TOKEN) {
-  const api = Wialon.doAmbiente();
+{
   const intervalo = Number(process.env.WIALON_INTERVALO_S ?? 60) * 1000;
   let rodando = false;
   const espelhar = async () => {
     if (rodando) return;
     rodando = true;
     try {
-      const r = await espelharWialon(db, api);
+      const r = await espelharWialon(db);
       wialonUltima = { em: new Date(), gravadas: r.gravadas, erros: r.erros };
       if (r.gravadas || r.erros.length) log(`Wialon: ${r.gravadas} posições de ${r.unidades} unidades`, ...r.erros);
     } catch (e) {

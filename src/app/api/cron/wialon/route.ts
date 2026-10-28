@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { db } from "@/lib/db";
-import { espelharWialon, Wialon } from "@/lib/rastreio/wialon";
+import { espelharWialon } from "@/lib/rastreio/wialon";
 
 // Traz as posições novas do Wialon. Quem roda o receptor próprio não precisa desta rota:
 // ele já espelha o Wialon a cada minuto. Ela serve para chamar de fora (cron externo,
@@ -13,12 +13,5 @@ export async function GET(req: NextRequest) {
     ? req.headers.get("authorization") === `Bearer ${segredo}`
     : (req.headers.get("user-agent") ?? "").startsWith("vercel-cron/");
   if (!autorizado) return NextResponse.json({ erro: "não autorizado" }, { status: 401 });
-  if (!process.env.WIALON_TOKEN) return NextResponse.json({ erro: "WIALON_TOKEN não definido" }, { status: 503 });
-
-  const api = Wialon.doAmbiente();
-  try {
-    return NextResponse.json(await espelharWialon(db, api));
-  } finally {
-    await api.sair();
-  }
+  return NextResponse.json(await espelharWialon(db));
 }

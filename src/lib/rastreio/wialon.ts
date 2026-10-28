@@ -6,8 +6,9 @@ import { IO } from "./teltonika";
 // ao que o receptor faz com os aparelhos ligados direto nele. Assim mapa, cercas,
 // alertas da central e o resumo diário funcionam sem saber de onde veio o dado.
 //
-// Variáveis: WIALON_TOKEN (obrigatória), WIALON_HOST (padrão hst-api.wialon.com),
-// WIALON_CLIENTES (nomes dos clientes que usam o Wialon, separados por vírgula; vazio = todos).
+// Cada cliente pode ter a própria conta: o admin cola o token em Caminhões e planos e ele
+// fica no cadastro do cliente. Sem token no cadastro, vale o das variáveis WIALON_TOKEN e
+// WIALON_HOST (padrão hst-api.wialon.com) para os clientes de WIALON_CLIENTES (vazio = todos).
 // Cada caminhão é ligado à unidade do Wialon pelo IMEI (campo Rastreador do cadastro),
 // que o Wialon guarda como identificador único da unidade.
 
@@ -162,17 +163,39 @@ export class Wialon {
   }
 }
 
-/** Filtro dos caminhões que vêm do Wialon, pelos clientes de WIALON_CLIENTES. */
-export function filtroClientesWialon(nomes = process.env.WIALON_CLIENTES) {
-  const lista = (nomes ?? "").split(",").map((n) => n.trim()).filter(Boolean);
-  return lista.length ? { cliente: { nome: { in: lista, mode: "insensitive" as const } } } : {};
+export type ClienteWialon = { nome: string; wialonToken: string | null; wialonHost: string | null };
+
+/** Token e servidor do Wialon deste cliente, ou null se ele não usa o Wialon. */
+export function credenciaisWialon(c: ClienteWialon, env: Record<string, string | undefined> = process.env): { token: string; host: string | undefined } | null {
+  if (c.wialonToken) return { token: c.wialonToken, host: c.wialonHost || undefined };
+  if (!env.WIALON_TOKEN) return null;
+  const lista = (env.WIALON_CLIENTES ?? "").split(",").map((n) => n.trim().toLowerCase()).filter(Boolean);
+  if (lista.length && !lista.includes(c.nome.trim().toLowerCase())) return null;
+  return { token: env.WIALON_TOKEN, host: env.WIALON_HOST || undefined };
 }
 
-/** true quando as posições deste cliente vêm do Wialon (token definido e cliente na lista). */
-export function clienteUsaWialon(nome: string, nomes = process.env.WIALON_CLIENTES) {
-  if (!process.env.WIALON_TOKEN) return false;
-  const lista = (nomes ?? "").split(",").map((n) => n.trim().toLowerCase()).filter(Boolean);
-  return !lista.length || lista.includes(nome.trim().toLowerCase());
+export const clienteUsaWialon = (c: ClienteWialon) => credenciaisWialon(c) !== null;
+
+/** Servidores do Wialon Hosting, pelo endereço que o cliente usa para entrar. */
+export const SERVIDORES_WIALON = [
+  { host: "hst-api.wialon.us", site: "hosting.wialon.us" },
+  { host: "hst-api.wialon.com", site: "hosting.wialon.com" },
+  { host: "hst-api.wialon.eu", site: "hosting.wialon.eu" },
+];
+
+/** Link que abre o Wialon e devolve um token só de leitura, sem prazo. */
+export const linkTokenWialon = (site: string) =>
+  `https://${site}/login.html?client_id=GestaoFrotaPY&access_type=0x300&activation_time=0&duration=0&flags=0x1`;
+
+// Uma sessão por conta, reaproveitada entre as rodadas.
+const sessoes = new Map<string, Wialon>();
+export function apiDoCliente(c: ClienteWialon) {
+  const cred = credenciaisWialon(c);
+  if (!cred) return null;
+  const chave = `${cred.host ?? ""}|${cred.token}`;
+  let api = sessoes.get(chave);
+  if (!api) sessoes.set(chave, (api = new Wialon(cred.token, cred.host)));
+  return api;
 }
 
 export const normalizarPlaca = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]/g, "");
@@ -198,13 +221,11 @@ export function imeisPelaPlaca<C extends { placa: string }>(caminhoes: C[], unid
 const ESPELHO_MIN_MS = 60_000;
 const ESPERA_MAX_MS = 8_000;
 let ultimoEspelho = 0;
-let apiSite: Wialon | null = null;
 
 export async function espelharSeDevido(db: PrismaClient, agora = new Date()) {
-  if (!process.env.WIALON_TOKEN || agora.getTime() - ultimoEspelho < ESPELHO_MIN_MS) return;
+  if (agora.getTime() - ultimoEspelho < ESPELHO_MIN_MS) return;
   ultimoEspelho = agora.getTime();
-  apiSite ??= Wialon.doAmbiente();
-  const rodada = espelharWialon(db, apiSite, agora).then(
+  const rodada = espelharWialon(db, agora).then(
     (r) => { if (r.erros.length) console.error("Wialon:", ...r.erros); },
     (e) => console.error("Wialon:", (e as Error).message),
   );
@@ -217,11 +238,33 @@ const INICIO_MS = 48 * 3600_000;
 
 /**
  * Traz as mensagens novas de cada caminhão ligado a uma unidade do Wialon para Posicao
- * e atualiza a última posição. Rodar a cada minuto ou dois.
+ * e atualiza a última posição, conta por conta. Rodar a cada minuto ou dois.
  */
-export async function espelharWialon(db: PrismaClient, api: Wialon, agora = new Date()) {
+export async function espelharWialon(db: PrismaClient, agora = new Date()) {
+  const clientes = await db.cliente.findMany({
+    where: { OR: [{ wialonToken: { not: null } }, ...(process.env.WIALON_TOKEN ? [{}] : [])] },
+    select: { id: true, nome: true, wialonToken: true, wialonHost: true },
+  });
+  let unidades = 0, gravadas = 0;
+  const erros: string[] = [];
+  for (const cl of clientes) {
+    const api = apiDoCliente(cl);
+    if (!api) continue;
+    try {
+      const r = await espelharConta(db, api, cl.id, agora);
+      unidades += r.unidades;
+      gravadas += r.gravadas;
+      erros.push(...r.erros.map((e) => `${cl.nome} · ${e}`));
+    } catch (e) {
+      erros.push(`${cl.nome}: ${(e as Error).message}`);
+    }
+  }
+  return { unidades, gravadas, erros };
+}
+
+async function espelharConta(db: PrismaClient, api: Wialon, clienteId: string, agora: Date) {
   const [caminhoes, unidades] = await Promise.all([
-    db.caminhao.findMany({ where: filtroClientesWialon(), select: { id: true, placa: true, rastreadorId: true, ultimaPosicaoEm: true } }),
+    db.caminhao.findMany({ where: { clienteId }, select: { id: true, placa: true, rastreadorId: true, ultimaPosicaoEm: true } }),
     api.unidades(),
   ]);
   let gravadas = 0;

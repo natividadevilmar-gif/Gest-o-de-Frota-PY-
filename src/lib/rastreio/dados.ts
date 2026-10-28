@@ -47,12 +47,12 @@ export async function frotaNoMapa(clienteId: string | null, agora = new Date()):
   await espelharSeDevido(db, agora);
   const lista = await db.caminhao.findMany({
     where: clienteId ? { clienteId } : {},
-    include: { motorista: { select: { nome: true } }, cliente: { select: { nome: true } } },
+    include: { motorista: { select: { nome: true } }, cliente: { select: { nome: true, wialonToken: true, wialonHost: true } } },
     orderBy: [{ cliente: { nome: "asc" } }, { placa: "asc" }],
   });
   return lista.map((c) => {
     const base = { id: c.id, placa: c.placa, modelo: c.modelo, motorista: c.motorista?.nome ?? null, cliente: c.cliente.nome, clienteId: c.clienteId, bloqueado: c.motorBloqueado,
-      wialon: ehImei(c.rastreadorId) && clienteUsaWialon(c.cliente.nome) };
+      wialon: ehImei(c.rastreadorId) && clienteUsaWialon(c.cliente) };
     if (!c.rastreadorId) {
       return { ...base, situacao: "sem-rastreador", demo: false, lat: null, lng: null, velocidadeKmh: 0, direcao: 0, atualizadoEm: null, rota: null, local: null, rpm: null };
     }
