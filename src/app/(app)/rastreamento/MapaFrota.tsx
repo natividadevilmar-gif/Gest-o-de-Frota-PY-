@@ -16,6 +16,7 @@ const ROTULO: Record<Situacao, string> = {
 };
 const EVENTO: Record<string, string> = { freada: "Freada brusca", aceleracao: "Aceleração brusca", curva: "Curva brusca", excesso: "Excesso de velocidade" };
 const ATUALIZAR_MS = 15_000;
+const COR_TRAJETO = "#00e5ff";
 
 const numero = (n: number, casas = 0) => n.toLocaleString("pt-BR", { minimumFractionDigits: casas, maximumFractionDigits: casas });
 const hora = (iso: string | null) =>
@@ -37,7 +38,11 @@ function esc(s: string) {
 const seta = (graus: number) =>
   `<i class="mk-seta" style="transform:rotate(${Math.round(graus)}deg)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1 14 14 8 10.5 2 14Z"/></svg></i>`;
 
-export function MapaFrota({ inicial, hoje, todos = false }: { inicial: CaminhaoMapa[]; hoje: string; todos?: boolean }) {
+export function MapaFrota({ inicial, hoje, todos = false, outraTela = false }: {
+  inicial: CaminhaoMapa[]; hoje: string; todos?: boolean;
+  /** Janela própria (só o mapa e a lista), para arrastar a outro monitor. */
+  outraTela?: boolean;
+}) {
   const [frota, setFrota] = useState(inicial);
   const [sel, setSel] = useState<string | null>(null);
   const [dia, setDia] = useState(hoje);
@@ -184,8 +189,9 @@ export function MapaFrota({ inicial, hoje, todos = false }: { inicial: CaminhaoM
     if (!pronto || !mod || !grupo || !m) return;
     grupo.clearLayers();
     if (!trajeto || trajeto.pontos.length < 2) return;
-    const cor = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#C8261B";
-    mod.polyline(trajeto.pontos, { color: cor, weight: 4, opacity: 0.85 }).addTo(grupo);
+    // Ciano forte com contorno escuro: aparece bem no satélite e não se confunde com as estradas (laranja).
+    mod.polyline(trajeto.pontos, { color: "#0b1a2a", weight: 9, opacity: 0.75 }).addTo(grupo);
+    mod.polyline(trajeto.pontos, { color: COR_TRAJETO, weight: 5, opacity: 1 }).addTo(grupo);
     mod.circleMarker(trajeto.pontos[0], { radius: 6, color: "#fff", weight: 2, fillColor: "#2f7d4f", fillOpacity: 1 }).bindTooltip(`Saída ${hora(trajeto.inicio)}`).addTo(grupo);
     for (const e of trajeto.eventos) {
       mod.circleMarker([e.lat, e.lng], { radius: 6, color: "#fff", weight: 2, fillColor: "#b3261e", fillOpacity: 1 })
@@ -211,7 +217,7 @@ export function MapaFrota({ inicial, hoje, todos = false }: { inicial: CaminhaoM
   }
 
   return (
-    <div className="rastreio">
+    <div className={outraTela ? "rastreio rastreio-tela" : "rastreio"}>
       <div className="rastreio-mapa">
         <div ref={caixa} className="rastreio-leaflet" />
         {escolhido && (
@@ -260,6 +266,16 @@ export function MapaFrota({ inicial, hoje, todos = false }: { inicial: CaminhaoM
       </div>
 
       <div className="rastreio-lista card">
+        {!outraTela && (
+          <button
+            type="button"
+            className="rastreio-outra-tela"
+            title="Abre o mapa numa janela própria, para arrastar ao outro monitor"
+            onClick={() => window.open(`/mapa-tela${todos ? "?todos=1" : ""}`, "kmcero-mapa-vivo", "popup,width=1280,height=800")}
+          >
+            <b aria-hidden="true">⧉</b> Ver em outra tela
+          </button>
+        )}
         <div className="filtros" role="group" aria-label="Filtrar por situação">
           <button type="button" aria-pressed={filtro === "todos"} onClick={() => setFiltro("todos")}>Todos {frota.length}</button>
           {(Object.keys(ROTULO) as Situacao[]).filter((s) => contagem[s]).map((s) => (
