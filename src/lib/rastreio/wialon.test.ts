@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ligarUnidades, paraPosicaoWialon } from "./wialon";
+import { filtroClientesWialon, ligarUnidades, paraPosicaoWialon } from "./wialon";
 
 const pos = { x: -57.5, y: -25.3, s: 72.4, c: 181, sc: 14 };
 
@@ -24,5 +24,9 @@ describe("mensagens do Wialon", () => {
       [{ id: 7, nm: "Scania 1", uid: "356307042441013" }, { id: 8, nm: "XYZ", uid: "111" }],
     );
     expect(pares.map((p) => [p.caminhao.placa, p.unidade.id])).toEqual([["AAFR218", 7]]);
+  });
+  it("limita aos clientes configurados", () => {
+    expect(filtroClientesWialon(" AVM Truck , Outro ")).toEqual({ cliente: { nome: { in: ["AVM Truck", "Outro"], mode: "insensitive" } } });
+    expect(filtroClientesWialon("")).toEqual({});
   });
 });

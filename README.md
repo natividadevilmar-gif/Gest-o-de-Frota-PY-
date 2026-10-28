@@ -16,7 +16,7 @@ Este é o MVP do módulo próprio. Rastreamento ao vivo, mapa e vídeo ficam na 
 - **Margem por viagem:** frete menos custo por km × (km carregado + km vazio), e um simulador de frete com o frete mínimo por tonelada.
 - **Minha empresa (interno):** clientes, caminhões por plano, mensalidades, atraso e bloqueio automático após 15 dias.
 - **Telemetria:** contrato `FonteTelemetria` com um simulador e o Wialon (`src/lib/telemetria`). O script diário grava km, litros e eventos de cada caminhão.
-- **Wialon:** com `WIALON_TOKEN` definido, o receptor traz a cada minuto as mensagens das unidades do Wialon para as posições, ligando cada unidade ao caminhão pelo IMEI. Mapa, cercas, alertas e resumo diário usam esses dados como se viessem do receptor próprio. `npm run wialon` lista as unidades e mostra qual caminhão ficou ligado a cada uma.
+- **Wialon:** com `WIALON_TOKEN` definido, o receptor traz a cada minuto as mensagens das unidades do Wialon para as posições, ligando cada unidade ao caminhão pelo IMEI. `WIALON_CLIENTES` limita a quais clientes isso vale (hoje, só a AVM Truck). Mapa, cercas, alertas e resumo diário usam esses dados como se viessem do receptor próprio. `npm run wialon` lista as unidades e mostra qual caminhão ficou ligado a cada uma.
 
 ## Rodar localmente
 

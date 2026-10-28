@@ -6,7 +6,8 @@ import { IO } from "./teltonika";
 // ao que o receptor faz com os aparelhos ligados direto nele. Assim mapa, cercas,
 // alertas da central e o resumo diário funcionam sem saber de onde veio o dado.
 //
-// Variáveis: WIALON_TOKEN (obrigatória), WIALON_HOST (padrão hst-api.wialon.com).
+// Variáveis: WIALON_TOKEN (obrigatória), WIALON_HOST (padrão hst-api.wialon.com),
+// WIALON_CLIENTES (nomes dos clientes que usam o Wialon, separados por vírgula; vazio = todos).
 // Cada caminhão é ligado à unidade do Wialon pelo IMEI (campo Rastreador do cadastro),
 // que o Wialon guarda como identificador único da unidade.
 
@@ -160,6 +161,12 @@ export class Wialon {
   }
 }
 
+/** Filtro dos caminhões que vêm do Wialon, pelos clientes de WIALON_CLIENTES. */
+export function filtroClientesWialon(nomes = process.env.WIALON_CLIENTES) {
+  const lista = (nomes ?? "").split(",").map((n) => n.trim()).filter(Boolean);
+  return lista.length ? { cliente: { nome: { in: lista, mode: "insensitive" as const } } } : {};
+}
+
 /** Na primeira leitura de um caminhão, quanto do passado buscar. */
 const INICIO_MS = 48 * 3600_000;
 
@@ -169,7 +176,7 @@ const INICIO_MS = 48 * 3600_000;
  */
 export async function espelharWialon(db: PrismaClient, api: Wialon, agora = new Date()) {
   const [caminhoes, unidades] = await Promise.all([
-    db.caminhao.findMany({ select: { id: true, placa: true, rastreadorId: true, ultimaPosicaoEm: true } }),
+    db.caminhao.findMany({ where: filtroClientesWialon(), select: { id: true, placa: true, rastreadorId: true, ultimaPosicaoEm: true } }),
     api.unidades(),
   ]);
   let gravadas = 0;

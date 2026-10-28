@@ -1,9 +1,9 @@
 // Confere a ligação com o Wialon: lista as unidades que o token enxerga e qual caminhão
 // do cadastro ficou ligado a cada uma (pelo IMEI). Com "espelhar", traz as posições novas.
 // Uso: npm run wialon [espelhar]
-// Variáveis: DATABASE_URL, WIALON_TOKEN, WIALON_HOST (padrão hst-api.wialon.com).
+// Variáveis: DATABASE_URL, WIALON_TOKEN, WIALON_HOST (padrão hst-api.wialon.com), WIALON_CLIENTES.
 import { PrismaClient } from "@prisma/client";
-import { espelharWialon, ligarUnidades, Wialon } from "../src/lib/rastreio/wialon";
+import { espelharWialon, filtroClientesWialon, ligarUnidades, Wialon } from "../src/lib/rastreio/wialon";
 
 const db = new PrismaClient();
 const api = Wialon.doAmbiente();
@@ -18,7 +18,7 @@ async function main() {
   }
   const [unidades, caminhoes] = await Promise.all([
     api.unidades(),
-    db.caminhao.findMany({ select: { placa: true, rastreadorId: true } }),
+    db.caminhao.findMany({ where: filtroClientesWialon(), select: { placa: true, rastreadorId: true } }),
   ]);
   const ligados = new Map(ligarUnidades(caminhoes, unidades).map((p) => [p.unidade.id, p.caminhao.placa]));
   for (const u of unidades) {
