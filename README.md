@@ -16,7 +16,7 @@ Este é o MVP do módulo próprio. Rastreamento ao vivo, mapa e vídeo ficam na 
 - **Margem por viagem:** frete menos custo por km × (km carregado + km vazio), e um simulador de frete com o frete mínimo por tonelada.
 - **Minha empresa (interno):** clientes, caminhões por plano, mensalidades, atraso e bloqueio automático após 15 dias.
 - **Telemetria:** contrato `FonteTelemetria` com um simulador e o Wialon (`src/lib/telemetria`). O script diário grava km, litros e eventos de cada caminhão.
-- **Wialon:** com `WIALON_TOKEN` definido, o receptor traz a cada minuto as mensagens das unidades do Wialon para as posições, ligando cada unidade ao caminhão pelo IMEI. `WIALON_CLIENTES` limita a quais clientes isso vale (hoje, só a AVM Truck). Sem o receptor, o próprio site espelha quando alguém abre o mapa ou a central (no máximo a cada minuto). Em Caminhões e planos, o botão "Buscar IMEIs no Wialon" liga cada caminhão à unidade com o nome da placa. Mapa, cercas, alertas e resumo diário usam esses dados como se viessem do receptor próprio. `npm run wialon` lista as unidades e mostra qual caminhão ficou ligado a cada uma.
+- **Wialon:** na Central de monitoramento, a equipe KM Cero conecta a conta Wialon de cada cliente (escolhe o endereço, autoriza e cola o token) e clica em "Ligar os caminhões", que preenche o IMEI pela placa no nome da unidade. Depois, as mensagens das unidades viram posições a cada minuto (pelo receptor, ou pelo próprio site quando alguém abre o mapa ou a central), e mapa, cercas, alertas e resumo diário as usam como se viessem do receptor próprio. As variáveis `WIALON_TOKEN`, `WIALON_HOST` e `WIALON_CLIENTES` continuam valendo para clientes sem token no cadastro. `npm run wialon` lista as unidades de cada conta.
 
 ## Rodar localmente
 

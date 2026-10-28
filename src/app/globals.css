@@ -178,6 +178,8 @@ button.link{background:none;border:0;padding:0;min-height:0;color:var(--accent);
 .rastreio-item b{display:flex;gap:6px;align-items:center}
 .rastreio-item small,.rastreio-lista .quando{color:var(--muted);font-size:12.5px}
 .tag-demo{font-size:10.5px;font-weight:500;padding:0 6px;border-radius:999px;background:var(--info-soft);color:var(--info)}
+.wialon-painel{margin-bottom:14px}.wialon-painel h2{display:flex;align-items:center;gap:8px}.wialon-painel .tag-wialon{margin-left:0}
+.wialon-form{align-items:flex-end}.wialon-form .note{margin:0;flex-basis:100%}.wialon-form input{min-width:26ch}
 .tag-wialon{margin-left:6px;background:#efe6fa;color:#7b3fbf}
 .mk.mk-wialon{border:2px solid #7b3fbf}
 .filtros{display:flex;flex-wrap:wrap;gap:6px;padding:2px 2px 10px;border-bottom:1px solid var(--line);margin-bottom:6px}

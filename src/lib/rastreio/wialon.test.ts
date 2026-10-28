@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { filtroClientesWialon, imeisPelaPlaca, ligarUnidades, paraPosicaoWialon } from "./wialon";
+import { credenciaisWialon, imeisPelaPlaca, ligarUnidades, paraPosicaoWialon } from "./wialon";
 
 const pos = { x: -57.5, y: -25.3, s: 72.4, c: 181, sc: 14 };
 
@@ -25,9 +25,13 @@ describe("mensagens do Wialon", () => {
     );
     expect(pares.map((p) => [p.caminhao.placa, p.unidade.id])).toEqual([["AAFR218", 7]]);
   });
-  it("limita aos clientes configurados", () => {
-    expect(filtroClientesWialon(" AVM Truck , Outro ")).toEqual({ cliente: { nome: { in: ["AVM Truck", "Outro"], mode: "insensitive" } } });
-    expect(filtroClientesWialon("")).toEqual({});
+  it("usa o token do cadastro, ou o das variáveis para os clientes listados", () => {
+    const avm = { nome: "AVM Truck", wialonToken: null, wialonHost: null };
+    expect(credenciaisWialon({ ...avm, wialonToken: "t1", wialonHost: "hst-api.wialon.us" }, {})).toEqual({ token: "t1", host: "hst-api.wialon.us" });
+    expect(credenciaisWialon(avm, {})).toBeNull();
+    const env = { WIALON_TOKEN: "t2", WIALON_CLIENTES: " AVM Truck , Outro " };
+    expect(credenciaisWialon(avm, env)).toEqual({ token: "t2", host: undefined });
+    expect(credenciaisWialon({ ...avm, nome: "Terceiro" }, env)).toBeNull();
   });
   it("acha o IMEI pela placa no nome da unidade", () => {
     const r = imeisPelaPlaca(
