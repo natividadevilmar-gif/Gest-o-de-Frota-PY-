@@ -301,25 +301,27 @@ model Cotacao {
 
 // Cada registro enviado pelo aparelho no caminhão (receptor próprio, protocolo Teltonika).
 model Posicao {
-  id            BigInt   @id @default(autoincrement())
-  caminhaoId    String
-  caminhao      Caminhao @relation(fields: [caminhaoId], references: [id], onDelete: Cascade)
+  id                BigInt   @id @default(autoincrement())
+  caminhaoId        String
+  caminhao          Caminhao @relation(fields: [caminhaoId], references: [id], onDelete: Cascade)
   // Hora do GPS, em UTC.
-  data          DateTime
-  lat           Float
-  lng           Float
-  velocidadeKmh Int
-  direcao       Int      @default(0)
-  satelites     Int      @default(0)
-  ignicao       Boolean?
+  data              DateTime
+  lat               Float
+  lng               Float
+  velocidadeKmh     Int
+  direcao           Int      @default(0)
+  satelites         Int      @default(0)
+  ignicao           Boolean?
   // Odômetro total em km (da rede CAN quando houver, senão o do GPS).
-  odometroKm    Float?
+  odometroKm        Float?
   // Combustível consumido acumulado, em litros, lido da CAN.
-  litrosTotal   Float?
-  rpm           Int?
+  litrosTotal       Float?
+  // Diesel no tanque, em litros (sensor de nível ou CAN).
+  nivelCombustivelL Float?
+  rpm               Int?
   // Eventos de condução: "freada", "aceleracao", "curva", "excesso".
-  evento        String?
-  recebidoEm    DateTime @default(now())
+  evento            String?
+  recebidoEm        DateTime @default(now())
 
   @@index([caminhaoId, data])
 }

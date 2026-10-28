@@ -195,6 +195,7 @@ export const IO = {
   odometroGps: 16, // metros
   odometroCan: 87, // metros (rede CAN)
   combustivelCan: 83, // litros × 10 consumidos (rede CAN)
+  nivelCombustivel: 84, // litros × 10 no tanque (rede CAN)
   rpm: 85,
   conducao: 253, // 1 aceleração brusca, 2 freada brusca, 3 curva brusca
   excesso: 255, // excesso de velocidade (km/h no momento do evento)
@@ -206,6 +207,7 @@ const num = (v: bigint | Buffer | undefined) => (typeof v === "bigint" ? Number(
 export function paraPosicao(r: Registro) {
   const odoM = num(r.io.get(IO.odometroCan)) ?? num(r.io.get(IO.odometroGps));
   const comb = num(r.io.get(IO.combustivelCan));
+  const nivel = num(r.io.get(IO.nivelCombustivel));
   const ign = num(r.io.get(IO.ignicao));
   const conducao = r.eventoIo === IO.conducao ? num(r.io.get(IO.conducao)) : undefined;
   const evento =
@@ -220,6 +222,7 @@ export function paraPosicao(r: Registro) {
     ignicao: ign === undefined ? null : ign === 1,
     odometroKm: odoM === undefined ? null : odoM / 1000,
     litrosTotal: comb === undefined ? null : comb / 10,
+    nivelCombustivelL: nivel === undefined ? null : nivel / 10,
     rpm: num(r.io.get(IO.rpm)) ?? null,
     evento,
   };

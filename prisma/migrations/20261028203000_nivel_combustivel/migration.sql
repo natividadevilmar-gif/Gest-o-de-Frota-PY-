@@ -1,0 +1,1 @@
+ALTER TABLE "Posicao" ADD COLUMN "nivelCombustivelL" DOUBLE PRECISION;

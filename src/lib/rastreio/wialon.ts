@@ -32,6 +32,8 @@ const P = {
   odometroGpsM: [`io_${IO.odometroGps}`],
   combustivelDecilitros: [`io_${IO.combustivelCan}`],
   combustivelL: ["can_fuel_used", "can_fuel_consumed", "can_total_fuel_used", "total_fuel_used", "fuel_used", "can_fuel_total"],
+  nivelDecilitros: [`io_${IO.nivelCombustivel}`],
+  nivelL: ["can_fuel_level", "fuel_level", "fuel_lvl", "fls", "lls", "can_fuel_litres"],
   rpm: [`io_${IO.rpm}`, "can_rpm", "can_engine_rpm", "engine_rpm", "rpm"],
   conducao: [`io_${IO.conducao}`],
   excesso: [`io_${IO.excesso}`],
@@ -55,6 +57,8 @@ export function paraPosicaoWialon(m: MensagemWialon) {
   const odoKm = odoM !== undefined ? odoM / 1000 : kmDe(ler(p, P.odometroKm)) ?? (ler(p, P.odometroGpsM) ?? NaN) / 1000;
   const decilitros = ler(p, P.combustivelDecilitros);
   const litros = decilitros !== undefined ? decilitros / 10 : ler(p, P.combustivelL);
+  const nivelDl = ler(p, P.nivelDecilitros);
+  const nivel = nivelDl !== undefined ? nivelDl / 10 : ler(p, P.nivelL);
   const ign = ler(p, P.ignicao);
   const conducao = ler(p, P.conducao);
   const evento =
@@ -69,12 +73,13 @@ export function paraPosicaoWialon(m: MensagemWialon) {
     ignicao: ign === undefined ? null : ign === 1,
     odometroKm: Number.isFinite(odoKm) ? odoKm : null,
     litrosTotal: litros ?? null,
+    nivelCombustivelL: nivel ?? null,
     rpm: ler(p, P.rpm) ?? null,
     evento,
   };
 }
 
-export type TelemetriaUnidade = { odometro: boolean; diesel: boolean; rpm: boolean; ignicao: boolean; eventos: boolean; parametros: string[] };
+export type TelemetriaUnidade = { odometro: boolean; diesel: boolean; tanque: boolean; rpm: boolean; ignicao: boolean; eventos: boolean; parametros: string[] };
 
 /** O que a última mensagem da unidade traz de telemetria, para conferir na central. */
 export function telemetriaDaMensagem(m: MensagemWialon | null | undefined): TelemetriaUnidade {
@@ -83,6 +88,7 @@ export function telemetriaDaMensagem(m: MensagemWialon | null | undefined): Tele
   return {
     odometro: tem([...P.odometroCanM, ...P.odometroKm, ...P.odometroGpsM]),
     diesel: tem([...P.combustivelDecilitros, ...P.combustivelL]),
+    tanque: tem([...P.nivelDecilitros, ...P.nivelL]),
     rpm: tem(P.rpm),
     ignicao: tem(P.ignicao),
     eventos: tem([...P.conducao, ...P.excesso]),
