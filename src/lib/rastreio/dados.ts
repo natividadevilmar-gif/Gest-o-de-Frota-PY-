@@ -97,7 +97,8 @@ export async function frotaNoMapa(clienteId: string | null, agora = new Date()):
 
 export type Trajeto = {
   pontos: [number, number][];
-  eventos: { lat: number; lng: number; tipo: string; hora: string; velocidadeKmh: number }[];
+  /** Para excesso de velocidade: maior velocidade e fim do trecho acima do limite. */
+  eventos: { lat: number; lng: number; tipo: string; hora: string; velocidadeKmh: number; maxKmh?: number; ate?: string }[];
   km: number;
   velocidadeMax: number;
   litros: number | null;
@@ -142,7 +143,17 @@ export async function trajetoDoDia(clienteId: string | null, caminhaoId: string,
   const eventos = pts
     .filter((p, i) => p.evento || (p.velocidadeKmh > LIMITE_VELOCIDADE_KMH && (i === 0 || pts[i - 1].velocidadeKmh <= LIMITE_VELOCIDADE_KMH)))
     .slice(0, 200)
-    .map((p) => ({ lat: p.lat, lng: p.lng, tipo: p.evento ?? "excesso", hora: p.data.toISOString(), velocidadeKmh: p.velocidadeKmh }));
+    .map((p) => {
+      const ev = { lat: p.lat, lng: p.lng, tipo: p.evento ?? "excesso", hora: p.data.toISOString(), velocidadeKmh: p.velocidadeKmh };
+      if (ev.tipo !== "excesso") return ev;
+      // O trecho vai até a velocidade voltar ao limite.
+      let maxKmh = p.velocidadeKmh, fim = p.data;
+      for (let j = pts.indexOf(p) + 1; j < pts.length && pts[j].velocidadeKmh > LIMITE_VELOCIDADE_KMH; j++) {
+        maxKmh = Math.max(maxKmh, pts[j].velocidadeKmh);
+        fim = pts[j].data;
+      }
+      return { ...ev, maxKmh, ate: fim.toISOString() };
+    });
   return {
     pontos: linha,
     eventos,

@@ -4,6 +4,7 @@ import "leaflet/dist/leaflet.css";
 import type * as Leaflet from "leaflet";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CaminhaoMapa, ResumoCaminhao, Situacao, Trajeto } from "@/lib/rastreio/dados";
+import { LIMITE_VELOCIDADE_KMH } from "@/lib/telemetria/posicoes";
 import { fundosDoMapa, Movimento } from "./mapaBase";
 
 const ROTULO: Record<Situacao, string> = {
@@ -212,9 +213,28 @@ export function MapaFrota({ inicial, hoje, todos = false, outraTela = false }: {
     mod.polyline(trajeto.pontos, { color: COR_TRAJETO, weight: 5, opacity: 1 }).addTo(grupo);
     mod.circleMarker(trajeto.pontos[0], { radius: 6, color: "#fff", weight: 2, fillColor: "#2f7d4f", fillOpacity: 1 }).bindTooltip(`Saída ${hora(trajeto.inicio)}`).addTo(grupo);
     for (const e of trajeto.eventos) {
-      mod.circleMarker([e.lat, e.lng], { radius: 6, color: "#fff", weight: 2, fillColor: "#b3261e", fillOpacity: 1 })
-        .bindTooltip(`${EVENTO[e.tipo] ?? e.tipo} · ${hora(e.hora)} · ${e.velocidadeKmh} km/h`)
+      // Ao passar o mouse: o que aconteceu, a hora, a velocidade e o local (buscado na primeira vez).
+      const excesso = e.tipo === "excesso";
+      const minutos = e.ate ? Math.round((new Date(e.ate).getTime() - new Date(e.hora).getTime()) / 60_000) : 0;
+      const corpo = (local: string) =>
+        `<b>${EVENTO[e.tipo] ?? e.tipo}</b><br>` +
+        (excesso
+          ? `${hora(e.hora)}${e.ate && e.ate !== e.hora ? ` até ${hora(e.ate)}${minutos ? ` (${minutos} min)` : ""}` : ""}<br>` +
+            `Chegou a <b>${e.maxKmh ?? e.velocidadeKmh} km/h</b> · limite ${LIMITE_VELOCIDADE_KMH} km/h<br>`
+          : `${hora(e.hora)} · ${e.velocidadeKmh} km/h<br>`) +
+        `Local: ${local}<br><small>${e.lat.toFixed(5)}, ${e.lng.toFixed(5)}</small>`;
+      const ponto = mod.circleMarker([e.lat, e.lng], { radius: 6, color: "#fff", weight: 2, fillColor: "#b3261e", fillOpacity: 1 })
+        .bindTooltip(corpo("buscando…"), { className: "mk-dica" })
         .addTo(grupo);
+      let pedido = false;
+      ponto.on("tooltipopen", () => {
+        if (pedido) return;
+        pedido = true;
+        fetch(`/rastreamento/local?lat=${e.lat}&lng=${e.lng}`)
+          .then((r) => (r.ok ? r.json() : null))
+          .then((j: { local: string | null } | null) => ponto.setTooltipContent(corpo(esc(j?.local ?? "não identificado"))))
+          .catch(() => ponto.setTooltipContent(corpo("não identificado")));
+      });
     }
     // Hoje o mapa fica no caminhão; num dia anterior, mostra o trajeto inteiro.
     if (dia !== hoje) m.fitBounds(trajeto.pontos, { padding: [40, 40] });
