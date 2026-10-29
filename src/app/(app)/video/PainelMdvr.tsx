@@ -23,7 +23,7 @@ export function PainelMdvr({ placas, url, admin }: { placas: string[]; url: stri
       {admin && (
         <form action={salvarPainelMdvr} className="form">
           <label htmlFor="mdvrUrl" className="largo">Link do painel das câmeras (KM Cero)
-            <input id="mdvrUrl" name="mdvrUrl" type="url" defaultValue={url ?? ""} placeholder="https://painel-do-fabricante/..." style={{ minWidth: "28em" }} />
+            <input id="mdvrUrl" name="mdvrUrl" type="url" defaultValue={url ?? ""} placeholder="https://painel-do-fabricante/..." style={{ width: "100%", maxWidth: "28em" }} />
           </label>
           <button type="submit">Salvar link</button>
         </form>
