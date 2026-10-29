@@ -21,7 +21,8 @@ export default async function PaginaVideo({ searchParams }: { searchParams: Prom
   const mdvr = todos ? [] : await db.caminhao.findMany({ where: { clienteId: cliente.id, plano: "VIDEO", camera: "mdvr4" }, select: { placa: true }, orderBy: { placa: "asc" } });
   // Cliente com CUSAT: as câmeras ficam no site de vídeo deles, até haver a chave da API.
   const linkCameras = cliente.mdvrUrl ?? (cliente.gpswoxHash ? CAMERAS_CUSAT : null);
-  const painelExterno = !todos && (mdvr.length > 0 || !!linkCameras);
+  // O admin sempre vê o painel, para poder colar o link das câmeras de um cliente novo.
+  const painelExterno = !todos && (mdvr.length > 0 || !!linkCameras || admin);
   return (
     <>
       <div className="titulo-acoes">
