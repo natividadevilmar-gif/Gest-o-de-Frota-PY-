@@ -5,6 +5,7 @@ import { clienteAtual, podeEditarCadastros } from "@/lib/acesso";
 import { db } from "@/lib/db";
 import { planoPermite } from "@/lib/indicadores";
 import { mudarIdioma, novoPin, removerAcesso } from "./actions";
+import { ImportarPlanilha } from "./ImportarPlanilha";
 import { NovoAcesso } from "./NovoAcesso";
 
 export default async function Motoristas() {
@@ -32,6 +33,10 @@ export default async function Motoristas() {
           motoristas={motoristas.filter((m) => !m.acesso).map((m) => ({ id: m.id, nome: m.nome }))}
           caminhoes={caminhoes.map((c) => ({ id: c.id, placa: c.placa, motorista: c.motorista?.nome ?? null, lanca: planoPermite(c.plano, "custos") }))}
         />
+      </div>
+      <div className="card">
+        <div className="card-h"><h2>Importar da planilha da frota</h2><p>Cadastra os motoristas da coluna Chofer, Condutor ou Motorista e liga cada um ao caminhão da mesma linha.</p></div>
+        <ImportarPlanilha />
       </div>
       <div className="card">
         <div className="card-h"><h2>Motoristas</h2><p>{motoristas.filter((m) => m.acesso).length} de {motoristas.length} com acesso</p></div>
