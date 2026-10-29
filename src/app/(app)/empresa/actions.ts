@@ -92,3 +92,44 @@ export async function atualizarPais(form: FormData) {
   await db.cliente.update({ where: { id }, data: { pais: pais.parse(form.get("pais")) } });
   revalidatePath("/", "layout");
 }
+
+const novoGestor = z.object({
+  clienteId: z.string().min(1),
+  nome: z.string().trim().min(2),
+  email: z.string().trim().toLowerCase().email(),
+  senha: z.string().min(8),
+});
+
+/** Mais um acesso de gestor para um cliente que já existe. */
+export async function criarGestor(_: Resultado, form: FormData): Promise<Resultado> {
+  await exigirAdmin();
+  const p = novoGestor.safeParse(Object.fromEntries(form));
+  if (!p.success) return { ok: false, msg: "Escolha o cliente e confira nome e e-mail. A senha precisa ter pelo menos 8 caracteres." };
+  const cliente = await db.cliente.findUnique({ where: { id: p.data.clienteId }, select: { nome: true } });
+  if (!cliente) return { ok: false, msg: "Cliente não encontrado." };
+  if (await db.usuario.findUnique({ where: { email: p.data.email } })) return { ok: false, msg: "Esse e-mail já tem acesso." };
+  await db.usuario.create({
+    data: { nome: p.data.nome, email: p.data.email, senhaHash: await bcrypt.hash(p.data.senha, 10), papel: "GESTOR", clienteId: p.data.clienteId },
+  });
+  revalidatePath("/empresa");
+  return { ok: true, msg: `Acesso criado. ${p.data.nome} entra na ${cliente.nome} com ${p.data.email}.` };
+}
+
+/** Senha nova para um gestor que esqueceu a dele. */
+export async function novaSenhaGestor(_: Resultado, form: FormData): Promise<Resultado> {
+  await exigirAdmin();
+  const id = String(form.get("id") ?? "");
+  const senha = String(form.get("senha") ?? "");
+  if (senha.length < 8) return { ok: false, msg: "A senha precisa ter pelo menos 8 caracteres." };
+  const u = await db.usuario.findFirst({ where: { id, papel: "GESTOR" }, select: { email: true } });
+  if (!u) return { ok: false, msg: "Acesso não encontrado." };
+  await db.usuario.update({ where: { id }, data: { senhaHash: await bcrypt.hash(senha, 10) } });
+  return { ok: true, msg: `Senha trocada. Entra com ${u.email}.` };
+}
+
+/** Tira o acesso de um gestor. */
+export async function removerGestor(form: FormData) {
+  await exigirAdmin();
+  await db.usuario.deleteMany({ where: { id: String(form.get("id") ?? ""), papel: "GESTOR" } });
+  revalidatePath("/empresa");
+}

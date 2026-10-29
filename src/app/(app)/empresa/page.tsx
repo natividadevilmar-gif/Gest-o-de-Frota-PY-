@@ -11,6 +11,7 @@ import { Bandeira } from "@/components/Bandeira";
 import { temaDoPais, TEMAS } from "@/lib/temas";
 import { atualizarAtraso, atualizarPais, escolherCliente, salvarCotacao } from "./actions";
 import { NovoCliente } from "./NovoCliente";
+import { AcessosGestores } from "./AcessosGestores";
 
 // Ponto de equilíbrio do ano 1 no plano de negócio.
 const EQUILIBRIO_ANO1 = 440;
@@ -32,10 +33,11 @@ type Alerta = { sev: "bad" | "warn" | "info"; cliente: string; clienteId: string
 export default async function Empresa() {
   await exigirAdmin();
   const mes = mesAtual();
-  const [clientes, cotacao, agora] = await Promise.all([
+  const [clientes, cotacao, agora, gestores] = await Promise.all([
     db.cliente.findMany({ orderBy: { nome: "asc" }, include: { caminhoes: { select: { plano: true } } } }),
     cotacaoDoDia(),
     frotaNoMapa(null),
+    db.usuario.findMany({ where: { papel: "GESTOR" }, select: { id: true, nome: true, email: true, cliente: { select: { nome: true } } }, orderBy: [{ cliente: { nome: "asc" } }, { email: "asc" }] }),
   ]);
 
   // Indicadores de cada cliente no mês, os mesmos do painel do cliente.
@@ -193,6 +195,10 @@ export default async function Empresa() {
           <button type="submit">Usar esta cotação hoje</button>
         </form>
         <p className="note">A cotação é buscada sozinha uma vez por dia. Use este campo só se quiser fixar outra (por exemplo, a do seu banco).</p>
+      </div>
+      <div className="card" id="acessos">
+        <div className="card-h"><h2>Acessos dos gestores</h2><p>Login de cada cliente na KM Cero. Crie mais um acesso ou troque a senha de quem esqueceu.</p></div>
+        <AcessosGestores clientes={clientes.map((c) => ({ id: c.id, nome: c.nome }))} gestores={gestores.map((g) => ({ id: g.id, nome: g.nome, email: g.email, cliente: g.cliente?.nome ?? "–" }))} />
       </div>
       <div className="card" id="novo-cliente">
         <div className="card-h"><h2>Cadastrar cliente</h2><p>Cria a transportadora e o acesso do gestor.</p></div>
