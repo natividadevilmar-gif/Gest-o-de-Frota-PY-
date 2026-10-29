@@ -60,7 +60,7 @@ async function main() {
     }
 
     await db.usuario.create({
-      data: { email: "gestor@avmtruck.com.py", nome: "Gestor SVM Trucks", senhaHash: senha, papel: "GESTOR", clienteId: cliente.id },
+      data: { email: "gestor@svmtrucks.com.py", nome: "Gestor SVM Trucks", senhaHash: senha, papel: "GESTOR", clienteId: cliente.id },
     });
 
     for (const f of FROTA) {
@@ -162,7 +162,7 @@ async function main() {
       });
     }
   }
-  console.log("Dados de exemplo criados. Logins (senha frota2026): admin@gestaodefrota.com.py, gestor@avmtruck.com.py; motorista: 0981123456, PIN 123456");
+  console.log("Dados de exemplo criados. Logins (senha frota2026): admin@gestaodefrota.com.py, gestor@svmtrucks.com.py; motorista: 0981123456, PIN 123456");
 }
 
 main().finally(() => db.$disconnect());
