@@ -70,7 +70,22 @@ export function resumirDia(pontos: PontoDia[], odometroAnteriorKm: number): Dado
 }
 
 /** Relatório do dia no mesmo formato do relatório de viagem do Wialon. */
+/** Acima disso o caminhão está saindo de verdade, não só manobrando ou com o GPS oscilando. */
+const SAINDO_KMH = 10;
+
+/**
+ * Saída do dia: o primeiro ponto em que o caminhão começou a andar. O primeiro sinal do dia
+ * costuma ser de madrugada, com o caminhão ainda parado; ele não é a saída.
+ */
+export function saidaDoDia<P extends { data: Date; velocidadeKmh: number }>(pontos: P[]): P | null {
+  return pontos.find((p) => p.velocidadeKmh >= SAINDO_KMH) ?? null;
+}
+
 export type RelatorioDia = {
+  /** Primeira posição recebida no período. */
+  primeiroSinal: Date;
+  /** Hora em que o caminhão começou a andar (null se não andou). */
+  saida: Date | null;
   km: number;
   /** Diesel gasto com o caminhão andando (total menos o gasto parado). */
   litrosViagem: number | null;
@@ -124,6 +139,8 @@ export function relatorioDoDia(pontos: PontoDia[]): RelatorioDia | null {
   const nivel = ps.filter((p) => p.nivelCombustivelL != null);
   const odoFim = ps.findLast((p) => p.odometroKm != null)?.odometroKm;
   return {
+    primeiroSinal: ps[0].data,
+    saida: saidaDoDia(ps)?.data ?? null,
     km,
     litrosViagem,
     kmL: litrosViagem && km ? Math.round((km / litrosViagem) * 100) / 100 : null,

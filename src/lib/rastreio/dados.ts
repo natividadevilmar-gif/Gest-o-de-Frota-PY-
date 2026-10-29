@@ -2,7 +2,7 @@ import "server-only";
 import { db } from "@/lib/db";
 import { indicadoresFrota } from "@/lib/dados";
 import { mesAtual, planoPermite } from "@/lib/indicadores";
-import { ehImei, LIMITE_VELOCIDADE_KMH, resumirDia } from "@/lib/telemetria/posicoes";
+import { ehImei, LIMITE_VELOCIDADE_KMH, resumirDia, saidaDoDia } from "@/lib/telemetria/posicoes";
 import { clienteUsaWialon, espelharSeDevido } from "./wialon";
 import { diaNoParaguai, posicaoDemo, rotaDemoNome, trajetoDemo } from "./rotas";
 
@@ -103,8 +103,15 @@ export type Trajeto = {
   velocidadeMax: number;
   litros: number | null;
   inicio: string | null;
+  /** Onde e quando o caminhão começou a andar no dia. */
+  saida: { hora: string; lat: number; lng: number } | null;
   fim: string | null;
   demo: boolean;
+};
+
+const saidaDe = (pts: { data: Date; velocidadeKmh: number; lat: number; lng: number }[]) => {
+  const s = saidaDoDia(pts);
+  return s ? { hora: s.data.toISOString(), lat: s.lat, lng: s.lng } : null;
 };
 
 /** Trajeto de um caminhão num dia do Paraguai (`dia` = meia-noite UTC dessa data). `clienteId` null = qualquer cliente. */
@@ -123,6 +130,7 @@ export async function trajetoDoDia(clienteId: string | null, caminhaoId: string,
       velocidadeMax: Math.max(0, ...pts.map((p) => p.velocidadeKmh)),
       litros: null,
       inicio: pts[0]?.data.toISOString() ?? null,
+      saida: saidaDe(pts),
       fim: pts.at(-1)?.data.toISOString() ?? null,
       demo: true,
     };
@@ -161,6 +169,7 @@ export async function trajetoDoDia(clienteId: string | null, caminhaoId: string,
     velocidadeMax: Math.max(0, ...pts.map((p) => p.velocidadeKmh)),
     litros: resumo?.litrosCan ?? null,
     inicio: pts[0]?.data.toISOString() ?? null,
+    saida: saidaDe(pts),
     fim: pts.at(-1)?.data.toISOString() ?? null,
     demo: false,
   };

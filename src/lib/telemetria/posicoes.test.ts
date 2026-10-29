@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ehImei, relatorioDoDia, resumirDia, type PontoDia } from "./posicoes";
+import { ehImei, relatorioDoDia, resumirDia, saidaDoDia, type PontoDia } from "./posicoes";
 
 const t0 = new Date("2026-10-25T10:00:00Z").getTime();
 const ponto = (min: number, x: Partial<PontoDia>): PontoDia => ({
@@ -51,5 +51,15 @@ describe("relatório do dia (como o do Wialon)", () => {
     expect(r.litrosTotal).toBeNull();
     expect(r.kmL).toBeNull();
     expect(r.nivelInicialL).toBeNull();
+  });
+});
+
+describe("saída do dia", () => {
+  const p = (min: number, v: number) => ({ data: new Date(Date.UTC(2026, 9, 29, 3, min)), velocidadeKmh: v });
+  it("é o primeiro ponto andando, não o primeiro sinal da madrugada", () => {
+    expect(saidaDoDia([p(0, 0), p(30, 3), p(200, 0), p(245, 12), p(250, 60)])?.data).toEqual(p(245, 12).data);
+  });
+  it("sem andar, não tem saída", () => {
+    expect(saidaDoDia([p(0, 0), p(10, 4)])).toBeNull();
   });
 });
