@@ -8,7 +8,8 @@ import { Video } from "./Video";
 
 export const dynamic = "force-dynamic";
 
-const CAMERAS_CUSAT = "https://flota.cusat.com.py/mapaGeral_v3/#/";
+// Entrada do site de vídeo da CUSAT (depois do login, Mapa Geral 3.0 → caminhão → câmera).
+const CAMERAS_CUSAT = "https://flota.cusat.com.py/dashboard_controller";
 
 export default async function PaginaVideo({ searchParams }: { searchParams: Promise<{ todos?: string; caminhao?: string; midia?: string }> }) {
   const { sessao, cliente } = await clienteAtual();
