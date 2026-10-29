@@ -114,17 +114,17 @@ const mediana = (v: number[]) => { const o = [...v].sort((a, b) => a - b); retur
 /**
  * Diesel gasto pela boia do tanque, para quem não manda o total consumido pela CAN:
  * nível do início − nível do fim + o que foi abastecido no meio. O nível é suavizado
- * (mediana de 9 leituras) para o balanço do diesel não contar como consumo.
+ * (mediana de 5 leituras) para o balanço do diesel não contar como consumo.
  */
 export function consumoPeloTanque(pontos: { nivelCombustivelL?: number | null; velocidadeKmh: number }[]) {
   const ps = pontos.filter((p) => p.nivelCombustivelL != null);
   if (ps.length < 2) return null;
   const bruto = ps.map((p) => p.nivelCombustivelL!);
-  const nivel = bruto.map((_, i) => mediana(bruto.slice(Math.max(0, i - 4), i + 5)));
+  const nivel = bruto.map((_, i) => mediana(bruto.slice(Math.max(0, i - 2), i + 3)));
   let abastecido = 0, subida = 0, paradoL = 0;
   for (let i = 1; i < nivel.length; i++) {
     const d = nivel[i] - nivel[i - 1];
-    if (d > 0) { subida += d; continue; }
+    if (d >= 0) { subida += d; continue; }
     if (subida >= ABASTECIMENTO_MIN_L) abastecido += subida;
     subida = 0;
     if (ps[i - 1].velocidadeKmh < QUASE_PARADO_KMH && ps[i].velocidadeKmh < QUASE_PARADO_KMH) paradoL -= d;
