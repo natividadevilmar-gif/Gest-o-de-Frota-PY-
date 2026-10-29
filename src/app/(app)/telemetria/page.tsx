@@ -16,6 +16,9 @@ function horas(s: number) {
   const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = s % 60;
   return `${h}:${String(m).padStart(2, "0")}:${String(x).padStart(2, "0")}`;
 }
+/** Hora no Paraguai; num período de vários dias, com a data junto. */
+const saidaBr = (d: Date, comData: boolean) =>
+  d.toLocaleString("pt-BR", { timeZone: "America/Asuncion", hour: "2-digit", minute: "2-digit", ...(comData ? { day: "2-digit", month: "2-digit" } : {}) });
 const litros = (l: number | null) => (l == null ? "–" : `${num(l, 1)} l`);
 
 export default async function Telemetria({ searchParams }: { searchParams: Promise<{ de?: string; ate?: string }> }) {
@@ -57,7 +60,7 @@ export default async function Telemetria({ searchParams }: { searchParams: Promi
           <table className="tabela-telemetria">
             <thead>
               <tr>
-                <th>Caminhão</th><th className="n">Km rodados</th><th className="n">Consumido em viagem</th><th className="n">Km/l médio</th><th className="n">L/100 km médio</th>
+                <th>Caminhão</th><th className="n">Primeiro sinal</th><th className="n">Saída</th><th className="n">Km rodados</th><th className="n">Consumido em viagem</th><th className="n">Km/l médio</th><th className="n">L/100 km médio</th>
                 <th className="n">Tanque no início</th><th className="n">Tanque no fim</th><th className="n">Horas de motor</th><th className="n">Odômetro final</th>
                 <th className="n">Velocidade média</th><th className="n">Velocidade máxima</th><th className="n">Consumo parado ou muito devagar</th><th className="n">Total consumido</th>
               </tr>
@@ -68,6 +71,8 @@ export default async function Telemetria({ searchParams }: { searchParams: Promi
                   <td><Placa placa={placa} /><br /><small className="muted">{modelo}{motorista ? ` · ${motorista}` : ""}{demo ? " · demonstração" : ""}</small></td>
                   {r ? (
                     <>
+                      <td className="n">{saidaBr(r.primeiroSinal, iso(de) !== iso(ate))}</td>
+                      <td className="n">{r.saida ? saidaBr(r.saida, iso(de) !== iso(ate)) : "–"}</td>
                       <td className="n"><b>{num(r.km)} km</b></td>
                       <td className="n">{litros(r.litrosViagem)}</td>
                       <td className="n"><b>{num(r.kmL, 2)}</b></td>
@@ -82,7 +87,7 @@ export default async function Telemetria({ searchParams }: { searchParams: Promi
                       <td className="n">{litros(r.litrosTotal)}</td>
                     </>
                   ) : (
-                    <td colSpan={12} className="muted">Nenhuma posição neste período.</td>
+                    <td colSpan={14} className="muted">Nenhuma posição neste período.</td>
                   )}
                 </tr>
               ))}
@@ -91,6 +96,8 @@ export default async function Telemetria({ searchParams }: { searchParams: Promi
               <tfoot>
                 <tr>
                   <th>Frota</th>
+                  <th className="n">–</th>
+                  <th className="n">–</th>
                   <th className="n">{num(kmT)} km</th>
                   <th className="n">{litros(viagemT)}</th>
                   <th className="n">{viagemT && kmComDiesel ? num(kmComDiesel / viagemT, 2) : "–"}</th>

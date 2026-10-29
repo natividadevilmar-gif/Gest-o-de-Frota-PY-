@@ -211,7 +211,13 @@ export function MapaFrota({ inicial, hoje, todos = false, outraTela = false }: {
     // Ciano forte com contorno escuro: aparece bem no satélite e não se confunde com as estradas (laranja).
     mod.polyline(trajeto.pontos, { color: "#0b1a2a", weight: 9, opacity: 0.75 }).addTo(grupo);
     mod.polyline(trajeto.pontos, { color: COR_TRAJETO, weight: 5, opacity: 1 }).addTo(grupo);
-    mod.circleMarker(trajeto.pontos[0], { radius: 6, color: "#fff", weight: 2, fillColor: "#2f7d4f", fillOpacity: 1 }).bindTooltip(`Saída ${hora(trajeto.inicio)}`).addTo(grupo);
+    // A bolinha verde fica onde o caminhão começou a andar, com a hora exata da saída.
+    // A bolinha branca marca o primeiro sinal do dia, quando ele vem antes da saída.
+    const s = trajeto.saida;
+    if (!s || s.hora !== trajeto.inicio) {
+      mod.circleMarker(trajeto.pontos[0], { radius: 5, color: "#2f7d4f", weight: 2, fillColor: "#fff", fillOpacity: 1 }).bindTooltip(`Primeiro sinal ${hora(trajeto.inicio)}`).addTo(grupo);
+    }
+    if (s) mod.circleMarker([s.lat, s.lng], { radius: 6, color: "#fff", weight: 2, fillColor: "#2f7d4f", fillOpacity: 1 }).bindTooltip(`Saída ${hora(s.hora)}`).addTo(grupo);
     for (const e of trajeto.eventos) {
       // Ao passar o mouse: o que aconteceu, a hora, a velocidade e o local (buscado na primeira vez).
       const excesso = e.tipo === "excesso";
@@ -295,7 +301,8 @@ export function MapaFrota({ inicial, hoje, todos = false, outraTela = false }: {
               <dl className="rastreio-resumo">
                 <div><dt>Rodou</dt><dd>{numero(trajeto.km)} km</dd></div>
                 <div><dt>Velocidade máx.</dt><dd>{trajeto.velocidadeMax} km/h</dd></div>
-                <div><dt>Saída · último ponto</dt><dd>{hora(trajeto.inicio)} · {hora(trajeto.fim)}</dd></div>
+                <div><dt>Primeiro sinal</dt><dd>{hora(trajeto.inicio)}</dd></div>
+                <div><dt>Saída · último ponto</dt><dd>{trajeto.saida ? hora(trajeto.saida.hora) : "não saiu"} · {hora(trajeto.fim)}</dd></div>
                 <div><dt>Diesel (CAN)</dt><dd>{trajeto.litros != null ? `${numero(trajeto.litros)} L` : "–"}</dd></div>
                 <div className="largo"><dt>Alertas</dt><dd>{trajeto.eventos.length ? trajeto.eventos.map((e) => `${EVENTO[e.tipo] ?? e.tipo} ${hora(e.hora)}`).join(" · ") : "nenhum"}</dd></div>
               </dl>
