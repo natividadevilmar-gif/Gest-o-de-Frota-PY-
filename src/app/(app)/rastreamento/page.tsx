@@ -1,5 +1,6 @@
-import Link from "next/link";
+import { FiltroCliente } from "@/components/FiltroCliente";
 import { clienteAtual } from "@/lib/acesso";
+import { db } from "@/lib/db";
 import { frotaNoMapa } from "@/lib/rastreio/dados";
 import { diaNoParaguai } from "@/lib/rastreio/rotas";
 import { MapaFrota } from "./MapaFrota";
@@ -17,12 +18,7 @@ export default async function Rastreamento({ searchParams }: { searchParams: Pro
     <>
       <div className="titulo-acoes">
         <h1>Mapa ao vivo</h1>
-        {admin && (
-          <div className="alternar" role="group" aria-label="Quais caminhões mostrar">
-            <Link href="/rastreamento" aria-current={!todos ? "true" : undefined}>Só {cliente.nome}</Link>
-            <Link href="/rastreamento?todos=1" aria-current={todos ? "true" : undefined}>Todos os clientes</Link>
-          </div>
-        )}
+        {admin && <FiltroCliente clientes={await db.cliente.findMany({ orderBy: { nome: "asc" }, select: { id: true, nome: true } })} atual={cliente.id} todos={todos} caminho="/rastreamento" />}
       </div>
       {demo && (
         <p className="aviso-demo">
