@@ -1,3 +1,4 @@
+import { RolagemFixa } from "@/components/RolagemFixa";
 import { Placa } from "@/components/ui";
 import { clienteAtual } from "@/lib/acesso";
 import { db } from "@/lib/db";
@@ -32,7 +33,7 @@ export default async function Caminhoes() {
             {sessao.papel !== "OPERADOR" && <> · Contrato: plano {NOME_PLANO[cliente.planoContratado as Plano]}, {cliente.caminhoesContratados} caminhões · <a href={`/contrato/${cliente.id}`}>ver contrato</a></>}
           </p>
         </div>
-        <div className="tw">
+        <RolagemFixa>
           <table>
             <thead>
               <tr><th>Placa</th><th>Modelo</th><th>Motorista</th><th className="n">Ref. km/l</th><th className="n">Odômetro</th><th className="n">Eixos</th><th>Rastreador</th><th className="n">Custos fixos/mês</th><th>Plano</th></tr>
@@ -86,7 +87,7 @@ export default async function Caminhoes() {
               ))}
             </tbody>
           </table>
-        </div>
+        </RolagemFixa>
       </div>
       {!pode && (
         <p className="note">Para incluir um caminhão ou mudar de plano, fale com a KM Cero: o caminhão entra no sistema depois que o rastreador é instalado.</p>

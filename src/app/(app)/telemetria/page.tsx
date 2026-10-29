@@ -1,3 +1,4 @@
+import { RolagemFixa } from "@/components/RolagemFixa";
 import { Placa } from "@/components/ui";
 import { clienteAtual } from "@/lib/acesso";
 import { dataBr, num } from "@/lib/formato";
@@ -52,7 +53,7 @@ export default async function Telemetria({ searchParams }: { searchParams: Promi
       {cortado && <p className="note">O relatório mostra no máximo {MAX_DIAS_RELATORIO} dias de cada vez.</p>}
       <div className="card">
         <div className="card-h"><h2>Relatório de viagens</h2><p>Os mesmos campos do relatório do Wialon, calculados com as posições e a rede CAN de cada caminhão</p></div>
-        <div className="tw">
+        <RolagemFixa>
           <table className="tabela-telemetria">
             <thead>
               <tr>
@@ -106,7 +107,7 @@ export default async function Telemetria({ searchParams }: { searchParams: Promi
               </tfoot>
             )}
           </table>
-        </div>
+        </RolagemFixa>
         <div className="formula">
           Km/l = km rodados ÷ consumido em viagem · consumo parado = diesel gasto com o caminhão abaixo de 5 km/h · velocidade média = km ÷ tempo andando
         </div>
