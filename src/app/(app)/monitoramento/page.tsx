@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { FiltroCliente } from "@/components/FiltroCliente";
 import { clienteAtual } from "@/lib/acesso";
 import { dadosCentral, TIPOS_CERCA } from "@/lib/monitoramento";
 import { db } from "@/lib/db";
@@ -28,12 +28,7 @@ export default async function Monitoramento({ searchParams }: { searchParams: Pr
     <>
       <div className="titulo-acoes">
         <h1>Central de monitoramento</h1>
-        {admin && (
-          <div className="alternar" role="group" aria-label="Quais clientes monitorar">
-            <Link href="/monitoramento" aria-current={!todos ? "true" : undefined}>Só {cliente.nome}</Link>
-            <Link href="/monitoramento?todos=1" aria-current={todos ? "true" : undefined}>Todos os clientes</Link>
-          </div>
-        )}
+        {admin && <FiltroCliente clientes={await db.cliente.findMany({ orderBy: { nome: "asc" }, select: { id: true, nome: true } })} atual={cliente.id} todos={todos} caminho="/monitoramento" />}
       </div>
       {admin && !todos && (!!cred || !cliente.gpswoxHash) && (
         <PainelWialon
