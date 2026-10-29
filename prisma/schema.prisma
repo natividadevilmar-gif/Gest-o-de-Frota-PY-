@@ -66,6 +66,10 @@ model Cliente {
   // Conta Wialon do cliente: token da Remote API (só leitura) e servidor (ex.: hst-api.wialon.us).
   wialonToken          String?
   wialonHost           String?
+  // Conta CUSAT (ou outra plataforma GPSWOX) do cliente: servidor e chave da API devolvida no login.
+  gpswoxHost           String?
+  gpswoxEmail          String?
+  gpswoxHash           String?
   criadoEm             DateTime      @default(now())
   usuarios             Usuario[]
   caminhoes            Caminhao[]

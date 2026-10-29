@@ -1,5 +1,6 @@
 import type { PrismaClient } from "@prisma/client";
 import { diasDoParaguai, gravarDia } from "../telemetria/sincronizar";
+import { espelharGpswox } from "./gpswox";
 import { IO } from "./teltonika";
 
 // Wialon (Gurtam) como mais uma entrada de posições, ao lado do receptor próprio.
@@ -258,10 +259,16 @@ let ultimoEspelho = 0;
 export async function espelharSeDevido(db: PrismaClient, agora = new Date()) {
   if (agora.getTime() - ultimoEspelho < ESPELHO_MIN_MS) return;
   ultimoEspelho = agora.getTime();
-  const rodada = espelharWialon(db, agora).then(
-    (r) => { if (r.erros.length) console.error("Wialon:", ...r.erros); },
-    (e) => console.error("Wialon:", (e as Error).message),
-  );
+  const rodada = Promise.all([
+    espelharWialon(db, agora).then(
+      (r) => { if (r.erros.length) console.error("Wialon:", ...r.erros); },
+      (e) => console.error("Wialon:", (e as Error).message),
+    ),
+    espelharGpswox(db, agora).then(
+      (r) => { if (r.erros.length) console.error("CUSAT/GPSWOX:", ...r.erros); },
+      (e) => console.error("CUSAT/GPSWOX:", (e as Error).message),
+    ),
+  ]);
   // Não segura a tela se o Wialon demorar: a próxima abertura já mostra o que chegou.
   await Promise.race([rodada, new Promise((ok) => setTimeout(ok, ESPERA_MAX_MS))]);
 }

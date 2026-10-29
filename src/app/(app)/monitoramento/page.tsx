@@ -2,9 +2,11 @@ import Link from "next/link";
 import { clienteAtual } from "@/lib/acesso";
 import { dadosCentral, TIPOS_CERCA } from "@/lib/monitoramento";
 import { db } from "@/lib/db";
+import { SERVIDOR_CUSAT } from "@/lib/rastreio/gpswox";
 import { credenciaisWialon, linkTokenWialon, SERVIDORES_WIALON } from "@/lib/rastreio/wialon";
 import { ehImei } from "@/lib/telemetria/posicoes";
 import { Central } from "./Central";
+import { PainelCusat } from "./PainelCusat";
 import { PainelWialon } from "./PainelWialon";
 
 export const dynamic = "force-dynamic";
@@ -33,7 +35,7 @@ export default async function Monitoramento({ searchParams }: { searchParams: Pr
           </div>
         )}
       </div>
-      {admin && !todos && (
+      {admin && !todos && (!!cred || !cliente.gpswoxHash) && (
         <PainelWialon
           cliente={cliente.nome}
           conectado={!!cred}
@@ -42,6 +44,15 @@ export default async function Monitoramento({ searchParams }: { searchParams: Pr
           ligados={ligados}
           total={dados.frota.length}
           demo={demo}
+        />
+      )}
+      {admin && !todos && (!cred || !!cliente.gpswoxHash) && (
+        <PainelCusat
+          cliente={cliente.nome}
+          conectado={!!cliente.gpswoxHash}
+          servidor={cliente.gpswoxHost ?? SERVIDOR_CUSAT}
+          email={cliente.gpswoxEmail}
+          ligados={cliente.gpswoxHash ? rastreadores.filter(ehImei).length : 0}
         />
       )}
       <Central key={todos ? "todos" : cliente.id} inicial={dados} todos={todos} clienteNome={cliente.nome} podeCercas={sessao.papel !== "OPERADOR"} tiposCerca={TIPOS_CERCA} />
