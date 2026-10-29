@@ -209,6 +209,8 @@ export function MapaFrota({ inicial, hoje, todos = false, outraTela = false }: {
     grupo.clearLayers();
     if (!trajeto || trajeto.pontos.length < 2) return;
     // Ciano forte com contorno escuro: aparece bem no satélite e não se confunde com as estradas (laranja).
+    // Rota prevista do frete, tracejada por baixo do caminho feito.
+    if (trajeto.rotaPrevista?.length) mod.polyline(trajeto.rotaPrevista, { color: "#e0a100", weight: 4, opacity: 0.9, dashArray: "8 8" }).bindTooltip("Rota prevista do frete").addTo(grupo);
     mod.polyline(trajeto.pontos, { color: "#0b1a2a", weight: 9, opacity: 0.75 }).addTo(grupo);
     mod.polyline(trajeto.pontos, { color: COR_TRAJETO, weight: 5, opacity: 1 }).addTo(grupo);
     // A bolinha verde fica onde o caminhão começou a andar, com a hora exata da saída.

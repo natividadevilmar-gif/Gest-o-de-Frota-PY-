@@ -10,7 +10,7 @@ import { dataBr, mesValido, nomeMes, num, usd } from "@/lib/formato";
 import { mesAtual } from "@/lib/indicadores";
 import { previstoRota } from "@/lib/pedagio";
 import { rotasPedagio, taxasDoDia } from "@/lib/pedagioDados";
-import { marcarRecebido } from "./actions";
+import { marcarRecebido, recalcularRota } from "./actions";
 import { ExcluirFrete } from "./Excluir";
 import { NovoFrete, PAISES } from "./NovoFrete";
 
@@ -135,7 +135,7 @@ export default async function Fretes({ searchParams }: { searchParams: Promise<{
                       <td>{dataBr(f.data)}{f.dataEntrega && <><br /><small className="muted">entrega {dataBr(f.dataEntrega)}</small></>}</td>
                       <td><Placa placa={f.caminhao.placa} />{f.motorista && <><br /><small className="muted">{f.motorista.nome}</small></>}</td>
                       <td>{f.embarcador ?? "–"}{f.documento && <><br /><small className="muted">{f.documento}</small></>}</td>
-                      <td>{pais(f.paisOrigem)} {f.origem} → {pais(f.paisDestino)} {f.destino}<br /><small className="muted">{num(f.kmCarregado)} km + {num(f.kmVazio)} vazio</small>{pedagio.has(f.id) && (() => { const pg = pedagio.get(f.id)!; return <><br /><small className={pg.lancado > pg.previsto * 1.1 ? "t-bad" : "muted"}>pedágio previsto {usd(pg.previsto, 2)} · lançado {usd(pg.lancado, 2)}</small></>; })()}</td>
+                      <td>{pais(f.paisOrigem)} {f.origem} → {pais(f.paisDestino)} {f.destino}<br /><small className="muted">{num(f.kmCarregado)} km + {num(f.kmVazio)} vazio</small><br />{f.rotaKm != null ? <small className="muted">rota prevista {num(f.rotaKm)} km · alerta de desvio ligado</small> : f.rotaErro ? <form action={recalcularRota} style={{ display: "inline" }}><input type="hidden" name="id" value={f.id} /><small className="t-bad">sem rota: {f.rotaErro}</small> <button type="submit" className="link">tentar de novo</button></form> : <small className="muted">calculando a rota…</small>}{pedagio.has(f.id) && (() => { const pg = pedagio.get(f.id)!; return <><br /><small className={pg.lancado > pg.previsto * 1.1 ? "t-bad" : "muted"}>pedágio previsto {usd(pg.previsto, 2)} · lançado {usd(pg.lancado, 2)}</small></>; })()}</td>
                       <td>{f.carga}, {num(f.toneladas, 1)} t{f.precoTonelada && <><br /><small className="muted">{SIMBOLO[f.moeda as Moeda]} {num(f.precoTonelada, 2)}/t</small></>}</td>
                       <td className="n">{usd(f.freteUsd)}{f.valorOriginal && <><br /><small className="muted">{SIMBOLO[f.moeda as Moeda]} {num(f.valorOriginal, 2)}</small></>}</td>
                       <td className="n">{usd(f.margem?.custoUsd)}{f.custosExtrasUsd > 0 && <><br /><small className="muted">+{usd(f.custosExtrasUsd)} extras</small></>}</td>

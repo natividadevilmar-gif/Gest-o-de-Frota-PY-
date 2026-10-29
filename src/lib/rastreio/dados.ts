@@ -1,4 +1,5 @@
 import "server-only";
+import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { indicadoresFrota } from "@/lib/dados";
 import { mesAtual, planoPermite } from "@/lib/indicadores";
@@ -107,7 +108,19 @@ export type Trajeto = {
   saida: { hora: string; lat: number; lng: number } | null;
   fim: string | null;
   demo: boolean;
+  /** Rota prevista do frete em curso nesse dia, para comparar com o caminho feito. */
+  rotaPrevista?: [number, number][] | null;
 };
+
+/** Rota prevista do frete que estava em curso no dia (saiu até 15 dias antes e não passou da entrega). */
+async function rotaDoDia(caminhaoId: string, dia: Date) {
+  const v = await db.viagem.findFirst({
+    where: { caminhaoId, data: { lte: dia, gte: new Date(dia.getTime() - 15 * 86_400_000) }, OR: [{ dataEntrega: null }, { dataEntrega: { gte: dia } }], rota: { not: Prisma.DbNull } },
+    orderBy: [{ data: "desc" }, { criadoEm: "desc" }],
+    select: { rota: true },
+  });
+  return Array.isArray(v?.rota) ? (v.rota as unknown as [number, number][]) : null;
+}
 
 const saidaDe = (pts: { data: Date; velocidadeKmh: number; lat: number; lng: number }[]) => {
   const s = saidaDoDia(pts);
@@ -172,6 +185,7 @@ export async function trajetoDoDia(clienteId: string | null, caminhaoId: string,
     saida: saidaDe(pts),
     fim: pts.at(-1)?.data.toISOString() ?? null,
     demo: false,
+    rotaPrevista: await rotaDoDia(c.id, dia),
   };
 }
 
