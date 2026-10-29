@@ -18,9 +18,30 @@ export type MensagemWialon = {
   t: number;
   pos: { x: number; y: number; s: number; c: number; sc: number } | null;
   p?: Record<string, number | string>;
+  /** Diesel já calculado pelos sensores da unidade no Wialon (nível e consumo total, em litros). */
+  sens?: { nivelL?: number; consumoL?: number };
 };
 
-export type UnidadeWialon = { id: number; nm: string; uid?: string; lmsg?: MensagemWialon | null };
+/** Sensor configurado na unidade do Wialon: n = nome, t = tipo (ex.: "fuel level"), p = parâmetro bruto. */
+export type SensorWialon = { id: number; n: string; t: string; p?: string };
+export type UnidadeWialon = { id: number; nm: string; uid?: string; lmsg?: MensagemWialon | null; sens?: Record<string, SensorWialon> | null };
+
+/**
+ * Sensores de diesel da unidade. É deles que sai o diesel do relatório do Wialon: muitas vezes o
+ * rastreador manda só um valor bruto (tensão da boia, pulsos) e a calibração fica no sensor.
+ */
+export function sensoresDiesel(u: Pick<UnidadeWialon, "sens">) {
+  const lista = Object.values(u.sens ?? {});
+  const doTipo = (re: RegExp) => lista.find((s) => re.test(s.t ?? ""))?.id;
+  return {
+    nivel: doTipo(/^fuel level$/i) ?? doTipo(/fuel level/i),
+    consumo: doTipo(/^absolute fuel consumption$/i) ?? doTipo(/^impulse fuel consumption$/i),
+  };
+}
+
+/** Valor que o Wialon devolve quando o sensor não tem leitura na mensagem. */
+const SEM_VALOR = -348201.3876;
+const valorSensor = (v: unknown) => (typeof v === "number" && Number.isFinite(v) && Math.abs(v - SEM_VALOR) > 0.01 ? v : undefined);
 
 /**
  * Nomes dos parâmetros no Wialon: aparelhos Teltonika chegam como io_<código>; outras
@@ -57,9 +78,9 @@ export function paraPosicaoWialon(m: MensagemWialon) {
   const odoM = ler(p, P.odometroCanM);
   const odoKm = odoM !== undefined ? odoM / 1000 : kmDe(ler(p, P.odometroKm)) ?? (ler(p, P.odometroGpsM) ?? NaN) / 1000;
   const decilitros = ler(p, P.combustivelDecilitros);
-  const litros = decilitros !== undefined ? decilitros / 10 : ler(p, P.combustivelL);
+  const litros = m.sens?.consumoL ?? (decilitros !== undefined ? decilitros / 10 : ler(p, P.combustivelL));
   const nivelDl = ler(p, P.nivelDecilitros);
-  const nivel = nivelDl !== undefined ? nivelDl / 10 : ler(p, P.nivelL);
+  const nivel = m.sens?.nivelL ?? (nivelDl !== undefined ? nivelDl / 10 : ler(p, P.nivelL));
   const ign = ler(p, P.ignicao);
   const conducao = ler(p, P.conducao);
   const evento =
@@ -83,17 +104,18 @@ export function paraPosicaoWialon(m: MensagemWialon) {
 export type TelemetriaUnidade = { odometro: boolean; diesel: boolean; tanque: boolean; rpm: boolean; ignicao: boolean; eventos: boolean; parametros: string[] };
 
 /** O que a última mensagem da unidade traz de telemetria, para conferir na central. */
-export function telemetriaDaMensagem(m: MensagemWialon | null | undefined): TelemetriaUnidade {
+export function telemetriaDaMensagem(m: MensagemWialon | null | undefined, u: Pick<UnidadeWialon, "sens"> = {}): TelemetriaUnidade {
   const p = m?.p;
   const tem = (nomes: string[]) => ler(p, nomes) !== undefined;
+  const sd = sensoresDiesel(u);
   return {
     odometro: tem([...P.odometroCanM, ...P.odometroKm, ...P.odometroGpsM]),
-    diesel: tem([...P.combustivelDecilitros, ...P.combustivelL]),
-    tanque: tem([...P.nivelDecilitros, ...P.nivelL]),
+    diesel: sd.consumo !== undefined || tem([...P.combustivelDecilitros, ...P.combustivelL]),
+    tanque: sd.nivel !== undefined || tem([...P.nivelDecilitros, ...P.nivelL]),
     rpm: tem(P.rpm),
     ignicao: tem(P.ignicao),
     eventos: tem([...P.conducao, ...P.excesso]),
-    parametros: Object.keys(p ?? {}).sort(),
+    parametros: [...Object.keys(p ?? {}).sort(), ...Object.values(u.sens ?? {}).map((x) => `sensor "${x.n}" (${x.t}${x.p ? `: ${x.p}` : ""})`)],
   };
 }
 
@@ -175,36 +197,57 @@ export class Wialon {
         sortType: "sys_name",
       },
       force: 1,
-      // 0x1 dados básicos, 0x100 IMEI e aparelho, 0x400 última mensagem.
-      flags: 0x1 | 0x100 | 0x400,
+      // 0x1 dados básicos, 0x100 IMEI e aparelho, 0x400 última mensagem, 0x1000 sensores.
+      flags: 0x1 | 0x100 | 0x400 | 0x1000,
       from: 0,
       to: 0,
     });
     return j.items ?? [];
   }
 
-  /** Mensagens com dados (não SMS nem eventos) de uma unidade entre dois instantes. */
-  async mensagens(unidadeId: number, de: Date, ate: Date): Promise<MensagemWialon[]> {
+  /**
+   * Mensagens com dados (não SMS nem eventos) de uma unidade entre dois instantes. Se a unidade
+   * tem sensores de diesel, cada mensagem vem também com o valor calculado por eles.
+   */
+  async mensagens(u: Pick<UnidadeWialon, "id" | "sens">, de: Date, ate: Date): Promise<MensagemWialon[]> {
     const j = await this.chamar<{ messages: MensagemWialon[] }>("messages/load_interval", {
-      itemId: unidadeId,
+      itemId: u.id,
       timeFrom: Math.floor(de.getTime() / 1000),
       timeTo: Math.floor(ate.getTime() / 1000),
       flags: 0x0000,
       flagsMask: 0xff00,
       loadCount: 0xffffffff,
     });
-    return j.messages ?? [];
+    const msgs = j.messages ?? [];
+    const sd = sensoresDiesel(u);
+    if (!msgs.length || (sd.nivel === undefined && sd.consumo === undefined)) return msgs;
+    // Os sensores são calculados sobre as mensagens que acabaram de ser carregadas na sessão.
+    const valores = await this.chamar<Record<string, unknown>[]>("unit/calc_sensors", {
+      source: "", indexFrom: 0, indexTo: msgs.length - 1, unitId: u.id, sensorId: 0,
+    }).catch((e) => { console.error((e as Error).message); return null; });
+    if (!Array.isArray(valores) || valores.length !== msgs.length) return msgs;
+    return msgs.map((m, i) => ({
+      ...m,
+      sens: {
+        nivelL: sd.nivel !== undefined ? valorSensor(valores[i]?.[sd.nivel]) : undefined,
+        consumoL: sd.consumo !== undefined ? valorSensor(valores[i]?.[sd.consumo]) : undefined,
+      },
+    }));
   }
 }
 
 export type ClienteWialon = { nome: string; wialonToken: string | null; wialonHost: string | null };
+
+// Clientes que mudaram de nome: WIALON_CLIENTES ainda pode trazer o nome antigo.
+const NOME_ANTIGO: Record<string, string> = { "svm trucks": "avm truck" };
 
 /** Token e servidor do Wialon deste cliente, ou null se ele não usa o Wialon. */
 export function credenciaisWialon(c: ClienteWialon, env: Record<string, string | undefined> = process.env): { token: string; host: string | undefined } | null {
   if (c.wialonToken) return { token: c.wialonToken, host: c.wialonHost || undefined };
   if (!env.WIALON_TOKEN) return null;
   const lista = (env.WIALON_CLIENTES ?? "").split(",").map((n) => n.trim().toLowerCase()).filter(Boolean);
-  if (lista.length && !lista.includes(c.nome.trim().toLowerCase())) return null;
+  const nome = c.nome.trim().toLowerCase();
+  if (lista.length && !lista.includes(nome) && !lista.includes(NOME_ANTIGO[nome] ?? "")) return null;
   return { token: env.WIALON_TOKEN, host: env.WIALON_HOST || undefined };
 }
 
@@ -316,7 +359,7 @@ async function espelharConta(db: PrismaClient, api: Wialon, clienteId: string, a
     if (!u.lmsg || (c.ultimaPosicaoEm && u.lmsg.t * 1000 <= c.ultimaPosicaoEm.getTime())) continue;
     try {
       const de = c.ultimaPosicaoEm ? new Date(c.ultimaPosicaoEm.getTime() + 1000) : new Date(agora.getTime() - INICIO_MS);
-      const linhas = (await api.mensagens(u.id, de, new Date(u.lmsg.t * 1000)))
+      const linhas = (await api.mensagens(u, de, new Date(u.lmsg.t * 1000)))
         .map(paraPosicaoWialon)
         .filter((l) => l !== null)
         .map((l) => ({ caminhaoId: c.id, ...l }));
@@ -374,7 +417,7 @@ export async function historicoWialon(db: PrismaClient, api: Wialon, clienteId: 
       const dias = new Set<number>();
       while (ate > desde && Date.now() < fimDoPrazo) {
         const de = new Date(Math.max(desde.getTime(), ate.getTime() - PEDACO_HISTORICO_MS));
-        const linhas = (await api.mensagens(u.id, de, ate))
+        const linhas = (await api.mensagens(u, de, ate))
           .map(paraPosicaoWialon)
           .filter((l) => l !== null)
           .map((l) => ({ caminhaoId: c.id, ...l }));

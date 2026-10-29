@@ -16,7 +16,7 @@ export const wialon: FonteTelemetria = {
     // Dia do Paraguai: 00h às 24h de lá (UTC-3).
     const ini = new Date(dia.getTime() + 3 * 3600_000);
     const fim = new Date(ini.getTime() + 24 * 3600_000 - 1000);
-    const pontos = (await api.mensagens(u.id, ini, fim)).map(paraPosicaoWialon).filter((p) => p !== null);
+    const pontos = (await api.mensagens(u, ini, fim)).map(paraPosicaoWialon).filter((p) => p !== null);
     return resumirDia(pontos, eq.odometroAnteriorKm);
   },
 };

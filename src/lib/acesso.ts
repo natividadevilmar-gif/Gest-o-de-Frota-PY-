@@ -30,7 +30,7 @@ export async function clienteOpcional() {
     const jar = await cookies();
     clienteId = jar.get(COOKIE_CLIENTE)?.value ?? null;
     if (!clienteId) {
-      // Sem escolha feita, abre o cliente mais antigo (o de demonstração, AVM Truck).
+      // Sem escolha feita, abre o cliente mais antigo (o de demonstração, SVM Trucks).
       const primeiro = await db.cliente.findFirst({ orderBy: { criadoEm: "asc" }, select: { id: true } });
       clienteId = primeiro?.id ?? null;
     }

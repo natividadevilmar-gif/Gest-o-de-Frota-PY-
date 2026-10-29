@@ -98,7 +98,7 @@ export async function listarUnidadesWialon(_: ListaUnidades): Promise<ListaUnida
         imei: u.uid ?? null,
         placa: (u.uid && porImei.get(u.uid)) || null,
         ultima: u.lmsg ? new Date(u.lmsg.t * 1000).toISOString() : null,
-        telemetria: telemetriaDaMensagem(u.lmsg),
+        telemetria: telemetriaDaMensagem(u.lmsg, u),
       })),
     };
   } catch (e) {
