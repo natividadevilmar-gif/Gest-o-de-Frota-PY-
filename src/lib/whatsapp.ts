@@ -79,6 +79,10 @@ export function mensagemOcorrencia(o: Ocorr, idioma: "pt" | "es"): string {
       `📍 Aviso de localização\n\n${ola}, o caminhão ${o.placa}: ${o.titulo.replace(`${o.placa} `, "")}. Confirme se está tudo certo, por favor.`,
       `📍 Aviso de ubicación\n\n${ola}, el camión ${o.placa} entró en un área controlada. Confirmá si está todo bien, por favor.`,
     ],
+    desvio_rota: [
+      `🛣️ Desvio de rota\n\n${ola}, o caminhão ${o.placa} saiu da rota prevista do frete (${o.detalhe}). Está tudo bem? Responda o motivo, por favor.`,
+      `🛣️ Desvío de ruta\n\n${ola}, el camión ${o.placa} salió de la ruta prevista del flete. ¿Está todo bien? Respondé el motivo, por favor.`,
+    ],
     saida_cerca: [
       `📍 Aviso de localização\n\n${ola}, o caminhão ${o.placa}: ${o.titulo.replace(`${o.placa} `, "")}. Confirme se está tudo certo, por favor.`,
       `📍 Aviso de ubicación\n\n${ola}, el camión ${o.placa} salió de un área controlada. Confirmá si está todo bien, por favor.`,

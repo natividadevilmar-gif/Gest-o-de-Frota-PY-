@@ -266,6 +266,11 @@ model Viagem {
   // Rota de pedágio escolhida no frete, para o pedágio previsto.
   rotaPedagioId   String?
   rotaPedagio     RotaPedagio? @relation(fields: [rotaPedagioId], references: [id], onDelete: SetNull)
+  // Caminho previsto de origem a destino ([[lat, lng], ...]), para o alerta de desvio de rota.
+  rota            Json?
+  rotaKm          Float?
+  // Por que a rota não saiu (cidade não achada, sem conexão...); null quando deu certo.
+  rotaErro        String?
   criadoEm        DateTime     @default(now())
 
   @@index([caminhaoId, data])

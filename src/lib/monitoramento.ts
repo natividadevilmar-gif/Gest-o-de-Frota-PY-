@@ -5,6 +5,8 @@ import { juntarNumero } from "@/lib/whatsapp";
 import { frotaNoMapa, type CaminhaoMapa } from "@/lib/rastreio/dados";
 import { diaNoParaguai, distanciaKm } from "@/lib/rastreio/rotas";
 import { ehImei, LIMITE_VELOCIDADE_KMH } from "@/lib/telemetria/posicoes";
+import { calcularRota, distanciaAteRotaKm, foraDaRota, type PontoRota } from "@/lib/rastreio/rotaFrete";
+import { Prisma } from "@prisma/client";
 
 // Regras da central de monitoramento. Cada verificação olha a frota agora, compara com
 // o que já se sabia (cerca atual de cada caminhão) e grava as ocorrências novas.
@@ -21,7 +23,39 @@ export const NOME_OCORRENCIA: Record<string, string> = {
   aceleracao: "Aceleração brusca",
   curva: "Curva brusca",
   pedagio_sem_registro: "Pedágio não registrado",
+  desvio_rota: "Desvio de rota",
 };
+
+/** Calcula e guarda a rota prevista de um frete (origem → destino). */
+export async function salvarRota(viagemId: string) {
+  const v = await db.viagem.findUnique({ where: { id: viagemId }, select: { origem: true, paisOrigem: true, destino: true, paisDestino: true } });
+  if (!v) return;
+  const r = await calcularRota(v);
+  await db.viagem.update({
+    where: { id: viagemId },
+    data: "erro" in r ? { rota: Prisma.DbNull, rotaKm: null, rotaErro: r.erro } : { rota: r.rota as unknown as Prisma.InputJsonValue, rotaKm: r.km, rotaErro: null },
+  });
+}
+
+/** Frete em curso de cada caminhão: saiu há no máximo 15 dias e ainda não passou da data de entrega. */
+async function fretesEmCurso(clienteId: string | null, agora: Date) {
+  const hoje = diaNoParaguai(agora);
+  const vs = await db.viagem.findMany({
+    where: {
+      ...(clienteId ? { caminhao: { clienteId } } : {}),
+      data: { lte: hoje, gte: new Date(hoje.getTime() - 15 * 86_400_000) },
+      OR: [{ dataEntrega: null }, { dataEntrega: { gte: hoje } }],
+    },
+    orderBy: [{ data: "desc" }, { criadoEm: "desc" }],
+    select: { id: true, caminhaoId: true, origem: true, destino: true, rota: true, rotaErro: true },
+  });
+  const porCaminhao = new Map<string, (typeof vs)[number]>();
+  for (const v of vs) if (!porCaminhao.has(v.caminhaoId)) porCaminhao.set(v.caminhaoId, v);
+  return porCaminhao;
+}
+
+// Rotas que faltam são calculadas aos poucos (uma por verificação), sem repetir a mesma em seguida.
+const tentouRota = new Map<string, number>();
 
 /** Alerta de pedágio não registrado suspenso: não gera alertas novos e some da fila. */
 export const ALERTA_PEDAGIO_ATIVO = false;
@@ -37,10 +71,16 @@ type Nova = {
 };
 
 export async function verificarFrota(clienteId: string | null, agora = new Date()): Promise<{ frota: CaminhaoMapa[]; novas: number }> {
-  const [frota, cercas] = await Promise.all([
+  const [frota, cercas, emCurso] = await Promise.all([
     frotaNoMapa(clienteId, agora),
     db.cerca.findMany({ where: { ativa: true, ...(clienteId ? { clienteId } : {}) } }),
+    fretesEmCurso(clienteId, agora),
   ]);
+  const falta = [...emCurso.values()].find((v) => !v.rota && !v.rotaErro && agora.getTime() - (tentouRota.get(v.id) ?? 0) > 10 * 60_000);
+  if (falta) {
+    tentouRota.set(falta.id, agora.getTime());
+    await salvarRota(falta.id).catch(() => {});
+  }
   const estado = new Map(
     (await db.caminhao.findMany({ where: clienteId ? { clienteId } : {}, select: { id: true, cercaAtualId: true, rastreadorId: true } })).map((c) => [c.id, c]),
   );
@@ -68,6 +108,18 @@ export async function verificarFrota(clienteId: string | null, agora = new Date(
     }
     if (c.situacao === "movimento" && (horaPy >= 22 || horaPy < 5)) {
       novas.push({ ...base, tipo: "ignicao_noturna", gravidade: "media", titulo: `${c.placa} rodando às ${horaPy}h`, detalhe: `Caminhão em movimento fora do horário normal${onde}`, chave: `${c.id}:noturna:${dia}` });
+    }
+
+    // Fora da rota prevista do frete em curso (um alerta por caminhão e frete a cada hora).
+    const frete = emCurso.get(c.id);
+    const rota = Array.isArray(frete?.rota) ? (frete!.rota as unknown as PontoRota[]) : null;
+    if (frete && rota && c.situacao === "movimento" && foraDaRota(c as { lat: number; lng: number }, rota)) {
+      const km = Math.round(distanciaAteRotaKm(c as { lat: number; lng: number }, rota));
+      novas.push({
+        ...base, tipo: "desvio_rota", gravidade: "alta",
+        titulo: `${c.placa} fora da rota`, detalhe: `${km} km fora da rota ${frete.origem} → ${frete.destino}${onde}`,
+        chave: `${c.id}:desvio:${frete.id}:${minuto.slice(0, 13)}`,
+      });
     }
 
     // Cercas do mesmo cliente: entrada e saída.

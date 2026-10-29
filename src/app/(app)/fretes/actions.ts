@@ -1,6 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
+import { salvarRota } from "@/lib/monitoramento";
 import { z } from "zod";
 import { clienteAtual, podeEditarCadastros } from "@/lib/acesso";
 import { paraUsd, type Moeda } from "@/lib/cambio";
@@ -58,7 +60,7 @@ export async function lancarFrete(_: Resultado, form: FormData): Promise<Resulta
   const cot = await cotacaoDoDia();
   const moeda = f.moeda as Moeda;
   const freteUsd = paraUsd(valor, moeda, cot);
-  await db.viagem.create({
+  const nova = await db.viagem.create({
     data: {
       caminhaoId: cam.id,
       motoristaId: motorista?.id ?? null,
@@ -85,6 +87,8 @@ export async function lancarFrete(_: Resultado, form: FormData): Promise<Resulta
       rotaPedagioId: f.rotaPedagioId && (await db.rotaPedagio.findUnique({ where: { id: f.rotaPedagioId }, select: { id: true } })) ? f.rotaPedagioId : null,
     },
   });
+  // A rota prevista (para o alerta de desvio) é calculada depois de responder, sem segurar a tela.
+  after(() => salvarRota(nova.id).catch((e) => console.error("rota do frete:", (e as Error).message)));
   revalidatePath("/", "layout");
   return { ok: true, msg: `Frete ${f.origem} → ${f.destino} lançado em ${cam.placa}: ${usd(freteUsd, 2)}${moeda === "USD" ? "" : ` (${num(valor, 2)} ${moeda})`}.` };
 }
@@ -102,4 +106,13 @@ export async function excluirFrete(form: FormData) {
   if (!podeEditarCadastros(sessao)) return;
   await db.viagem.deleteMany({ where: { id: String(form.get("id")), caminhao: { clienteId: cliente.id } } });
   revalidatePath("/", "layout");
+}
+
+/** Refaz a rota prevista de um frete (por exemplo, depois de a cidade não ter sido achada). */
+export async function recalcularRota(form: FormData) {
+  const { cliente } = await clienteAtual();
+  const id = String(form.get("id") ?? "");
+  if (!(await db.viagem.findFirst({ where: { id, caminhao: { clienteId: cliente.id } }, select: { id: true } }))) return;
+  await salvarRota(id);
+  revalidatePath("/fretes");
 }
