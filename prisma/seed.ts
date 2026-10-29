@@ -13,7 +13,7 @@ const hoje = new Date();
 const dia = (offset: number) => new Date(Date.UTC(hoje.getUTCFullYear(), hoje.getUTCMonth(), hoje.getUTCDate() + offset));
 
 const CLIENTES = [
-  { nome: "AVM Truck", ruc: "80012345-6", cidade: "Santa Rita", diasEmAtraso: 0, frota: true },
+  { nome: "SVM Trucks", ruc: "80012345-6", cidade: "Santa Rita", diasEmAtraso: 0, frota: true },
   { nome: "Agrotransporte Naranjal", cidade: "Naranjal", diasEmAtraso: 0, planos: { BASICO: 18, GESTAO: 12, VIDEO: 0 } },
   { nome: "Combustibles del Este", cidade: "Ciudad del Este", diasEmAtraso: 9, idioma: "es", planos: { BASICO: 0, GESTAO: 4, VIDEO: 14 } },
   { nome: "Cooperativa San Alberto", cidade: "San Alberto", diasEmAtraso: 0, planos: { BASICO: 25, GESTAO: 10, VIDEO: 0 } },
@@ -60,7 +60,7 @@ async function main() {
     }
 
     await db.usuario.create({
-      data: { email: "gestor@avmtruck.com.py", nome: "Gestor AVM Truck", senhaHash: senha, papel: "GESTOR", clienteId: cliente.id },
+      data: { email: "gestor@avmtruck.com.py", nome: "Gestor SVM Trucks", senhaHash: senha, papel: "GESTOR", clienteId: cliente.id },
     });
 
     for (const f of FROTA) {
