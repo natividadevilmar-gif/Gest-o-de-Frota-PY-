@@ -52,6 +52,10 @@ button.pri,.btn.pri{background:var(--accent);color:var(--accent-ink);border-colo
 .kpi b small{font-size:.9rem;color:var(--muted);font-weight:500;margin-left:3px}
 .kpi .sub{font-size:.82rem;color:var(--muted)}
 .tw{overflow-x:auto}
+/* Tabela larga: a barra de rolagem lateral fica presa no pé da tela (RolagemFixa). */
+.tw-fixa{scrollbar-width:none}.tw-fixa::-webkit-scrollbar{display:none}
+.tw-barra{position:sticky;bottom:0;z-index:2;overflow-x:auto;overflow-y:hidden;height:16px;background:var(--surface);border-top:1px solid var(--line);margin:-12px 0 0}
+.tw-barra::-webkit-scrollbar{height:14px}.tw-barra::-webkit-scrollbar-track{background:var(--surface-2)}.tw-barra::-webkit-scrollbar-thumb{background:var(--muted);border-radius:7px;border:3px solid var(--surface-2)}
 table{border-collapse:collapse;width:100%;font-size:.88rem}
 th{font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600;text-align:left;padding:8px;border-bottom:1px solid var(--line);white-space:nowrap}
 td{padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
