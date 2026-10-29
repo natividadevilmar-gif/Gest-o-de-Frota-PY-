@@ -4,6 +4,8 @@ import { clienteAtual } from "@/lib/acesso";
 import { dataBr, num } from "@/lib/formato";
 import { MAX_DIAS_RELATORIO, relatorioDaFrota } from "@/lib/rastreio/relatorio";
 import { diaNoParaguai } from "@/lib/rastreio/rotas";
+import { apiDoCliente, telemetriaDaMensagem, type TelemetriaUnidade } from "@/lib/rastreio/wialon";
+import { db } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -21,6 +23,28 @@ const saidaBr = (d: Date, comData: boolean) =>
   d.toLocaleString("pt-BR", { timeZone: "America/Asuncion", hour: "2-digit", minute: "2-digit", ...(comData ? { day: "2-digit", month: "2-digit" } : {}) });
 const litros = (l: number | null) => (l == null ? "–" : `${num(l, 1)} l`);
 
+type Envio = { placa: string; ultima: Date | null; t: TelemetriaUnidade };
+
+/** O que o rastreador de cada caminhão manda pelo Wialon agora (sem esperar mais de 8 s pelo Wialon). */
+async function envioDosRastreadores(cliente: { id: string; nome: string; wialonToken: string | null; wialonHost: string | null }): Promise<Envio[] | null> {
+  const api = apiDoCliente(cliente);
+  if (!api) return null;
+  try {
+    const [unidades, caminhoes] = await Promise.race([
+      Promise.all([api.unidades(), db.caminhao.findMany({ where: { clienteId: cliente.id, rastreadorId: { not: null } }, select: { placa: true, rastreadorId: true } })]),
+      new Promise<never>((_, nao) => setTimeout(() => nao(new Error("demorou")), 8000)),
+    ]);
+    const porImei = new Map(caminhoes.map((c) => [c.rastreadorId!, c.placa]));
+    return unidades
+      .flatMap((u) => (u.uid && porImei.has(u.uid) ? [{ placa: porImei.get(u.uid)!, ultima: u.lmsg ? new Date(u.lmsg.t * 1000) : null, t: telemetriaDaMensagem(u.lmsg, u) }] : []))
+      .sort((a, b) => a.placa.localeCompare(b.placa));
+  } catch {
+    return null;
+  }
+}
+
+const sim = (v: boolean) => (v ? <span className="pill ok">sim</span> : <span className="muted">–</span>);
+
 export default async function Telemetria({ searchParams }: { searchParams: Promise<{ de?: string; ate?: string }> }) {
   const { cliente } = await clienteAtual();
   const q = await searchParams;
@@ -30,7 +54,7 @@ export default async function Telemetria({ searchParams }: { searchParams: Promi
   if (ate < de) ate = de;
   const cortado = ate.getTime() - de.getTime() >= MAX_DIAS_RELATORIO * 86_400_000;
   if (cortado) ate = new Date(de.getTime() + (MAX_DIAS_RELATORIO - 1) * 86_400_000);
-  const linhas = await relatorioDaFrota(cliente.id, de, ate);
+  const [linhas, envio] = await Promise.all([relatorioDaFrota(cliente.id, de, ate), envioDosRastreadores(cliente)]);
 
   // Total da frota: soma dos km, horas e diesel; médias pesadas pelo total.
   const com = linhas.flatMap((l) => (l.relatorio ? [l.relatorio] : []));
@@ -123,6 +147,31 @@ export default async function Telemetria({ searchParams }: { searchParams: Promi
           O tanque no fim maior que no início indica abastecimento no período.
         </p>
       </div>
+      {envio && envio.length > 0 && (
+        <div className="card">
+          <div className="card-h"><h2>O que cada rastreador envia</h2><p>Última mensagem de cada caminhão no Wialon</p></div>
+          <div className="tw">
+            <table>
+              <thead><tr><th>Caminhão</th><th>Última mensagem</th><th>Odômetro</th><th>Diesel gasto (CAN)</th><th>Tanque</th><th>RPM</th><th>Ignição</th><th>Freadas e excessos</th></tr></thead>
+              <tbody>
+                {envio.map((e) => (
+                  <tr key={e.placa}>
+                    <td><Placa placa={e.placa} /></td>
+                    <td>{e.ultima ? e.ultima.toLocaleString("pt-BR", { timeZone: "America/Asuncion" }) : "sem mensagens"}</td>
+                    <td>{sim(e.t.odometro)}</td>
+                    <td>{sim(e.t.diesel)}</td>
+                    <td>{sim(e.t.tanque)}</td>
+                    <td>{sim(e.t.rpm)}</td>
+                    <td>{sim(e.t.ignicao)}</td>
+                    <td>{sim(e.t.eventos)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="note">Sem “Diesel gasto (CAN)”, o consumo do relatório é calculado pela queda do tanque. Sem tanque nem CAN, o diesel fica com “–”.</p>
+        </div>
+      )}
     </>
   );
 }
