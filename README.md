@@ -36,7 +36,7 @@ Para ativar a leitura de recibos por foto e de despesas faladas, defina `ANTHROP
 Logins de exemplo (senha `frota2026`):
 
 - `admin@gestaodefrota.com.py`: equipe interna, vê todos os clientes
-- `gestor@avmtruck.com.py`: gestor da AVM Truck, cliente de demonstração com 8 caminhões
+- `gestor@svmtrucks.com.py`: gestor da SVM Trucks, cliente de demonstração com 8 caminhões
 - Motorista (só lança despesas): celular `0981123456`, PIN `123456`
 
 Outros comandos:
