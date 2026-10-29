@@ -107,6 +107,33 @@ const QUASE_PARADO_KMH = 5;
 const LACUNA_MAX_MS = 2 * 3600_000;
 const um = (x: number) => Math.round(x * 10) / 10;
 
+/** Subida do tanque acima disso é abastecimento; abaixo é o diesel balançando na boia. */
+const ABASTECIMENTO_MIN_L = 15;
+const mediana = (v: number[]) => { const o = [...v].sort((a, b) => a - b); return o[Math.floor(o.length / 2)]; };
+
+/**
+ * Diesel gasto pela boia do tanque, para quem não manda o total consumido pela CAN:
+ * nível do início − nível do fim + o que foi abastecido no meio. O nível é suavizado
+ * (mediana de 5 leituras) para o balanço do diesel não contar como consumo.
+ */
+export function consumoPeloTanque(pontos: { nivelCombustivelL?: number | null; velocidadeKmh: number }[]) {
+  const ps = pontos.filter((p) => p.nivelCombustivelL != null);
+  if (ps.length < 2) return null;
+  const bruto = ps.map((p) => p.nivelCombustivelL!);
+  const nivel = bruto.map((_, i) => mediana(bruto.slice(Math.max(0, i - 2), i + 3)));
+  let abastecido = 0, subida = 0, paradoL = 0;
+  for (let i = 1; i < nivel.length; i++) {
+    const d = nivel[i] - nivel[i - 1];
+    if (d >= 0) { subida += d; continue; }
+    if (subida >= ABASTECIMENTO_MIN_L) abastecido += subida;
+    subida = 0;
+    if (ps[i - 1].velocidadeKmh < QUASE_PARADO_KMH && ps[i].velocidadeKmh < QUASE_PARADO_KMH) paradoL -= d;
+  }
+  if (subida >= ABASTECIMENTO_MIN_L) abastecido += subida;
+  const total = Math.max(0, nivel[0] - nivel.at(-1)! + abastecido);
+  return { total: um(total), parado: um(Math.min(paradoL, total)), abastecido: um(abastecido) };
+}
+
 export function relatorioDoDia(pontos: PontoDia[]): RelatorioDia | null {
   if (!pontos.length) return null;
   const ps = [...pontos].sort((a, b) => a.data.getTime() - b.data.getTime());
@@ -133,8 +160,10 @@ export function relatorioDoDia(pontos: PontoDia[]): RelatorioDia | null {
     if (p.velocidadeKmh >= QUASE_PARADO_KMH) andandoMs += dt(q.velocidadeKmh >= QUASE_PARADO_KMH);
   }
 
-  const litrosTotal = resumo?.litrosCan ?? null;
-  const litrosParado = litrosTotal == null ? null : um(Math.min(parado, litrosTotal));
+  // Sem o total da CAN, o consumo sai da queda do tanque (como o "consumo pela boia" do Wialon).
+  const boia = resumo?.litrosCan == null ? consumoPeloTanque(ps) : null;
+  const litrosTotal = resumo?.litrosCan ?? boia?.total ?? null;
+  const litrosParado = litrosTotal == null ? null : um(Math.min(boia ? boia.parado : parado, litrosTotal));
   const litrosViagem = litrosTotal == null ? null : um(litrosTotal - (litrosParado ?? 0));
   const nivel = ps.filter((p) => p.nivelCombustivelL != null);
   const odoFim = ps.findLast((p) => p.odometroKm != null)?.odometroKm;

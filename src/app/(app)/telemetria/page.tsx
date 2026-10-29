@@ -119,7 +119,7 @@ export default async function Telemetria({ searchParams }: { searchParams: Promi
           Km/l = km rodados ÷ consumido em viagem · consumo parado = diesel gasto com o caminhão abaixo de 5 km/h · velocidade média = km ÷ tempo andando
         </div>
         <p className="note">
-          Diesel e tanque aparecem quando o rastreador manda a rede CAN (ou o sensor de nível) para o Wialon; sem isso ficam com “–”.
+          Diesel e tanque aparecem quando o rastreador manda a rede CAN ou o sensor de nível (boia) para o Wialon; sem isso ficam com “–”. Sem o total da CAN, o consumo é calculado pela queda do tanque, descontando abastecimentos.
           O tanque no fim maior que no início indica abastecimento no período.
         </p>
       </div>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ehImei, relatorioDoDia, resumirDia, saidaDoDia, type PontoDia } from "./posicoes";
+import { ehImei, consumoPeloTanque, relatorioDoDia, resumirDia, saidaDoDia, type PontoDia } from "./posicoes";
 
 const t0 = new Date("2026-10-25T10:00:00Z").getTime();
 const ponto = (min: number, x: Partial<PontoDia>): PontoDia => ({
@@ -61,5 +61,31 @@ describe("saída do dia", () => {
   });
   it("sem andar, não tem saída", () => {
     expect(saidaDoDia([p(0, 0), p(10, 4)])).toBeNull();
+  });
+});
+
+describe("consumo pela boia do tanque", () => {
+  const n = (l: number, v = 60) => ({ nivelCombustivelL: l, velocidadeKmh: v });
+  it("início − fim + abastecimento, sem contar o balanço da boia", () => {
+    // 400 → 300 andando (com balanço ±3), abastece 200, desce até 450.
+    const pts = [
+      ...[400, 403, 395, 390, 388, 380, 377, 370, 360, 350, 340, 330, 320, 310, 300].map((l) => n(l)),
+      ...[300, 300, 350, 420, 500, 500, 500, 500, 500].map((l) => n(l, 0)),
+      ...[495, 490, 485, 480, 470, 465, 460, 455, 450].map((l) => n(l)),
+    ];
+    const r = consumoPeloTanque(pts)!;
+    expect(r.abastecido).toBeGreaterThanOrEqual(170);
+    expect(r.total).toBeGreaterThan(140);
+    expect(r.total).toBeLessThan(160);
+  });
+  it("relatório usa a boia quando não há total da CAN", () => {
+    const t = (min: number) => new Date(Date.UTC(2026, 9, 29, 12, min));
+    const pts = Array.from({ length: 20 }, (_, i) => ({
+      data: t(i * 3), lat: -25.5, lng: -54.6 + i * 0.01, velocidadeKmh: 70, ignicao: true,
+      odometroKm: null, litrosTotal: null, rpm: null, evento: null, nivelCombustivelL: 400 - i,
+    }));
+    const r = relatorioDoDia(pts)!;
+    expect(r.litrosTotal).toBeGreaterThanOrEqual(14);
+    expect(r.litrosViagem).not.toBeNull();
   });
 });
