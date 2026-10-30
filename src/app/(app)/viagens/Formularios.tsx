@@ -23,6 +23,8 @@ const MOEDA_DIESEL: Record<string, string> = { PY: "PYG", BR: "BRL", AR: "ARS", 
 
 /** Comissão do motorista sobre o frete (base da SVM); pode ser alterada na simulação. */
 const COMISSAO_PADRAO = 16;
+/** Reserva de manutenção sobre o frete (base da SVM); pode ser alterada na simulação. */
+const MANUTENCAO_PADRAO = 5;
 
 /** Vazio, o caminhão faz mais km por litro que carregado. */
 const FATOR_VAZIO = 1.3;
@@ -94,6 +96,7 @@ export function Simulador({ caminhoes, rotas, pracas, taxas, precoDiesel, diesel
   const casasFrete = (m: string, u: string) => (m === "PYG" ? 0 : u === "kg" ? 3 : 2);
   const [pr, setPr] = useState(arred((26 * taxaDe(moeda0)) / porT(unidade0), casasFrete(moeda0, unidade0)));
   const [comissao, setComissao] = useState(COMISSAO_PADRAO);
+  const [manutencao, setManutencao] = useState(MANUTENCAO_PADRAO);
   const [voltaVazio, setVoltaVazio] = useState(true);
   const [kmLC, setKmLC] = useState(kmLDe(c));
   const [kmLV, setKmLV] = useState(arred(kmLDe(c) * FATOR_VAZIO, 1));
@@ -116,8 +119,8 @@ export function Simulador({ caminhoes, rotas, pracas, taxas, precoDiesel, diesel
   const ped = c && noCaminho ? previstoRota(noCaminho.flatMap((id) => porId.get(id) ?? []), c.eixos, taxas) : null;
   const pedagioIda = ped?.usd ?? 0;
   const prUsdT = (pr / taxaDe(moedaFrete)) * porT(unidade);
-  const s = simularFrete({ toneladas: ton, freteTonelada: prUsdT, kmIda: km, voltaVazio, kmLCarregado: kmLC, kmLVazio: kmLV, precoDiesel: diesel, outrosKm, pedagioIda, extras, comissaoPct: comissao });
-  const sugerido = freteSugeridoTonelada(s.custoFixo, ton, alvo, comissao);
+  const s = simularFrete({ toneladas: ton, freteTonelada: prUsdT, kmIda: km, voltaVazio, kmLCarregado: kmLC, kmLVazio: kmLV, precoDiesel: diesel, outrosKm, pedagioIda, extras, comissaoPct: comissao, manutencaoPct: manutencao });
+  const sugerido = freteSugeridoTonelada(s.custoFixo, ton, alvo, comissao + manutencao);
   // Valor por tonelada em dólar escrito na moeda e unidade do frete.
   // Total em dólar também na moeda do frete (₲ no Paraguai); nada quando o frete é em dólar.
   const local = (v: number | null) => (moedaFrete === "USD" || v == null ? null : <b className="t-local">{SIMBOLO_MOEDA[moedaFrete] ?? moedaFrete} {num(v * taxaDe(moedaFrete), moedaFrete === "PYG" ? 0 : 2)}</b>);
@@ -266,17 +269,18 @@ export function Simulador({ caminhoes, rotas, pracas, taxas, precoDiesel, diesel
         <label htmlFor="sDiesel">Diesel por litro ({SIMBOLO_MOEDA[moedaDiesel] ?? moedaDiesel})<Numero key={moedaDiesel} id="sDiesel" casas={casasDiesel(moedaDiesel)} inteiro={moedaDiesel === "PYG"} min="0" valor={dieselLocal} mudar={setDieselLocal} /></label>
         <label htmlFor="sOutros">Outros custos por km (USD)<Numero id="sOutros" casas={2} min="0" valor={outrosKm} mudar={setOutrosKm} /></label>
         <label htmlFor="sComissao">Comissão do motorista (% do frete)<Numero id="sComissao" casas={1} min="0" max="50" valor={comissao} mudar={setComissao} /></label>
+        <label htmlFor="sManutencao">Manutenção (% do frete)<Numero id="sManutencao" casas={1} min="0" max="50" valor={manutencao} mudar={setManutencao} /></label>
         <label htmlFor="sExtras">Aduana, despachante, chapa (USD)<Numero id="sExtras" casas={2} min="0" valor={extras} mudar={setExtras} /></label>
       </form>
       <p className="note">
         Diesel: {fonteDiesel}. Pode alterar o valor para esta simulação.<br />
-        km/l {c?.kmL ? "medido pela CAN neste mês" : "padrão de 2,5 (sem leitura CAN no mês)"}; outros custos por km {c?.outrosKm ? "das despesas do mês (manutenção, pneus, motorista, seguro…)" : "sem despesas no mês: informe manutenção, pneus, motorista e seguro por km"}.
+        km/l {c?.kmL ? "medido pela CAN neste mês" : "padrão de 2,5 (sem leitura CAN no mês)"}; outros custos por km {c?.outrosKm ? "das despesas do mês (manutenção, pneus, motorista, seguro…)" : "sem despesas no mês: informe pneus, motorista e seguro por km (a manutenção já entra em % do frete)"}.
       </p>
 
       <div className="resumo-frete">
         <div><span>Distância</span><b>{num(s.kmTotal)} km</b><small>{num(km)} ida{voltaVazio ? ` + ${num(s.kmVolta)} volta vazio` : ", volta carregado"}</small></div>
         <div><span>Diesel</span><b>{num(s.litros)} litros</b><small>{usd(s.diesel)} a {usd(diesel, 2)}/l{moedaDiesel !== "USD" ? ` (${SIMBOLO_MOEDA[moedaDiesel] ?? moedaDiesel} ${num(dieselLocal, casasDiesel(moedaDiesel))})` : ""}</small></div>
-        <div><span>Custo da viagem</span><b>{usd(s.custo)}</b>{local(s.custo)}<small>diesel {usd(s.diesel, 0)} + outros {usd(s.outros, 0)} + pedágio {usd(s.pedagio, 0)}{voltaVazio && s.pedagio ? ` (ida ${usd(pedagioIda, 0)} + volta ${usd(s.pedagioVolta, 0)})` : ""}{comissao ? ` + comissão ${num(comissao, comissao % 1 ? 1 : 0)}% ${usd(s.comissao, 0)}` : ""}{extras ? ` + extras ${usd(extras, 0)}` : ""}</small></div>
+        <div><span>Custo da viagem</span><b>{usd(s.custo)}</b>{local(s.custo)}<small>diesel {usd(s.diesel, 0)} + outros {usd(s.outros, 0)} + pedágio {usd(s.pedagio, 0)}{voltaVazio && s.pedagio ? ` (ida ${usd(pedagioIda, 0)} + volta ${usd(s.pedagioVolta, 0)})` : ""}{comissao ? ` + comissão ${num(comissao, comissao % 1 ? 1 : 0)}% ${usd(s.comissao, 0)}` : ""}{manutencao ? ` + manutenção ${num(manutencao, manutencao % 1 ? 1 : 0)}% ${usd(s.manutencao, 0)}` : ""}{extras ? ` + extras ${usd(extras, 0)}` : ""}</small></div>
         <div><span>Frete</span><b>{usd(s.frete)}</b>{local(s.frete)}<small>{num(ton)} t × {naMoeda(prUsdT)}{moedaFrete !== "USD" || unidade !== "t" ? ` (${usd(prUsdT, 2)}/t)` : ""}</small></div>
         <div><span>Margem</span><b className={s.margem < 0 ? "t-bad" : "t-ok"}>{usd(s.margem)} <small>{num(s.margemPct, 0)}%</small></b>{local(s.margem)}<small>custo de {usd(s.custoKm, 2)} por km rodado</small></div>
         <div>

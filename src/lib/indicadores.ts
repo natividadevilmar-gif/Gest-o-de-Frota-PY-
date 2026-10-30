@@ -223,6 +223,8 @@ export type EntradaSimulacao = {
   extras: number;
   /** Comissão do motorista, em % do frete. */
   comissaoPct?: number;
+  /** Reserva de manutenção, em % do frete. */
+  manutencaoPct?: number;
 };
 
 /**
@@ -238,11 +240,12 @@ export function simularFrete(e: EntradaSimulacao) {
   const pedagioVolta = e.voltaVazio ? e.pedagioIda : 0;
   const pedagio = e.pedagioIda + pedagioVolta;
   const frete = e.toneladas * e.freteTonelada;
-  const pct = (e.comissaoPct ?? 0) / 100;
-  const comissao = frete * pct;
-  // Custo que não depende do frete; a comissão cresce junto com ele.
+  const comissao = (frete * (e.comissaoPct ?? 0)) / 100;
+  const manutencao = (frete * (e.manutencaoPct ?? 0)) / 100;
+  const pctFrete = (e.comissaoPct ?? 0) + (e.manutencaoPct ?? 0);
+  // Custo que não depende do frete; comissão e manutenção crescem junto com ele.
   const custoFixo = diesel + outros + pedagio + e.extras;
-  const custo = custoFixo + comissao;
+  const custo = custoFixo + comissao + manutencao;
   const margem = frete - custo;
   return {
     kmVolta,
@@ -253,13 +256,14 @@ export function simularFrete(e: EntradaSimulacao) {
     pedagio,
     pedagioVolta,
     comissao,
+    manutencao,
     custoFixo,
     custo,
     frete,
     margem,
     margemPct: frete > 0 ? (margem / frete) * 100 : null,
     custoKm: kmTotal > 0 ? custo / kmTotal : null,
-    freteMinimoTonelada: freteSugeridoTonelada(custoFixo, e.toneladas, 0, e.comissaoPct),
+    freteMinimoTonelada: freteSugeridoTonelada(custoFixo, e.toneladas, 0, pctFrete),
   };
 }
 
@@ -273,7 +277,7 @@ export function dieselDaRota(paisOrigem: string, paisDestino: string, usdPorPais
   return paisOrigem === paisDestino ? a : (a + b) / 2;
 }
 
-/** Frete por tonelada que deixa a margem pedida (em %) sobre o custo, pagando a comissão (em % do frete). */
+/** Frete por tonelada que deixa a margem pedida (em %) sobre o custo, pagando o que é % do frete (comissão, manutenção). */
 export function freteSugeridoTonelada(custoFixo: number, toneladas: number, margemPct: number, comissaoPct = 0): number | null {
   const sobra = 1 - margemPct / 100 - comissaoPct / 100;
   return toneladas > 0 && sobra > 0 ? custoFixo / sobra / toneladas : null;
