@@ -183,10 +183,15 @@ async function telemetriaDoDia(ids: string[], agora: Date): Promise<Map<string, 
       (array_agg(rpm ORDER BY data DESC) FILTER (WHERE rpm IS NOT NULL))[1] AS rpm,
       (array_agg(satelites ORDER BY data DESC))[1] AS satelites,
       max("velocidadeKmh") AS "velMax",
-      count(*) FILTER (WHERE evento = 'excesso') AS excessos,
+      -- Excesso: o rastreador avisou, ou a velocidade do GPS passou do limite (como no relatório do mês).
+      greatest(count(*) FILTER (WHERE evento = 'excesso'),
+        count(*) FILTER (WHERE "velocidadeKmh" > ${LIMITE_VELOCIDADE_KMH} AND coalesce(anterior, 0) <= ${LIMITE_VELOCIDADE_KMH})) AS excessos,
       count(*) FILTER (WHERE evento = 'freada') AS freadas
-    FROM "Posicao"
-    WHERE "caminhaoId" IN (${Prisma.join(ids)}) AND data >= ${inicio}
+    FROM (
+      SELECT *, lag("velocidadeKmh") OVER (PARTITION BY "caminhaoId" ORDER BY data) AS anterior
+      FROM "Posicao"
+      WHERE "caminhaoId" IN (${Prisma.join(ids)}) AND data >= ${inicio}
+    ) p
     GROUP BY "caminhaoId"`;
   const um = (n: number) => Math.round(n * 10) / 10;
   return new Map(linhas.map((l) => [l.caminhaoId, {

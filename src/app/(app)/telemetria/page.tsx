@@ -4,6 +4,7 @@ import { clienteAtual } from "@/lib/acesso";
 import { dataBr, num } from "@/lib/formato";
 import { MAX_DIAS_RELATORIO, relatorioDaFrota } from "@/lib/rastreio/relatorio";
 import { diaNoParaguai } from "@/lib/rastreio/rotas";
+import { LIMITE_VELOCIDADE_KMH } from "@/lib/telemetria/posicoes";
 import { apiDoCliente, telemetriaDaMensagem, type TelemetriaUnidade } from "@/lib/rastreio/wialon";
 import { db } from "@/lib/db";
 
@@ -57,6 +58,9 @@ async function envioDosRastreadores(cliente: { id: string; nome: string; wialonT
 }
 
 const sim = (v: boolean) => (v ? <span className="pill ok">sim</span> : <span className="muted">–</span>);
+/** Quando o rastreador não manda o dado, mostra de onde a plataforma tira (o tanque, o GPS). */
+const ou = (v: boolean, alternativa: string | false) =>
+  v ? <span className="pill ok">sim</span> : alternativa ? <span className="pill">{alternativa}</span> : <span className="muted">–</span>;
 
 export default async function Telemetria({ searchParams }: { searchParams: Promise<{ de?: string; ate?: string }> }) {
   const { cliente } = await clienteAtual();
@@ -192,17 +196,17 @@ export default async function Telemetria({ searchParams }: { searchParams: Promi
                     <td><Placa placa={e.placa} /></td>
                     <td>{e.ultima ? e.ultima.toLocaleString("pt-BR", { timeZone: "America/Asuncion" }) : "sem mensagens"}</td>
                     <td>{sim(e.t.odometro)}</td>
-                    <td>{sim(e.t.diesel)}</td>
+                    <td>{ou(e.t.diesel, e.t.tanque && "pelo tanque")}</td>
                     <td>{sim(e.t.tanque)}</td>
-                    <td>{sim(e.t.rpm)}</td>
+                    <td>{ou(e.t.rpm, false)}</td>
                     <td>{sim(e.t.ignicao)}</td>
-                    <td>{sim(e.t.eventos)}</td>
+                    <td>{ou(e.t.eventos, "excessos pelo GPS")}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-          <p className="note">Sem “Diesel gasto (CAN)”, o consumo do relatório é calculado pela queda do tanque. Sem tanque nem CAN, o diesel fica com “–”.</p>
+          <p className="note">“Pelo tanque”: o rastreador não lê o diesel gasto na rede CAN, e o consumo é calculado pela queda do tanque. “Excessos pelo GPS”: os excessos de velocidade (acima de {LIMITE_VELOCIDADE_KMH} km/h) saem da velocidade do GPS. RPM só chega com o leitor CAN ligado no caminhão. Freadas bruscas precisam do acelerômetro do rastreador ativado na configuração do aparelho (pedir à instaladora).</p>
         </div>
       )}
     </>

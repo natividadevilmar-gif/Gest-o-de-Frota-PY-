@@ -74,11 +74,11 @@ export function PainelWialon({ cliente, conectado, servidor, servidores, ligados
                       <td>{u.placa ?? <span className="pill warn">não cadastrado</span>}</td>
                       <td>{u.ultima ? new Date(u.ultima).toLocaleString("pt-BR", { timeZone: "America/Asuncion" }) : "sem mensagens"}</td>
                       <td>{sim(u.telemetria.odometro)}</td>
-                      <td>{sim(u.telemetria.diesel)}</td>
+                      <td>{u.telemetria.diesel ? "sim" : u.telemetria.tanque ? "pelo tanque" : "–"}</td>
                       <td>{sim(u.telemetria.tanque)}</td>
                       <td>{sim(u.telemetria.rpm)}</td>
                       <td>{sim(u.telemetria.ignicao)}</td>
-                      <td>{sim(u.telemetria.eventos)}</td>
+                      <td>{u.telemetria.eventos ? "sim" : "excessos pelo GPS"}</td>
                     </tr>
                   ))}
                 </tbody>
