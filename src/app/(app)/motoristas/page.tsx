@@ -4,7 +4,7 @@ import { Placa } from "@/components/ui";
 import { clienteAtual, podeEditarCadastros } from "@/lib/acesso";
 import { db } from "@/lib/db";
 import { planoPermite } from "@/lib/indicadores";
-import { mudarIdioma, novoPin, removerAcesso } from "./actions";
+import { mudarIdioma, novoPin, removerAcesso, trocarCaminhao } from "./actions";
 import { ImportarPlanilha } from "./ImportarPlanilha";
 import { NovoAcesso } from "./NovoAcesso";
 
@@ -14,7 +14,7 @@ export default async function Motoristas() {
   const motoristas = await db.motorista.findMany({
     where: { clienteId: cliente.id },
     orderBy: { nome: "asc" },
-    include: { acesso: { select: { id: true, email: true, idioma: true } }, caminhoes: { select: { placa: true } } },
+    include: { acesso: { select: { id: true, email: true, idioma: true } }, caminhoes: { select: { id: true, placa: true } } },
   });
   const caminhoes = await db.caminhao.findMany({
     where: { clienteId: cliente.id },
@@ -47,7 +47,16 @@ export default async function Motoristas() {
               {motoristas.map((m) => (
                 <tr key={m.id}>
                   <td><Link href={`/motoristas/${m.id}`}><b>{m.nome}</b></Link><br /><small className="muted">ver despesas</small></td>
-                  <td>{m.caminhoes.length ? m.caminhoes.map((c) => <Placa key={c.placa} placa={c.placa} />) : "–"}</td>
+                  <td>
+                    <form action={trocarCaminhao} className="form" style={{ flexWrap: "nowrap" }}>
+                      <input type="hidden" name="motoristaId" value={m.id} />
+                      <select name="caminhaoId" defaultValue={m.caminhoes[0]?.id ?? ""} aria-label={`Caminhão de ${m.nome}`}>
+                        <option value="">Qualquer da frota</option>
+                        {caminhoes.map((c) => <option key={c.id} value={c.id}>{c.placa}</option>)}
+                      </select>
+                      <button type="submit">Salvar</button>
+                    </form>
+                  </td>
                   <td>{m.acesso ? <>{m.ddi ? `+${m.ddi} ` : ""}{m.acesso.email}</> : <span className="muted">sem acesso</span>}</td>
                   <td>
                     {m.acesso && (

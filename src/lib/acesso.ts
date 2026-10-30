@@ -55,6 +55,16 @@ export async function motoristaDaSessao(s: Sessao): Promise<string | null> {
   return u?.motoristaId ?? "";
 }
 
+/**
+ * Caminhões em que o motorista pode lançar despesa: os ligados a ele. Sem nenhum caminhão ligado
+ * (frota trazida do Wialon, por exemplo), pode escolher qualquer caminhão da transportadora.
+ */
+export async function filtroCaminhoesDoMotorista(clienteId: string, motoristaId: string | null): Promise<{ motoristaId?: string }> {
+  if (motoristaId === null) return {};
+  const ligados = motoristaId ? await db.caminhao.count({ where: { clienteId, motoristaId } }) : 0;
+  return ligados > 0 ? { motoristaId } : {};
+}
+
 export function podeEditarCadastros(s: Sessao) {
   return s.papel === "ADMIN" || s.papel === "GESTOR";
 }

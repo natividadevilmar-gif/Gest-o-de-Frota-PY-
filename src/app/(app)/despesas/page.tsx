@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Placa, PlanoNecessario, SeletorMes } from "@/components/ui";
-import { clienteAtual, motoristaDaSessao, podeEditarCadastros } from "@/lib/acesso";
+import { clienteAtual, filtroCaminhoesDoMotorista, motoristaDaSessao, podeEditarCadastros } from "@/lib/acesso";
 import { SIMBOLO, taxa, type Moeda } from "@/lib/cambio";
 import { cotacaoDoDia } from "@/lib/cotacao";
 import { db } from "@/lib/db";
@@ -21,7 +21,7 @@ export default async function Despesas({ searchParams }: { searchParams: Promise
   const es = idioma === "es";
   const t = TEXTOS[idioma];
   const caminhoes = (await db.caminhao.findMany({
-    where: { clienteId: cliente.id, ...(motoristaId !== null ? { motoristaId } : {}) },
+    where: { clienteId: cliente.id, ...(await filtroCaminhoesDoMotorista(cliente.id, motoristaId)) },
     orderBy: { placa: "asc" },
     select: { id: true, placa: true, plano: true },
   })).filter((c) => planoPermite(c.plano, "despesas"));

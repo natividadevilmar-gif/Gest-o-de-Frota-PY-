@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { clienteAtual, motoristaDaSessao, podeEditarCadastros } from "@/lib/acesso";
+import { clienteAtual, filtroCaminhoesDoMotorista, motoristaDaSessao, podeEditarCadastros } from "@/lib/acesso";
 import { paraUsd, taxa, type Moeda } from "@/lib/cambio";
 import { cotacaoDoDia } from "@/lib/cotacao";
 import { db } from "@/lib/db";
@@ -42,7 +42,7 @@ export async function lancarDespesa(_: Resultado, form: FormData): Promise<Resul
   const combustivel = COMBUSTIVEL.has(d.categoria);
   if (d.categoria === "DIESEL" && !d.litros) return { ok: false, msg: es ? "Para diésel, indique los litros cargados." : "Para diesel, informe os litros abastecidos." };
   const motoristaId = await motoristaDaSessao(sessao);
-  const cam = await db.caminhao.findFirst({ where: { id: d.caminhaoId, clienteId: cliente.id, ...(motoristaId !== null ? { motoristaId } : {}) } });
+  const cam = await db.caminhao.findFirst({ where: { id: d.caminhaoId, clienteId: cliente.id, ...(await filtroCaminhoesDoMotorista(cliente.id, motoristaId)) } });
   if (!cam) return { ok: false, msg: es ? "Camión no encontrado." : "Caminhão não encontrado." };
 
   const cot = await cotacaoDoDia();
