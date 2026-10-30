@@ -3,19 +3,19 @@
 import { useState, useTransition } from "react";
 import { freteSugeridoTonelada, simularFrete } from "@/lib/indicadores";
 import { num, usd } from "@/lib/formato";
-import { previstoRota, type RotaComPracas, type Taxas } from "@/lib/pedagio";
+import { previstoRota, SIMBOLO_PEDAGIO, type Praca, type Taxas } from "@/lib/pedagio";
 import { PAISES } from "../fretes/NovoFrete";
 import { excluirRota, kmEntreCidades, salvarRota } from "./actions";
 
 /** kmL: consumo medido no mês (ou o de referência); outrosKm: custo por km sem diesel, quando há despesas. */
 type Cam = { id: string; placa: string; eixos: number; kmL: number | null; outrosKm: number | null };
-export type RotaSalva = { id: string; origem: string; paisOrigem: string; destino: string; paisDestino: string; km: number; rotaPedagioId: string | null };
+export type RotaSalva = { id: string; origem: string; paisOrigem: string; destino: string; paisDestino: string; km: number; pracas: string[] };
 
 /** Vazio, o caminhão faz mais km por litro que carregado. */
 const FATOR_VAZIO = 1.3;
 const arred = (n: number, casas = 2) => Math.round(n * 10 ** casas) / 10 ** casas;
 
-export function Simulador({ caminhoes, rotas, corredores, taxas, precoDiesel, paisCliente }: { caminhoes: Cam[]; rotas: RotaSalva[]; corredores: RotaComPracas[]; taxas: Taxas; precoDiesel: number; paisCliente: string }) {
+export function Simulador({ caminhoes, rotas, pracas, taxas, precoDiesel, paisCliente }: { caminhoes: Cam[]; rotas: RotaSalva[]; pracas: Praca[]; taxas: Taxas; precoDiesel: number; paisCliente: string }) {
   const pais0 = PAISES[paisCliente] ? paisCliente : "PY";
   const kmLDe = (c?: Cam) => arred(c?.kmL ?? 2.5, 1);
   const [id, setId] = useState(caminhoes[0]?.id ?? "");
@@ -26,7 +26,8 @@ export function Simulador({ caminhoes, rotas, corredores, taxas, precoDiesel, pa
   const [destino, setDestino] = useState("");
   const [paisDestino, setPaisDestino] = useState(pais0);
   const [km, setKm] = useState(480);
-  const [corredor, setCorredor] = useState("");
+  // Praças do caminho, achadas ao calcular o km; null enquanto a rota não foi calculada.
+  const [noCaminho, setNoCaminho] = useState<string[] | null>(null);
   const [ton, setTon] = useState(30);
   const [pr, setPr] = useState(26);
   const [voltaVazio, setVoltaVazio] = useState(true);
@@ -39,8 +40,9 @@ export function Simulador({ caminhoes, rotas, corredores, taxas, precoDiesel, pa
   const [aviso, setAviso] = useState<{ ok: boolean; msg: string } | null>(null);
   const [ocupado, iniciar] = useTransition();
 
-  const cor = corredores.find((r) => r.id === corredor);
-  const pedagioIda = cor && c ? previstoRota(cor.pracas, c.eixos, taxas).usd : 0;
+  const porId = new Map(pracas.map((p) => [p.id, p]));
+  const ped = c && noCaminho ? previstoRota(noCaminho.flatMap((id) => porId.get(id) ?? []), c.eixos, taxas) : null;
+  const pedagioIda = ped?.usd ?? 0;
   const s = simularFrete({ toneladas: ton, freteTonelada: pr, kmIda: km, voltaVazio, kmLCarregado: kmLC, kmLVazio: kmLV, precoDiesel: diesel, outrosKm, pedagioIda, extras });
   const sugerido = freteSugeridoTonelada(s.custo, ton, alvo);
 
@@ -59,22 +61,26 @@ export function Simulador({ caminhoes, rotas, corredores, taxas, precoDiesel, pa
     if (salva) {
       setOrigem(salva.origem); setPaisOrigem(salva.paisOrigem);
       setDestino(salva.destino); setPaisDestino(salva.paisDestino);
-      setKm(salva.km); setCorredor(salva.rotaPedagioId ?? "");
-      return;
+      setKm(salva.km); setNoCaminho(salva.pracas);
     }
-    const corr = corredores.find((r) => `c:${r.id}` === v);
-    if (corr) { setKm(corr.km); setCorredor(corr.id); }
   }
+
+  // Mudou a cidade: o pedágio da rota anterior não vale mais até calcular de novo.
+  const mudarCidade = (f: (v: string) => void) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => { f(e.target.value); setNoCaminho(null); setRotaId(""); };
 
   const calcularKm = () => iniciar(async () => {
     setAviso(null);
     const r = await kmEntreCidades({ origem, paisOrigem, destino, paisDestino });
     if ("erro" in r) setAviso({ ok: false, msg: r.erro });
-    else { setKm(r.km); setAviso({ ok: true, msg: `${origem} → ${destino}: ${num(r.km)} km de estrada.` }); }
+    else {
+      setKm(r.km);
+      setNoCaminho(r.pracas);
+      setAviso({ ok: true, msg: `${origem} → ${destino}: ${num(r.km)} km de estrada, ${r.pracas.length ? `${r.pracas.length} ${r.pracas.length === 1 ? "praça" : "praças"} de pedágio no caminho` : "sem praça de pedágio no caminho"}.` });
+    }
   });
 
   const guardarRota = () => iniciar(async () => {
-    const r = await salvarRota({ origem, paisOrigem, destino, paisDestino, km, rotaPedagioId: corredor || undefined });
+    const r = await salvarRota({ origem, paisOrigem, destino, paisDestino, km, pracas: noCaminho ?? [] });
     setAviso(r);
     if (r.id) setRotaId(r.id);
   });
@@ -93,25 +99,33 @@ export function Simulador({ caminhoes, rotas, corredores, taxas, precoDiesel, pa
           <select id="sRota" value={rotaId} onChange={(e) => escolherRota(e.target.value)}>
             <option value="">Nova rota (digitar as cidades)</option>
             {rotas.length > 0 && <optgroup label="Rotas salvas">{rotas.map((r) => <option key={r.id} value={r.id}>{r.origem} → {r.destino} · {num(r.km)} km</option>)}</optgroup>}
-            {corredores.length > 0 && <optgroup label="Corredores com pedágio">{corredores.map((r) => <option key={r.id} value={`c:${r.id}`}>{r.nome} · {num(r.km)} km</option>)}</optgroup>}
           </select>
         </label>
-        <label htmlFor="sOrigem">Cidade de origem<input id="sOrigem" value={origem} onChange={(e) => setOrigem(e.target.value)} placeholder="Ciudad del Este" /></label>
-        <label htmlFor="sPaisO">País<select id="sPaisO" value={paisOrigem} onChange={(e) => setPaisOrigem(e.target.value)}>{Object.entries(PAISES).map(([k, n]) => <option key={k} value={k}>{n}</option>)}</select></label>
-        <label htmlFor="sDestino">Cidade de destino<input id="sDestino" value={destino} onChange={(e) => setDestino(e.target.value)} placeholder="Asunción" /></label>
-        <label htmlFor="sPaisD">País<select id="sPaisD" value={paisDestino} onChange={(e) => setPaisDestino(e.target.value)}>{Object.entries(PAISES).map(([k, n]) => <option key={k} value={k}>{n}</option>)}</select></label>
+        <label htmlFor="sOrigem">Cidade de origem<input id="sOrigem" value={origem} onChange={mudarCidade(setOrigem)} placeholder="Ciudad del Este" /></label>
+        <label htmlFor="sPaisO">País<select id="sPaisO" value={paisOrigem} onChange={mudarCidade(setPaisOrigem)}>{Object.entries(PAISES).map(([k, n]) => <option key={k} value={k}>{n}</option>)}</select></label>
+        <label htmlFor="sDestino">Cidade de destino<input id="sDestino" value={destino} onChange={mudarCidade(setDestino)} placeholder="Asunción" /></label>
+        <label htmlFor="sPaisD">País<select id="sPaisD" value={paisDestino} onChange={mudarCidade(setPaisDestino)}>{Object.entries(PAISES).map(([k, n]) => <option key={k} value={k}>{n}</option>)}</select></label>
         <button type="button" onClick={calcularKm} disabled={ocupado || origem.trim().length < 2 || destino.trim().length < 2}>{ocupado ? "Calculando…" : "Calcular km"}</button>
         <label htmlFor="sKm">km de ida<input id="sKm" type="number" min="1" value={km} onChange={(e) => setKm(+e.target.value)} /></label>
-        <label htmlFor="sCorredor">Pedágio pelo corredor
-          <select id="sCorredor" value={corredor} onChange={(e) => setCorredor(e.target.value)}>
-            <option value="">Sem pedágio</option>
-            {corredores.map((r) => <option key={r.id} value={r.id}>{r.nome}</option>)}
-          </select>
-        </label>
         <button type="button" onClick={guardarRota} disabled={ocupado || origem.trim().length < 2 || destino.trim().length < 2 || km < 1}>Salvar rota</button>
         {rotas.some((r) => r.id === rotaId) && <button type="button" onClick={apagarRota} disabled={ocupado}>Excluir rota</button>}
         {aviso && <p className={`msg ${aviso.ok ? "ok" : "bad"}`} role="status">{aviso.msg}</p>}
       </form>
+      {ped && ped.itens.length > 0 && (
+        <div className="tw">
+          <table>
+            <thead><tr><th>Praça de pedágio no caminho</th><th>Rodovia</th><th className="n">Valor ({c?.eixos} eixos)</th><th className="n">USD</th></tr></thead>
+            <tbody>
+              {ped.itens.map((i) => (
+                <tr key={i.id}><td>{i.nome}</td><td>{i.pais} · {i.rodovia}</td><td className="n">{SIMBOLO_PEDAGIO[i.moeda] ?? i.moeda} {num(i.valor, i.moeda === "PYG" ? 0 : 2)}</td><td className="n">{usd(i.usd, 2)}</td></tr>
+              ))}
+              <tr><td colSpan={3}><b>Total da ida</b>{voltaVazio ? " (a volta vazio paga de novo)" : ""}</td><td className="n"><b>{usd(ped.usd, 2)}</b></td></tr>
+            </tbody>
+          </table>
+        </div>
+      )}
+      {ped && ped.semValor.length > 0 && <p className="note">Sem tarifa cadastrada: {ped.semValor.join(", ")}.</p>}
+      {!noCaminho && <p className="note">Clique em Calcular km para achar as praças de pedágio do caminho.</p>}
 
       <h3 className="sim-titulo">Carga e caminhão</h3>
       <form className="form" onSubmit={(e) => e.preventDefault()}>

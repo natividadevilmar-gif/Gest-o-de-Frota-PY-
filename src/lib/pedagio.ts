@@ -99,3 +99,12 @@ export function passagensPedagio(pontos: PontoGps[], pracas: PracaGps[], raioKm 
   }
   return r.sort((x, y) => x.data.getTime() - y.data.getTime());
 }
+
+/** Na rota planejada a margem é maior: a linha é a estrada exata, mas a posição da praça cadastrada é aproximada. */
+export const RAIO_ROTA_KM = 5;
+
+/** Praças por onde passa uma rota planejada ([lat, lng] de origem a destino), na ordem do caminho. */
+export function pracasNaRota(rota: [number, number][], pracas: PracaGps[], raioKm = RAIO_ROTA_KM): string[] {
+  const pontos = rota.map(([lat, lng], i) => ({ lat, lng, data: new Date(i * 1000) }));
+  return passagensPedagio(pontos, pracas, raioKm).map((p) => p.pracaId);
+}

@@ -481,7 +481,7 @@ model RotaPedagio {
   viagens Viagem[]
 }
 
-// Rota pré-definida do simulador de frete: cidades, km de ida e o corredor de pedágio.
+// Rota pré-definida do simulador de frete: cidades, km de ida e as praças de pedágio do caminho.
 model RotaFrete {
   id            String   @id @default(cuid())
   clienteId     String
@@ -492,6 +492,8 @@ model RotaFrete {
   paisDestino   String   @default("PY")
   km            Int
   rotaPedagioId String?
+  // Praças de pedágio por onde a rota passa, na ordem da ida.
+  pracas        String[] @default([])
   criadoEm      DateTime @default(now())
 
   @@index([clienteId])
