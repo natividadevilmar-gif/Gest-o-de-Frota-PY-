@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { freteSugeridoTonelada, simularFrete } from "@/lib/indicadores";
+import { dieselDaRota, freteSugeridoTonelada, simularFrete } from "@/lib/indicadores";
 import { num, usd } from "@/lib/formato";
 import { previstoRota, SIMBOLO_PEDAGIO, type Praca, type Taxas } from "@/lib/pedagio";
 import { PAISES } from "../fretes/NovoFrete";
@@ -9,6 +9,11 @@ import { excluirRota, kmEntreCidades, salvarRota } from "./actions";
 
 /** kmL: consumo medido no mês (ou o de referência); outrosKm: custo por km sem diesel, quando há despesas. */
 type Cam = { id: string; placa: string; eixos: number; kmL: number | null; outrosKm: number | null };
+/** Preço do diesel de um país: valor na moeda local e convertido em dólar pela cotação do dia. */
+export type DieselPais = { pais: string; moeda: string; valor: number; usd: number; fonte: string; vigencia: string };
+const SIMBOLO_MOEDA: Record<string, string> = { PYG: "₲", BRL: "R$", ARS: "AR$", UYU: "$U", USD: "US$" };
+const precoLocal = (d: DieselPais) => `${SIMBOLO_MOEDA[d.moeda] ?? d.moeda} ${num(d.valor, d.moeda === "PYG" ? 0 : 2)}`;
+
 export type RotaSalva = { id: string; origem: string; paisOrigem: string; destino: string; paisDestino: string; km: number; pracas: string[] };
 
 /** Vazio, o caminhão faz mais km por litro que carregado. */
@@ -48,8 +53,11 @@ function Numero({ valor, mudar, casas, inteiro, ...props }: { valor: number; mud
   );
 }
 
-export function Simulador({ caminhoes, rotas, pracas, taxas, precoDiesel, paisCliente }: { caminhoes: Cam[]; rotas: RotaSalva[]; pracas: Praca[]; taxas: Taxas; precoDiesel: number; paisCliente: string }) {
+export function Simulador({ caminhoes, rotas, pracas, taxas, precoDiesel, dieselPais, paisCliente }: { caminhoes: Cam[]; rotas: RotaSalva[]; pracas: Praca[]; taxas: Taxas; precoDiesel: number; dieselPais: DieselPais[]; paisCliente: string }) {
   const pais0 = PAISES[paisCliente] ? paisCliente : "PY";
+  const usdPorPais = Object.fromEntries(dieselPais.map((d) => [d.pais, d.usd]));
+  // Diesel do país da rota; cruzando a fronteira, a média entre o país de origem e o de destino.
+  const dieselDe = (o: string, d: string) => arred(dieselDaRota(o, d, usdPorPais) ?? precoDiesel);
   const kmLDe = (c?: Cam) => arred(c?.kmL ?? 2.5, 1);
   const [id, setId] = useState(caminhoes[0]?.id ?? "");
   const c = caminhoes.find((x) => x.id === id) ?? caminhoes[0];
@@ -66,7 +74,7 @@ export function Simulador({ caminhoes, rotas, pracas, taxas, precoDiesel, paisCl
   const [voltaVazio, setVoltaVazio] = useState(true);
   const [kmLC, setKmLC] = useState(kmLDe(c));
   const [kmLV, setKmLV] = useState(arred(kmLDe(c) * FATOR_VAZIO, 1));
-  const [diesel, setDiesel] = useState(arred(precoDiesel));
+  const [diesel, setDiesel] = useState(dieselDe(pais0, pais0));
   const [outrosKm, setOutrosKm] = useState(arred(c?.outrosKm ?? 0, 3));
   const [extras, setExtras] = useState(0);
   const [alvo, setAlvo] = useState(20);
@@ -95,11 +103,24 @@ export function Simulador({ caminhoes, rotas, pracas, taxas, precoDiesel, paisCl
       setOrigem(salva.origem); setPaisOrigem(salva.paisOrigem);
       setDestino(salva.destino); setPaisDestino(salva.paisDestino);
       setKm(salva.km); setNoCaminho(salva.pracas);
+      setDiesel(dieselDe(salva.paisOrigem, salva.paisDestino));
     }
   }
 
   // Mudou a cidade: o pedágio da rota anterior não vale mais até calcular de novo.
   const mudarCidade = (f: (v: string) => void) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => { f(e.target.value); setNoCaminho(null); setRotaId(""); };
+
+  const mudarPais = (origemMudou: boolean) => (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const o = origemMudou ? e.target.value : paisOrigem, d = origemMudou ? paisDestino : e.target.value;
+    mudarCidade(origemMudou ? setPaisOrigem : setPaisDestino)(e);
+    setDiesel(dieselDe(o, d));
+  };
+  const precoO = dieselPais.find((x) => x.pais === paisOrigem), precoD = dieselPais.find((x) => x.pais === paisDestino);
+  const fonteDiesel = !precoO || !precoD
+    ? `sem preço cadastrado para ${PAISES[!precoO ? paisOrigem : paisDestino]}: média dos últimos abastecimentos lançados`
+    : paisOrigem === paisDestino
+      ? `${PAISES[paisOrigem]} ${precoLocal(precoO)} (${usd(precoO.usd, 2)}), ${precoO.fonte}`
+      : `média de ${PAISES[paisOrigem]} ${precoLocal(precoO)} (${usd(precoO.usd, 2)}) e ${PAISES[paisDestino]} ${precoLocal(precoD)} (${usd(precoD.usd, 2)})`;
 
   const calcularKm = () => iniciar(async () => {
     setAviso(null);
@@ -135,9 +156,9 @@ export function Simulador({ caminhoes, rotas, pracas, taxas, precoDiesel, paisCl
           </select>
         </label>
         <label htmlFor="sOrigem">Cidade de origem<input id="sOrigem" value={origem} onChange={mudarCidade(setOrigem)} placeholder="Ciudad del Este" /></label>
-        <label htmlFor="sPaisO">País<select id="sPaisO" value={paisOrigem} onChange={mudarCidade(setPaisOrigem)}>{Object.entries(PAISES).map(([k, n]) => <option key={k} value={k}>{n}</option>)}</select></label>
+        <label htmlFor="sPaisO">País<select id="sPaisO" value={paisOrigem} onChange={mudarPais(true)}>{Object.entries(PAISES).map(([k, n]) => <option key={k} value={k}>{n}</option>)}</select></label>
         <label htmlFor="sDestino">Cidade de destino<input id="sDestino" value={destino} onChange={mudarCidade(setDestino)} placeholder="Asunción" /></label>
-        <label htmlFor="sPaisD">País<select id="sPaisD" value={paisDestino} onChange={mudarCidade(setPaisDestino)}>{Object.entries(PAISES).map(([k, n]) => <option key={k} value={k}>{n}</option>)}</select></label>
+        <label htmlFor="sPaisD">País<select id="sPaisD" value={paisDestino} onChange={mudarPais(false)}>{Object.entries(PAISES).map(([k, n]) => <option key={k} value={k}>{n}</option>)}</select></label>
         <button type="button" onClick={calcularKm} disabled={ocupado || origem.trim().length < 2 || destino.trim().length < 2}>{ocupado ? "Calculando…" : "Calcular km"}</button>
         <label htmlFor="sKm">km de ida<Numero id="sKm" inteiro min="1" valor={km} mudar={setKm} /></label>
         <button type="button" onClick={guardarRota} disabled={ocupado || origem.trim().length < 2 || destino.trim().length < 2 || km < 1}>Salvar rota</button>
@@ -181,6 +202,7 @@ export function Simulador({ caminhoes, rotas, pracas, taxas, precoDiesel, paisCl
         <label htmlFor="sExtras">Aduana, despachante, chapa (USD)<Numero id="sExtras" casas={2} min="0" valor={extras} mudar={setExtras} /></label>
       </form>
       <p className="note">
+        Diesel: {fonteDiesel}. Pode alterar o valor para esta simulação.<br />
         km/l {c?.kmL ? "medido pela CAN neste mês" : "padrão de 2,5 (sem leitura CAN no mês)"}; outros custos por km {c?.outrosKm ? "das despesas do mês (manutenção, pneus, motorista, seguro…)" : "sem despesas no mês: informe manutenção, pneus, motorista e seguro por km"}.
       </p>
 

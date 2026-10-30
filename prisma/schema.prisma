@@ -498,3 +498,13 @@ model RotaFrete {
 
   @@index([clienteId])
 }
+
+// Preço do diesel na bomba por país, para o simulador de frete (a KM Cero atualiza).
+model PrecoDiesel {
+  pais         String   @id
+  moeda        String
+  valor        Float
+  fonte        String
+  vigencia     DateTime @db.Date
+  atualizadoEm DateTime @default(now()) @updatedAt
+}

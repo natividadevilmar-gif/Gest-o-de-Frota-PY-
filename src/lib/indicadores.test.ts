@@ -6,6 +6,7 @@ import {
   custoPorKm,
   custoTotal,
   desvioCombustivelPct,
+  dieselDaRota,
   freteMinimoPorTonelada,
   freteSugeridoTonelada,
   fracaoMes,
@@ -218,4 +219,11 @@ describe("simulação de frete", () => {
     expect((t * 40 - 800) / (t * 40)).toBeCloseTo(0.2);
     expect(freteSugeridoTonelada(800, 0, 20)).toBeNull();
   });
+});
+
+describe("diesel da rota", () => {
+  const precos = { PY: 1.26, BR: 1.38 };
+  it("um país só usa o preço dele", () => expect(dieselDaRota("PY", "PY", precos)).toBe(1.26));
+  it("cruzando a fronteira faz a média", () => expect(dieselDaRota("PY", "BR", precos)).toBeCloseTo(1.32));
+  it("sem preço do país fica sem valor", () => expect(dieselDaRota("PY", "BO", precos)).toBeNull());
 });

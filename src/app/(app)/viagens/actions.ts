@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { clienteAtual } from "@/lib/acesso";
+import { clienteAtual, exigirAdmin } from "@/lib/acesso";
 import { db } from "@/lib/db";
 import { pracasNaRota } from "@/lib/pedagio";
 import { calcularRota } from "@/lib/rastreio/rotaFrete";
@@ -45,5 +45,20 @@ export async function excluirRota(id: string) {
   const { sessao, cliente } = await clienteAtual();
   if (sessao.papel === "MOTORISTA") return;
   await db.rotaFrete.deleteMany({ where: { id, clienteId: cliente.id } });
+  revalidatePath("/viagens");
+}
+
+const precoDiesel = z.object({
+  pais: z.string().regex(/^[A-Z]{2}$/),
+  valor: z.coerce.number().positive(),
+  fonte: z.string().trim().min(3).max(200),
+  vigencia: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+});
+
+/** Só a KM Cero corrige o preço do diesel: vale para todos os clientes. */
+export async function atualizarPrecoDiesel(form: FormData) {
+  await exigirAdmin();
+  const p = precoDiesel.parse(Object.fromEntries(form));
+  await db.precoDiesel.update({ where: { pais: p.pais }, data: { valor: p.valor, fonte: p.fonte, vigencia: new Date(`${p.vigencia}T00:00:00Z`) } });
   revalidatePath("/viagens");
 }

@@ -253,6 +253,16 @@ export function simularFrete(e: EntradaSimulacao) {
   };
 }
 
+/**
+ * Diesel da viagem: o preço do país quando a rota fica num país só; cruzando a fronteira,
+ * a média dos preços de origem e destino. Null quando falta o preço de algum dos dois.
+ */
+export function dieselDaRota(paisOrigem: string, paisDestino: string, usdPorPais: Record<string, number>): number | null {
+  const a = usdPorPais[paisOrigem], b = usdPorPais[paisDestino];
+  if (a == null || b == null) return null;
+  return paisOrigem === paisDestino ? a : (a + b) / 2;
+}
+
 /** Frete por tonelada que deixa a margem pedida (em %) sobre o custo da simulação. */
 export function freteSugeridoTonelada(custo: number, toneladas: number, margemPct: number): number | null {
   return toneladas > 0 && margemPct < 100 ? custo / (1 - margemPct / 100) / toneladas : null;

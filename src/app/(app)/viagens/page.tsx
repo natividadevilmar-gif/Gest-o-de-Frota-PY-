@@ -2,6 +2,7 @@ import { Placa, PlanoNecessario, SeletorMes } from "@/components/ui";
 import { clienteAtual } from "@/lib/acesso";
 import { indicadoresFrota, viagensCliente } from "@/lib/dados";
 import { dataBr, mesValido, nomeMes, num, usd } from "@/lib/formato";
+import { atualizarPrecoDiesel } from "./actions";
 import { mesAtual, planoPermite } from "@/lib/indicadores";
 import { db } from "@/lib/db";
 import { taxasDoDia } from "@/lib/pedagioDados";
@@ -12,20 +13,26 @@ import { Simulador } from "./Formularios";
 const DIESEL_PADRAO = 1;
 
 export default async function Viagens({ searchParams }: { searchParams: Promise<{ mes?: string }> }) {
-  const { cliente } = await clienteAtual();
+  const { sessao, cliente } = await clienteAtual();
   const mes = mesValido((await searchParams).mes, mesAtual());
   const ind = (await indicadoresFrota(cliente.id, mes)).filter((i) => planoPermite(i.plano, "viagens"));
   if (ind.length === 0) return <PlanoNecessario modulo="viagens" titulo="Margem por viagem" />;
   const viagens = (await viagensCliente(cliente.id, mes, ind)).filter((v) => ind.some((i) => i.id === v.caminhaoId));
-  const [cams, rotas, pracas, taxas, abastecimentos] = await Promise.all([
+  const [cams, rotas, pracas, taxas, abastecimentos, precos] = await Promise.all([
     db.caminhao.findMany({ where: { clienteId: cliente.id }, select: { id: true, eixos: true } }),
     db.rotaFrete.findMany({ where: { clienteId: cliente.id }, orderBy: [{ origem: "asc" }, { destino: "asc" }] }),
     db.pracaPedagio.findMany({ select: { id: true, pais: true, rodovia: true, nome: true, moeda: true, tarifaEixo: true, tarifaFixa: true } }),
     taxasDoDia(),
     db.despesa.findMany({ where: { caminhao: { clienteId: cliente.id }, categoria: "DIESEL", litros: { gt: 0 } }, select: { valorUsd: true, litros: true }, orderBy: { data: "desc" }, take: 20 }),
+    db.precoDiesel.findMany({ orderBy: { pais: "asc" } }),
   ]);
   const eixos = new Map(cams.map((c) => [c.id, c.eixos]));
-  // Preço médio dos últimos abastecimentos lançados.
+  // Preço do diesel em cada país, em dólar pela cotação do dia; sem cotação da moeda, o país fica de fora.
+  const dieselPais = precos.flatMap((p) => {
+    const taxa = p.moeda === "USD" ? 1 : taxas[p.moeda];
+    return taxa ? [{ pais: p.pais, moeda: p.moeda, valor: p.valor, usd: p.valor / taxa, fonte: p.fonte, vigencia: p.vigencia.toISOString().slice(0, 10) }] : [];
+  });
+  // Sem preço do país, vale a média dos últimos abastecimentos lançados.
   const litros = abastecimentos.reduce((a, d) => a + (d.litros ?? 0), 0);
   const precoDiesel = litros > 0 ? abastecimentos.reduce((a, d) => a + d.valorUsd, 0) / litros : DIESEL_PADRAO;
   const caminhoes = ind.map((i) => {
@@ -72,8 +79,36 @@ export default async function Viagens({ searchParams }: { searchParams: Promise<
       </div>
       <div className="card">
         <div className="card-h"><h2>Simular um frete antes de aceitar</h2><p>Rota, praças de pedágio do caminho, diesel e volta vazio; consumo e custos do caminhão neste mês</p></div>
-        <Simulador caminhoes={caminhoes} rotas={rotas} pracas={pracas} taxas={taxas} precoDiesel={precoDiesel} paisCliente={cliente.pais} />
+        <Simulador caminhoes={caminhoes} rotas={rotas} pracas={pracas} taxas={taxas} precoDiesel={precoDiesel} dieselPais={dieselPais} paisCliente={cliente.pais} />
       </div>
+      {sessao.papel === "ADMIN" && (
+        <div className="card">
+          <div className="card-h"><h2>Preço do diesel por país</h2><p>Na moeda do país; o simulador converte pela cotação do dia. Vale para todos os clientes.</p></div>
+          <div className="tw">
+            <table>
+              <thead><tr><th>País</th><th>Preço por litro, em dólar hoje, fonte e vigência</th></tr></thead>
+              <tbody>
+                {precos.map((p) => (
+                  <tr key={p.pais}>
+                    <td>{p.pais}</td>
+                    <td>
+                      <form action={atualizarPrecoDiesel} className="form" style={{ flexWrap: "wrap" }}>
+                        <input type="hidden" name="pais" value={p.pais} />
+                        <input name="valor" type="number" step="any" min="0" defaultValue={p.valor} aria-label={`Diesel em ${p.pais}`} style={{ width: "7em" }} />
+                        <span>{p.moeda}</span>
+                        <span>= {usd(dieselPais.find((d) => d.pais === p.pais)?.usd, 2)}</span>
+                        <input name="fonte" defaultValue={p.fonte} aria-label={`Fonte do diesel em ${p.pais}`} style={{ minWidth: "18em" }} />
+                        <input name="vigencia" type="date" defaultValue={p.vigencia.toISOString().slice(0, 10)} aria-label={`Vigência do diesel em ${p.pais}`} />
+                        <button type="submit">Salvar</button>
+                      </form>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
       <p className="note">Para lançar um frete com cliente, rota, produto e recebimento, use <Link href="/fretes#novo">Fretes e margem</Link>.</p>
     </>
   );
