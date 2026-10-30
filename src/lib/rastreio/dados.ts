@@ -34,6 +34,23 @@ export type CaminhaoMapa = {
   wialon: boolean;
   /** Parado com o motor ligado: desde quando e o diesel gasto nesse tempo. */
   parado?: ParadoLigado | null;
+  /** Telemetria do dia para ver ao passar o mouse; só caminhões com aparelho próprio ou Wialon. */
+  tele?: TelemetriaRapida | null;
+};
+
+export type TelemetriaRapida = {
+  ignicao: boolean | null;
+  odometroKm: number | null;
+  /** Diesel no tanque agora, em litros. */
+  tanqueL: number | null;
+  rpm: number | null;
+  satelites: number | null;
+  kmHoje: number;
+  /** Diesel gasto hoje pela CAN (null sem leitura CAN). */
+  litrosHoje: number | null;
+  velMaxHoje: number;
+  excessosHoje: number;
+  freadasHoje: number;
 };
 
 export type ParadoLigado = {
@@ -139,9 +156,51 @@ export async function frotaNoMapa(clienteId: string | null, agora = new Date()):
       rpm: p.rpm,
     };
   });
+  const tele = await telemetriaDoDia(frota.filter((c) => !c.demo && c.atualizadoEm).map((c) => c.id), agora);
+  for (const c of frota) if (tele.has(c.id)) c.tele = tele.get(c.id);
   // Só os parados ligados de verdade (não a demonstração) buscam o começo da parada.
   await Promise.all(frota.filter((c) => c.situacao === "parado" && !c.demo).map(async (c) => { c.parado = await paradaLigado(c.id, agora); }));
   return frota;
+}
+
+type LinhaTele = {
+  caminhaoId: string; ignicao: boolean | null; odo: number | null; odoMin: number | null; odoMax: number | null; tanque: number | null;
+  litrosMin: number | null; litrosMax: number | null; rpm: number | null; satelites: number | null;
+  velMax: number | null; excessos: bigint; freadas: bigint;
+};
+
+/** Resumo de hoje (desde a meia-noite do Paraguai) da última leitura e do dia de cada caminhão, numa consulta. */
+async function telemetriaDoDia(ids: string[], agora: Date): Promise<Map<string, TelemetriaRapida>> {
+  if (!ids.length) return new Map();
+  const inicio = new Date(diaNoParaguai(agora).getTime() + 3 * 3600_000);
+  const linhas = await db.$queryRaw<LinhaTele[]>`
+    SELECT "caminhaoId",
+      (array_agg(ignicao ORDER BY data DESC) FILTER (WHERE ignicao IS NOT NULL))[1] AS ignicao,
+      (array_agg("odometroKm" ORDER BY data DESC) FILTER (WHERE "odometroKm" IS NOT NULL))[1] AS odo,
+      min("odometroKm") AS "odoMin", max("odometroKm") AS "odoMax",
+      (array_agg("nivelCombustivelL" ORDER BY data DESC) FILTER (WHERE "nivelCombustivelL" IS NOT NULL))[1] AS tanque,
+      min("litrosTotal") AS "litrosMin", max("litrosTotal") AS "litrosMax",
+      (array_agg(rpm ORDER BY data DESC) FILTER (WHERE rpm IS NOT NULL))[1] AS rpm,
+      (array_agg(satelites ORDER BY data DESC))[1] AS satelites,
+      max("velocidadeKmh") AS "velMax",
+      count(*) FILTER (WHERE evento = 'excesso') AS excessos,
+      count(*) FILTER (WHERE evento = 'freada') AS freadas
+    FROM "Posicao"
+    WHERE "caminhaoId" IN (${Prisma.join(ids)}) AND data >= ${inicio}
+    GROUP BY "caminhaoId"`;
+  const um = (n: number) => Math.round(n * 10) / 10;
+  return new Map(linhas.map((l) => [l.caminhaoId, {
+    ignicao: l.ignicao,
+    odometroKm: l.odo == null ? null : Math.round(l.odo),
+    tanqueL: l.tanque == null ? null : Math.round(l.tanque),
+    rpm: l.rpm,
+    satelites: l.satelites,
+    kmHoje: l.odoMin != null && l.odoMax != null ? um(l.odoMax - l.odoMin) : 0,
+    litrosHoje: l.litrosMin != null && l.litrosMax != null ? um(l.litrosMax - l.litrosMin) : null,
+    velMaxHoje: l.velMax ?? 0,
+    excessosHoje: Number(l.excessos),
+    freadasHoje: Number(l.freadas),
+  }]));
 }
 
 export type Trajeto = {

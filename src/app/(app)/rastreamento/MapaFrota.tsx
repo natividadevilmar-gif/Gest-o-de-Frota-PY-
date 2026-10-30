@@ -47,6 +47,27 @@ const situacaoTexto = (c: CaminhaoMapa) =>
     ? [c.parado.semIgnicao ? "Parado (ignição não informada)" : ROTULO.parado, duracao(c.parado.desde), litrosParado(c.parado)].filter(Boolean).join(" · ")
     : ROTULO[c.situacao];
 
+/** Quadro ao passar o mouse: situação e a telemetria do dia, para ver de relance. */
+function dicaCompleta(c: CaminhaoMapa, todos: boolean) {
+  const t = c.tele;
+  const linhas: [string, string][] = [
+    ["Situação", situacaoTexto(c)],
+    ["Velocidade", `${c.velocidadeKmh} km/h`],
+    ["Ignição", t?.ignicao == null ? "não informada" : t.ignicao ? "ligada" : "desligada"],
+    ...(t?.rpm != null ? [["RPM", numero(t.rpm)] as [string, string]] : []),
+    ...(t?.tanqueL != null ? [["Diesel no tanque", `${numero(t.tanqueL)} L`] as [string, string]] : []),
+    ...(t?.odometroKm != null ? [["Odômetro", `${numero(t.odometroKm)} km`] as [string, string]] : []),
+    ...(t ? [["Rodou hoje", `${numero(t.kmHoje, 1)} km`] as [string, string]] : []),
+    ...(t?.litrosHoje != null ? [["Diesel hoje", `${numero(t.litrosHoje, 1)} L${t.kmHoje > 0 && t.litrosHoje > 0 ? ` · ${numero(t.kmHoje / t.litrosHoje, 2)} km/l` : ""}`] as [string, string]] : []),
+    ...(t ? [["Vel. máxima hoje", `${t.velMaxHoje} km/h`] as [string, string]] : []),
+    ...(t && (t.excessosHoje || t.freadasHoje) ? [["Eventos hoje", [t.excessosHoje && `${t.excessosHoje} excesso${t.excessosHoje > 1 ? "s" : ""}`, t.freadasHoje && `${t.freadasHoje} freada${t.freadasHoje > 1 ? "s" : ""} brusca${t.freadasHoje > 1 ? "s" : ""}`].filter(Boolean).join(", ")] as [string, string]] : []),
+    ...(t?.satelites != null ? [["Satélites", String(t.satelites)] as [string, string]] : []),
+    ["Último sinal", `${quando(c.atualizadoEm)}${c.atualizadoEm ? ` (${hora(c.atualizadoEm)})` : ""}`],
+  ];
+  return `<b>${esc(c.placa)}</b> · ${esc(c.modelo)}<br><small>${esc(c.motorista ?? "sem motorista")}${todos ? ` · ${esc(c.cliente)}` : ""}${c.wialon ? " · Wialon" : ""}</small>` +
+    `<table class="mk-tele">${linhas.map(([k, v]) => `<tr><th>${k}</th><td>${esc(v)}</td></tr>`).join("")}</table>`;
+}
+
 function esc(s: string) {
   return s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
 }
@@ -199,8 +220,8 @@ export function MapaFrota({ inicial, hoje, todos = false, outraTela = false }: {
         ? mod.divIcon({ className: "", html, iconSize: [120, 52], iconAnchor: [60, 13] })
         : mod.divIcon({ className: "", html, iconSize: undefined, iconAnchor: [10, 12] });
       usados.add(c.id);
-      // Ao passar o mouse: placa, modelo, motorista e situação.
-      const dica = `<b>${esc(c.placa)}</b> · ${esc(c.modelo)}<br>${esc(c.motorista ?? "sem motorista")}${todos ? ` · ${esc(c.cliente)}` : ""}<br>${situacaoTexto(c)}${c.situacao === "movimento" ? ` · ${c.velocidadeKmh} km/h` : ""}`;
+      // Ao passar o mouse: placa, motorista, situação e a telemetria do dia.
+      const dica = dicaCompleta(c, todos);
       let s = soltos.current.get(c.id);
       if (!s) {
         const marca = mod.marker([c.lat!, c.lng!], { icon: icone() })
