@@ -6,6 +6,7 @@ import { useActionState, useCallback, useEffect, useMemo, useRef, useState, useT
 import type { CercaVista, OcorrenciaVista } from "@/lib/monitoramento";
 import type { CaminhaoMapa } from "@/lib/rastreio/dados";
 import { fundosDoMapa, Movimento } from "../rastreamento/mapaBase";
+import { FotoLocal, fotoLocalHtml } from "../rastreamento/FotoLocal";
 import { CobrarWhatsapp } from "./CobrarWhatsapp";
 import { alternarCerca, atenderOcorrencia, criarCerca, excluirCerca, resolverOcorrencia, type Resultado } from "./actions";
 
@@ -193,7 +194,10 @@ export function Central({ inicial, todos, clienteNome, podeCercas, tiposCerca, s
       const dica = `${f.placa} · ${f.velocidadeKmh} km/h${f.wialon ? " · Wialon" : ""}${todos ? ` · ${f.cliente}` : ""}`;
       let p = pontosFrota.current.get(f.id);
       if (!p) {
-        p = mod.circleMarker([f.lat, f.lng], estilo).bindTooltip(dica).addTo(c.frota);
+        const placa = f.placa;
+        p = mod.circleMarker([f.lat, f.lng], estilo).bindTooltip(dica)
+          .bindPopup((l) => { const { lat, lng } = (l as Leaflet.CircleMarker).getLatLng(); return fotoLocalHtml(lat, lng, placa); }, { minWidth: 260, maxWidth: 300 })
+          .addTo(c.frota);
         pontosFrota.current.set(f.id, p);
       } else {
         p.setStyle(estilo).setRadius(estilo.radius).setTooltipContent(dica);
@@ -380,21 +384,5 @@ export function Central({ inicial, todos, clienteNome, podeCercas, tiposCerca, s
         </div>}
       </div>
     </div>
-  );
-}
-
-const ESRI = "https://server.arcgisonline.com/ArcGIS/rest/services";
-
-/** Imagem de satélite (Esri) de uns 3 km em volta do caminhão, com as estradas e o ponto marcado. */
-function FotoLocal({ lat, lng, placa }: { lat: number; lng: number; placa: string }) {
-  const dy = 0.008, dx = dy * 2 / Math.cos((lat * Math.PI) / 180);
-  const q = `bbox=${lng - dx},${lat - dy},${lng + dx},${lat + dy}&bboxSR=4326&imageSR=3857&size=480,240&f=image`;
-  return (
-    <a className="oc-foto" href={`https://www.google.com/maps?q=${lat},${lng}`} target="_blank" rel="noreferrer" title="Abrir no Google Maps">
-      <img src={`${ESRI}/World_Imagery/MapServer/export?${q}&format=jpg`} alt={`Imagem de satélite onde está ${placa}`} loading="lazy" />
-      <img src={`${ESRI}/Reference/World_Transportation/MapServer/export?${q}&format=png32&transparent=true`} alt="" loading="lazy" />
-      <i aria-hidden="true" />
-      <small>{lat.toFixed(5)}, {lng.toFixed(5)} · abrir no mapa</small>
-    </a>
   );
 }

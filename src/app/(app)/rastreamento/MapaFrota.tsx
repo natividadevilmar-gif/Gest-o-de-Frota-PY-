@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { CaminhaoMapa, ResumoCaminhao, Situacao, Trajeto } from "@/lib/rastreio/dados";
 import { LIMITE_VELOCIDADE_KMH } from "@/lib/telemetria/posicoes";
 import { fundosDoMapa, Movimento } from "./mapaBase";
+import { FotoLocal } from "./FotoLocal";
 
 const ROTULO: Record<Situacao, string> = {
   movimento: "Em movimento",
@@ -290,6 +291,7 @@ export function MapaFrota({ inicial, hoje, todos = false, outraTela = false }: {
               <div><dt>RPM agora</dt><dd>{rpm != null ? numero(rpm) : "–"}</dd></div>
               <div><dt>Custo por km</dt><dd>{r ? (r.custoKm != null ? `USD ${numero(r.custoKm, 2)}` : "–") : "…"}</dd></div>
             </dl>
+            {escolhido.lat != null && escolhido.lng != null && <FotoLocal lat={escolhido.lat} lng={escolhido.lng} placa={escolhido.placa} />}
             {(!seguir || dia !== hoje) && (
               <button type="button" className="rastreio-voltar" onClick={voltarAoCaminhao}>Voltar ao caminhão</button>
             )}
