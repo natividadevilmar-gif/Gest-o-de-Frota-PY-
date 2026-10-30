@@ -65,7 +65,7 @@ export async function frotaNoMapa(clienteId: string | null, agora = new Date()):
         lat: c.ultimaLat,
         lng: c.ultimaLng,
         velocidadeKmh: c.ultimaVelocidade ?? 0,
-        direcao: 0,
+        direcao: c.ultimaDirecao ?? 0,
         atualizadoEm: c.ultimaPosicaoEm?.toISOString() ?? null,
         rota: null,
         local: null,

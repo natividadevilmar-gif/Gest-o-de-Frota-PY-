@@ -130,6 +130,8 @@ model Caminhao {
   ultimaLat         Float?
   ultimaLng         Float?
   ultimaVelocidade  Int?
+  // Rumo da última posição, em graus (0 = norte), para o caminhão no mapa apontar para onde vai.
+  ultimaDirecao     Int?
   ultimaIgnicao     Boolean?
   // Cerca onde o caminhão está agora (para detectar entrada e saída).
   cercaAtualId      String?

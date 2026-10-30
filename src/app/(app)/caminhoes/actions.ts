@@ -63,7 +63,7 @@ export async function mudarRastreador(_: Resultado, form: FormData): Promise<Res
   }
   await db.caminhao.updateMany({
     where: { id, clienteId: cliente.id },
-    data: { rastreadorId: imei || null, ultimaPosicaoEm: null, ultimaLat: null, ultimaLng: null, ultimaVelocidade: null, ultimaIgnicao: null },
+    data: { rastreadorId: imei || null, ultimaPosicaoEm: null, ultimaLat: null, ultimaLng: null, ultimaVelocidade: null, ultimaIgnicao: null, ultimaDirecao: null },
   });
   revalidatePath("/", "layout");
   return { ok: true, msg: imei ? "Rastreador salvo." : "Rastreador removido." };

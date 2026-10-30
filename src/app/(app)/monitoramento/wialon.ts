@@ -66,7 +66,7 @@ export async function ligarCaminhoesWialon(_: Resultado): Promise<Resultado> {
     if (outro) { semUnidade.push(`${c.placa} (IMEI já está no ${outro.placa})`); continue; }
     await db.caminhao.update({
       where: { id: c.id },
-      data: { rastreadorId: u.uid, ultimaPosicaoEm: null, ultimaLat: null, ultimaLng: null, ultimaVelocidade: null, ultimaIgnicao: null },
+      data: { rastreadorId: u.uid, ultimaPosicaoEm: null, ultimaLat: null, ultimaLng: null, ultimaVelocidade: null, ultimaIgnicao: null, ultimaDirecao: null },
     });
     ligados.push(c.placa);
   }
