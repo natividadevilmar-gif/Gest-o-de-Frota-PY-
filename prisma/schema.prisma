@@ -56,8 +56,6 @@ model Cliente {
   diasEmAtraso         Int           @default(0)
   // Contrato de prestação de serviço: plano, quantidade, prazo e vencimento.
   planoContratado      Plano         @default(GESTAO)
-  // Lançar despesa liberado para todos os caminhões, mesmo fora do plano Gestão (decisão da equipe KM Cero).
-  despesasLiberadas    Boolean       @default(false)
   caminhoesContratados Int           @default(1)
   prazoMeses           Int           @default(12)
   diaVencimento        Int           @default(10)

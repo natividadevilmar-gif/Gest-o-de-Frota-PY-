@@ -7,11 +7,13 @@ export const PRECO_MENSAL: Record<Plano, number> = { BASICO: 16, GESTAO: 28, VID
 export const NOME_PLANO: Record<Plano, string> = { BASICO: "Básico", GESTAO: "Gestão", VIDEO: "Vídeo" };
 const ORDEM_PLANO: Plano[] = ["BASICO", "GESTAO", "VIDEO"];
 
-export type Modulo = "painel" | "caminhoes" | "custos" | "consumo" | "revisoes" | "viagens" | "video";
+export type Modulo = "painel" | "caminhoes" | "despesas" | "custos" | "consumo" | "revisoes" | "viagens" | "video";
 
 const PLANO_MINIMO: Record<Modulo, Plano> = {
   painel: "BASICO",
   caminhoes: "BASICO",
+  // Lançar despesa vale em todos os planos; o relatório de custo por km continua no Gestão.
+  despesas: "BASICO",
   custos: "GESTAO",
   consumo: "GESTAO",
   revisoes: "GESTAO",

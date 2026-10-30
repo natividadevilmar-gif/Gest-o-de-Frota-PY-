@@ -16,6 +16,7 @@ const COBERTURA: Record<Plano, { nome: string; resumo: string; base?: Plano; ite
       ["Comandos", "Pedir posição e status do aparelho e reiniciar o rastreador."],
       ["Painel da frota", "Km rodados, caminhões ativos e alertas do mês."],
       ["Fretes e caixa dos motoristas", "Frete de cada viagem e adiantamentos ao motorista."],
+      ["Lançar despesa", "Motorista fotografa o recibo e o sistema lê o valor (guaranis, reais ou dólar)."],
       ["Acesso dos motoristas", "Cada motorista entra pelo celular com PIN."],
     ],
   },
@@ -24,7 +25,6 @@ const COBERTURA: Record<Plano, { nome: string; resumo: string; base?: Plano; ite
     resumo: "Para saber quanto custa e quanto rende cada caminhão.",
     base: "BASICO",
     itens: [
-      ["Lançar despesa", "Motorista fotografa o recibo e o sistema lê o valor (guaranis, reais ou dólar)."],
       ["Custo por km", "Combustível, peças, pedágio, salário, seguro e depreciação por km rodado."],
       ["Consumo e motoristas", "Km/l pela rede CAN, marcha lenta, freadas e ranking dos motoristas."],
       ["Revisões", "Aviso de troca de óleo, filtros e pneus pelo km do caminhão."],

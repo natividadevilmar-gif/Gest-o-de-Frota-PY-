@@ -25,6 +25,7 @@ describe("planos", () => {
   it("libera módulos conforme o plano", () => {
     expect(planoPermite("BASICO", "painel")).toBe(true);
     expect(planoPermite("BASICO", "custos")).toBe(false);
+    expect(planoPermite("BASICO", "despesas")).toBe(true);
     expect(planoPermite("GESTAO", "custos")).toBe(true);
     expect(planoPermite("GESTAO", "video")).toBe(false);
     expect(planoPermite("VIDEO", "video")).toBe(true);
