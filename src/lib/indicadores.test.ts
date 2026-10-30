@@ -219,6 +219,17 @@ describe("simulação de frete", () => {
     expect((t * 40 - 800) / (t * 40)).toBeCloseTo(0.2);
     expect(freteSugeridoTonelada(800, 0, 20)).toBeNull();
   });
+
+  it("comissão do motorista entra no custo e no frete sugerido", () => {
+    const s = simularFrete({ ...base, comissaoPct: 16 });
+    expect(s.pedagioVolta).toBe(20);
+    expect(s.comissao).toBeCloseTo(780 * 0.16);
+    expect(s.custo).toBeCloseTo(728 + 124.8);
+    const t = freteSugeridoTonelada(728, 30, 20, 16)!;
+    const com = simularFrete({ ...base, comissaoPct: 16, freteTonelada: t });
+    expect(com.margemPct).toBeCloseTo(20);
+    expect(simularFrete({ ...base, comissaoPct: 16, freteTonelada: com.freteMinimoTonelada! }).margem).toBeCloseTo(0);
+  });
 });
 
 describe("diesel da rota", () => {
