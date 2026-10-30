@@ -43,7 +43,9 @@ const duracao = (iso: string) => {
 const litrosParado = (p: NonNullable<CaminhaoMapa["parado"]>) => (p.litros == null ? "" : `${p.estimado ? "≈ " : ""}${numero(p.litros, 1)} L`);
 /** "Parado ligado · 1 h 05 min · 3,2 L" para o caminhão parado com o motor ligado. */
 const situacaoTexto = (c: CaminhaoMapa) =>
-  c.situacao === "parado" && c.parado ? [ROTULO.parado, duracao(c.parado.desde), litrosParado(c.parado)].filter(Boolean).join(" · ") : ROTULO[c.situacao];
+  c.situacao === "parado" && c.parado
+    ? [c.parado.semIgnicao ? "Parado (ignição não informada)" : ROTULO.parado, duracao(c.parado.desde), litrosParado(c.parado)].filter(Boolean).join(" · ")
+    : ROTULO[c.situacao];
 
 function esc(s: string) {
   return s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
@@ -412,7 +414,7 @@ export function MapaFrota({ inicial, hoje, todos = false, outraTela = false }: {
             <dl className="rastreio-agora">
               {escolhido.situacao === "parado" && escolhido.parado ? (
                 <>
-                  <div className="rastreio-parado"><dt>Parado ligado há</dt><dd>{duracao(escolhido.parado.desde)}</dd></div>
+                  <div className="rastreio-parado"><dt>{escolhido.parado.semIgnicao ? "Parado há" : "Parado ligado há"}</dt><dd>{duracao(escolhido.parado.desde)}</dd></div>
                   <div className="rastreio-parado"><dt>Diesel parado{escolhido.parado.estimado ? " (estimado)" : ""}</dt><dd>{escolhido.parado.litros != null ? litrosParado(escolhido.parado) : "–"}</dd></div>
                 </>
               ) : <div><dt>Velocidade</dt><dd>{escolhido.velocidadeKmh} km/h</dd></div>}

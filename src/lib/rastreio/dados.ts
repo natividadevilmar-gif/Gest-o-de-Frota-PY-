@@ -39,8 +39,10 @@ export type CaminhaoMapa = {
 export type ParadoLigado = {
   desde: string;
   litros: number | null;
-  /** true quando não há leitura de diesel e o gasto é a média de marcha lenta. */
+  /** true quando não há leitura de diesel e o gasto é a média de marcha lenta (só com ignição confirmada). */
   estimado: boolean;
+  /** O aparelho não informa a ignição: está parado, mas não se sabe se o motor está ligado. */
+  semIgnicao: boolean;
 };
 
 /** Marcha lenta de um caminhão pesado: cerca de 2,5 litros por hora. */
@@ -62,16 +64,19 @@ async function paradaLigado(caminhaoId: string, agora: Date): Promise<ParadoLiga
   const pontos = await db.posicao.findMany({
     where: { caminhaoId, data: { gt: antes?.data ?? limite, lte: agora } },
     orderBy: { data: "asc" },
-    select: { data: true, velocidadeKmh: true, litrosTotal: true, nivelCombustivelL: true },
+    select: { data: true, velocidadeKmh: true, ignicao: true, litrosTotal: true, nivelCombustivelL: true },
   });
   if (!pontos.length) return null;
   const desde = pontos[0].data;
   const can = pontos.filter((p) => p.litrosTotal != null);
-  if (can.length >= 2) return { desde: desde.toISOString(), litros: Math.round((can.at(-1)!.litrosTotal! - can[0].litrosTotal!) * 10) / 10, estimado: false };
+  if (can.length >= 2) return { desde: desde.toISOString(), litros: Math.round((can.at(-1)!.litrosTotal! - can[0].litrosTotal!) * 10) / 10, estimado: false, semIgnicao: false };
   const tanque = consumoPeloTanque(pontos);
-  if (tanque) return { desde: desde.toISOString(), litros: tanque.total, estimado: false };
+  if (tanque) return { desde: desde.toISOString(), litros: tanque.total, estimado: false, semIgnicao: false };
+  // Sem ignição confirmada (o aparelho não manda esse dado), não dá para dizer que gastou diesel parado.
+  const semIgnicao = !pontos.some((p) => p.ignicao != null);
+  if (!pontos.some((p) => p.ignicao === true)) return { desde: desde.toISOString(), litros: null, estimado: false, semIgnicao };
   const horas = (agora.getTime() - desde.getTime()) / 3600_000;
-  return { desde: desde.toISOString(), litros: Math.round(horas * MARCHA_LENTA_L_POR_H * 10) / 10, estimado: true };
+  return { desde: desde.toISOString(), litros: Math.round(horas * MARCHA_LENTA_L_POR_H * 10) / 10, estimado: true, semIgnicao: false };
 }
 
 const SEM_SINAL_MS = 30 * 60_000;
