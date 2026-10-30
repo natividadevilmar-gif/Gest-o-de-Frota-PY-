@@ -62,6 +62,8 @@ export function Central({ inicial, todos, clienteNome, podeCercas, tiposCerca, s
   const [aba, setAba] = useState<"fila" | "resolvidas" | "cercas">("fila");
   const [som, setSom] = useState(false);
   const [foco, setFoco] = useState<string | null>(null);
+  /** Alertas clicados no mapa (o escolhido e os do mesmo ponto): sobem para o topo da fila até voltar ao mapa geral. */
+  const [destaque, setDestaque] = useState<string[]>([]);
   const [cobrando, setCobrando] = useState<string | null>(null);
   const [resolvendo, setResolvendo] = useState<string | null>(null);
   const [obs, setObs] = useState("");
@@ -72,6 +74,7 @@ export function Central({ inicial, todos, clienteNome, podeCercas, tiposCerca, s
   const [resultado, criar, criando] = useActionState<Resultado, FormData>(criarCerca, null);
 
   const caixa = useRef<HTMLDivElement>(null);
+  const painel = useRef<HTMLDivElement>(null);
   const L = useRef<typeof Leaflet | null>(null);
   const mapa = useRef<Leaflet.Map | null>(null);
   const camadas = useRef<{ cercas: Leaflet.LayerGroup; frota: Leaflet.LayerGroup; alertas: Leaflet.LayerGroup; ponto: Leaflet.LayerGroup } | null>(null);
@@ -88,7 +91,7 @@ export function Central({ inicial, todos, clienteNome, podeCercas, tiposCerca, s
   useEffect(() => {
     if (typeof BroadcastChannel === "undefined") return;
     const c = new BroadcastChannel(CANAL);
-    c.onmessage = (e: MessageEvent<{ foco?: string | null; atualizar?: boolean }>) => {
+    c.onmessage = (e: MessageEvent<{ foco?: string | null; destaque?: string[]; atualizar?: boolean }>) => {
       const v = e.data.foco;
       if (v !== undefined) {
         // Só marca como vindo de fora quando muda, senão o próximo clique daqui não seria enviado.
@@ -98,6 +101,7 @@ export function Central({ inicial, todos, clienteNome, podeCercas, tiposCerca, s
           return v;
         });
       }
+      if (e.data.destaque) setDestaque(e.data.destaque);
       if (e.data.atualizar) void atualizarRef.current();
     };
     canal.current = c;
@@ -153,6 +157,10 @@ export function Central({ inicial, todos, clienteNome, podeCercas, tiposCerca, s
       };
       m.on("click", (e: Leaflet.LeafletMouseEvent) => {
         if (marcandoRef.current) setPonto({ lat: Math.round(e.latlng.lat * 1e5) / 1e5, lng: Math.round(e.latlng.lng * 1e5) / 1e5 });
+      });
+      // Afastou o zoom de volta ao mapa geral: a fila volta à ordem normal.
+      m.on("zoomend", () => {
+        if (m.getZoom() <= 9) setDestaque([]);
       });
       mapa.current = m;
       const pts = inicial.frota.filter((c) => c.lat != null).map((c) => [c.lat!, c.lng!] as [number, number]);
@@ -219,8 +227,9 @@ export function Central({ inicial, todos, clienteNome, podeCercas, tiposCerca, s
     for (const o of dados.abertas) {
       if (o.lat == null || o.lng == null) continue;
       const icone = mod.divIcon({ className: "", html: `<div class="alerta-mapa alerta-${o.gravidade}${o.id === foco ? " alerta-foco" : ""}">!</div>`, iconSize: [22, 22], iconAnchor: [11, 11] });
-      mod.marker([o.lat, o.lng], { icon: icone, zIndexOffset: o.id === foco ? 2000 : 1000, title: o.titulo }).on("click", () => setFoco(o.id)).addTo(c.alertas);
+      mod.marker([o.lat, o.lng], { icon: icone, zIndexOffset: o.id === foco ? 2000 : 1000, title: o.titulo }).on("click", () => escolherNoMapa(o)).addTo(c.alertas);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dados.abertas, pronto, foco]);
 
   useEffect(() => {
@@ -229,6 +238,34 @@ export function Central({ inicial, todos, clienteNome, podeCercas, tiposCerca, s
     c.ponto.clearLayers();
     if (ponto) mod.circle([ponto.lat, ponto.lng], { radius: raio, color: "#C8261B", weight: 2, dashArray: "4 4", fillOpacity: 0.12 }).addTo(c.ponto);
   }, [ponto, raio, pronto]);
+
+  /** Clique no alerta do mapa: ele e os outros do mesmo caminhão ou do mesmo ponto vão para o topo da fila. */
+  const escolherNoMapa = (o: OcorrenciaVista) => {
+    const m = mapa.current;
+    const aqui = m && o.lat != null && o.lng != null ? m.latLngToContainerPoint([o.lat, o.lng]) : null;
+    const juntos = dados.abertas.filter((x) => {
+      if (x.id === o.id) return false;
+      if (x.caminhaoId === o.caminhaoId) return true;
+      if (!m || !aqui || x.lat == null || x.lng == null) return false;
+      return m.latLngToContainerPoint([x.lat, x.lng]).distanceTo(aqui) <= 30;
+    });
+    const ids = [o.id, ...juntos.map((x) => x.id)];
+    setDestaque(ids);
+    canal.current?.postMessage({ destaque: ids });
+    setFoco(o.id);
+  };
+
+  const voltarAoGeral = () => {
+    setDestaque([]);
+    setFoco(null);
+    canal.current?.postMessage({ destaque: [] });
+    const pts = dados.frota.filter((c) => c.lat != null).map((c) => [c.lat!, c.lng!] as [number, number]);
+    if (pts.length) mapa.current?.flyToBounds(pts, { padding: [30, 30], maxZoom: 10, duration: 0.6 });
+  };
+
+  useEffect(() => {
+    painel.current?.scrollTo({ top: 0, behavior: "smooth" });
+  }, [destaque]);
 
   useEffect(() => {
     const o = dados.abertas.find((x) => x.id === foco) ?? dados.resolvidas.find((x) => x.id === foco);
@@ -242,9 +279,18 @@ export function Central({ inicial, todos, clienteNome, podeCercas, tiposCerca, s
 
   const fila = useMemo(
     // Por gravidade e depois a mais recente; atender não muda a posição, para não "pular" na mão do operador.
-    () => [...dados.abertas].sort((a, b) => ORDEM.indexOf(a.gravidade) - ORDEM.indexOf(b.gravidade) || b.criadaEm.localeCompare(a.criadaEm)),
-    [dados.abertas],
+    // Os alertas clicados no mapa vêm primeiro, na ordem do clique.
+    () => {
+      const pos = (id: string) => { const i = destaque.indexOf(id); return i < 0 ? Infinity : i; };
+      return [...dados.abertas].sort((a, b) => {
+        const pa = pos(a.id), pb = pos(b.id);
+        if (pa !== pb) return pa === Infinity ? 1 : pb === Infinity ? -1 : pa - pb;
+        return ORDEM.indexOf(a.gravidade) - ORDEM.indexOf(b.gravidade) || b.criadaEm.localeCompare(a.criadaEm);
+      });
+    },
+    [dados.abertas, destaque],
   );
+  const destacados = fila.filter((o) => destaque.includes(o.id)).length;
   const conta = (g: string) => dados.abertas.filter((o) => o.status === "aberta" && o.gravidade === g).length;
   const emAtendimento = dados.abertas.filter((o) => o.status === "atendimento").length;
   const hoje = new Date().toLocaleDateString("pt-BR", { timeZone: "America/Asuncion" });
@@ -276,12 +322,19 @@ export function Central({ inicial, todos, clienteNome, podeCercas, tiposCerca, s
           {dados.frota.some((f) => f.wialon) && <p className="central-legenda"><i style={{ borderColor: COR_WIALON }} /> Rastreador no Wialon</p>}
         </div>
 
-        {!soMapa && <div className="central-painel card">
+        {!soMapa && <div ref={painel} className="central-painel card">
           <div className="abas" role="tablist">
             <button role="tab" aria-selected={aba === "fila"} onClick={() => setAba("fila")}>Fila {dados.abertas.length}</button>
             <button role="tab" aria-selected={aba === "resolvidas"} onClick={() => setAba("resolvidas")}>Resolvidas</button>
             <button role="tab" aria-selected={aba === "cercas"} onClick={() => setAba("cercas")}>Cercas {dados.cercas.length}</button>
           </div>
+
+          {aba === "fila" && destacados > 0 && (
+            <div className="fila-destaque">
+              <span>{destacados === 1 ? "1 alerta deste ponto no topo" : `${destacados} alertas deste ponto no topo`}</span>
+              <button type="button" onClick={voltarAoGeral}>Voltar ao mapa geral</button>
+            </div>
+          )}
 
           {aba === "fila" && (
             fila.length === 0 ? <p className="note">Nenhuma ocorrência aberta. A central verifica a frota a cada 15 segundos.</p> : (
