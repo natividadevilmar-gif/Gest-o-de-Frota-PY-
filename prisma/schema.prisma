@@ -75,6 +75,7 @@ model Cliente {
   caminhoes            Caminhao[]
   motoristas           Motorista[]
   caixas               CaixaViagem[]
+  rotasFrete           RotaFrete[]
   cercas               Cerca[]
   ocorrencias          Ocorrencia[]
   comandos             Comando[]
@@ -478,4 +479,20 @@ model RotaPedagio {
   km      Int
   pracas  String[]
   viagens Viagem[]
+}
+
+// Rota pré-definida do simulador de frete: cidades, km de ida e o corredor de pedágio.
+model RotaFrete {
+  id            String   @id @default(cuid())
+  clienteId     String
+  cliente       Cliente  @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  origem        String
+  paisOrigem    String   @default("PY")
+  destino       String
+  paisDestino   String   @default("PY")
+  km            Int
+  rotaPedagioId String?
+  criadoEm      DateTime @default(now())
+
+  @@index([clienteId])
 }

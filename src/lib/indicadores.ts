@@ -209,6 +209,55 @@ export function freteMinimoPorTonelada(toneladas: number, kmCarregado: number, k
   return toneladas > 0 ? ((kmCarregado + kmVazio) * custoKm) / toneladas : null;
 }
 
+export type EntradaSimulacao = {
+  toneladas: number;
+  freteTonelada: number;
+  kmIda: number;
+  voltaVazio: boolean;
+  kmLCarregado: number;
+  kmLVazio: number;
+  precoDiesel: number;
+  /** Custo por km sem o diesel: manutenção, pneus, motorista, seguro... */
+  outrosKm: number;
+  pedagioIda: number;
+  extras: number;
+};
+
+/**
+ * Simulação de um frete antes de aceitar. Voltando vazio, a volta entra no custo
+ * (km, diesel com o km/l de vazio e pedágio); voltando carregado, ela é outro frete.
+ */
+export function simularFrete(e: EntradaSimulacao) {
+  const kmVolta = e.voltaVazio ? e.kmIda : 0;
+  const kmTotal = e.kmIda + kmVolta;
+  const litros = (e.kmLCarregado > 0 ? e.kmIda / e.kmLCarregado : 0) + (e.kmLVazio > 0 ? kmVolta / e.kmLVazio : 0);
+  const diesel = litros * e.precoDiesel;
+  const outros = kmTotal * e.outrosKm;
+  const pedagio = e.pedagioIda * (e.voltaVazio ? 2 : 1);
+  const custo = diesel + outros + pedagio + e.extras;
+  const frete = e.toneladas * e.freteTonelada;
+  const margem = frete - custo;
+  return {
+    kmVolta,
+    kmTotal,
+    litros,
+    diesel,
+    outros,
+    pedagio,
+    custo,
+    frete,
+    margem,
+    margemPct: frete > 0 ? (margem / frete) * 100 : null,
+    custoKm: kmTotal > 0 ? custo / kmTotal : null,
+    freteMinimoTonelada: e.toneladas > 0 ? custo / e.toneladas : null,
+  };
+}
+
+/** Frete por tonelada que deixa a margem pedida (em %) sobre o custo da simulação. */
+export function freteSugeridoTonelada(custo: number, toneladas: number, margemPct: number): number | null {
+  return toneladas > 0 && margemPct < 100 ? custo / (1 - margemPct / 100) / toneladas : null;
+}
+
 // ---- Cobrança (visão interna) ----
 
 export const DIAS_PARA_BLOQUEIO = 15;
