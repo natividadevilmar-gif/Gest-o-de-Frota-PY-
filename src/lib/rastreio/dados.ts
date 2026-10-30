@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { indicadoresFrota } from "@/lib/dados";
 import { mesAtual, planoPermite } from "@/lib/indicadores";
-import { ehImei, LIMITE_VELOCIDADE_KMH, resumirDia, saidaDoDia } from "@/lib/telemetria/posicoes";
+import { consumoPeloTanque, ehImei, LIMITE_VELOCIDADE_KMH, resumirDia, saidaDoDia } from "@/lib/telemetria/posicoes";
 import { clienteUsaWialon, espelharSeDevido } from "./wialon";
 import { diaNoParaguai, posicaoDemo, rotaDemoNome, trajetoDemo } from "./rotas";
 
@@ -32,7 +32,47 @@ export type CaminhaoMapa = {
   bloqueado: boolean;
   /** Posições trazidas do Wialon em vez do receptor próprio. */
   wialon: boolean;
+  /** Parado com o motor ligado: desde quando e o diesel gasto nesse tempo. */
+  parado?: ParadoLigado | null;
 };
+
+export type ParadoLigado = {
+  desde: string;
+  litros: number | null;
+  /** true quando não há leitura de diesel e o gasto é a média de marcha lenta. */
+  estimado: boolean;
+};
+
+/** Marcha lenta de um caminhão pesado: cerca de 2,5 litros por hora. */
+const MARCHA_LENTA_L_POR_H = 2.5;
+/** Até onde volta para achar o começo da parada. */
+const PARADA_MAX_MS = 3 * 24 * 3600_000;
+
+/**
+ * Desde quando o caminhão está parado com o motor ligado (a última posição andando ou desligado
+ * marca o começo) e o diesel gasto: pela CAN, pela boia do tanque ou pela média de marcha lenta.
+ */
+async function paradaLigado(caminhaoId: string, agora: Date): Promise<ParadoLigado | null> {
+  const limite = new Date(agora.getTime() - PARADA_MAX_MS);
+  const antes = await db.posicao.findFirst({
+    where: { caminhaoId, data: { gte: limite, lte: agora }, OR: [{ velocidadeKmh: { gt: 3 } }, { ignicao: false }] },
+    orderBy: { data: "desc" },
+    select: { data: true },
+  });
+  const pontos = await db.posicao.findMany({
+    where: { caminhaoId, data: { gt: antes?.data ?? limite, lte: agora } },
+    orderBy: { data: "asc" },
+    select: { data: true, velocidadeKmh: true, litrosTotal: true, nivelCombustivelL: true },
+  });
+  if (!pontos.length) return null;
+  const desde = pontos[0].data;
+  const can = pontos.filter((p) => p.litrosTotal != null);
+  if (can.length >= 2) return { desde: desde.toISOString(), litros: Math.round((can.at(-1)!.litrosTotal! - can[0].litrosTotal!) * 10) / 10, estimado: false };
+  const tanque = consumoPeloTanque(pontos);
+  if (tanque) return { desde: desde.toISOString(), litros: tanque.total, estimado: false };
+  const horas = (agora.getTime() - desde.getTime()) / 3600_000;
+  return { desde: desde.toISOString(), litros: Math.round(horas * MARCHA_LENTA_L_POR_H * 10) / 10, estimado: true };
+}
 
 const SEM_SINAL_MS = 30 * 60_000;
 
@@ -51,7 +91,7 @@ export async function frotaNoMapa(clienteId: string | null, agora = new Date()):
     include: { motorista: { select: { nome: true } }, cliente: { select: { nome: true, wialonToken: true, wialonHost: true } } },
     orderBy: [{ cliente: { nome: "asc" } }, { placa: "asc" }],
   });
-  return lista.map((c) => {
+  const frota: CaminhaoMapa[] = lista.map((c) => {
     const base = { id: c.id, placa: c.placa, modelo: c.modelo, motorista: c.motorista?.nome ?? null, cliente: c.cliente.nome, clienteId: c.clienteId, bloqueado: c.motorBloqueado,
       wialon: ehImei(c.rastreadorId) && clienteUsaWialon(c.cliente) };
     if (!c.rastreadorId) {
@@ -94,6 +134,9 @@ export async function frotaNoMapa(clienteId: string | null, agora = new Date()):
       rpm: p.rpm,
     };
   });
+  // Só os parados ligados de verdade (não a demonstração) buscam o começo da parada.
+  await Promise.all(frota.filter((c) => c.situacao === "parado" && !c.demo).map(async (c) => { c.parado = await paradaLigado(c.id, agora); }));
+  return frota;
 }
 
 export type Trajeto = {
