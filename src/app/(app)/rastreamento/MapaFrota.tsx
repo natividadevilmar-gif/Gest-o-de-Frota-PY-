@@ -68,6 +68,28 @@ function dicaCompleta(c: CaminhaoMapa, todos: boolean) {
     `<table class="mk-tele">${linhas.map(([k, v]) => `<tr><th>${k}</th><td>${esc(v)}</td></tr>`).join("")}</table>`;
 }
 
+/**
+ * O quadro do caminhão é alto: perto da borda de cima do mapa ele abre para baixo, e perto
+ * das laterais abre para o lado, para não ficar cortado.
+ */
+function ajustarDica(m: Leaflet.Map, marca: Leaflet.Marker) {
+  const dica = marca.getTooltip();
+  const el = dica?.getElement();
+  if (!dica || !el) return;
+  const p = m.latLngToContainerPoint(marca.getLatLng());
+  const { x: larg, y: alt } = m.getSize();
+  const meiaLarg = el.offsetWidth / 2 + 10;
+  const [direction, offset]: [Leaflet.Direction, [number, number]] =
+    p.x < meiaLarg ? ["right", [12, 0]]
+    : p.x > larg - meiaLarg ? ["left", [-12, 0]]
+    : p.y < el.offsetHeight + 20 && p.y < alt / 2 ? ["bottom", [0, 14]]
+    : ["top", [0, -10]];
+  if (dica.options.direction === direction) return;
+  dica.options.direction = direction;
+  dica.options.offset = offset;
+  dica.update();
+}
+
 function esc(s: string) {
   return s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
 }
@@ -226,6 +248,7 @@ export function MapaFrota({ inicial, hoje, todos = false, outraTela = false }: {
       if (!s) {
         const marca = mod.marker([c.lat!, c.lng!], { icon: icone() })
           .bindTooltip(dica, { direction: "top", offset: [0, -10], className: "mk-dica" })
+          .on("tooltipopen", (e) => ajustarDica(m, e.target as Leaflet.Marker))
           .on("click", () => setSel(c.id))
           .addTo(m);
         s = { marca, html };
