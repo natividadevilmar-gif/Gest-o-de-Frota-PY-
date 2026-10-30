@@ -63,10 +63,19 @@ function abrirAoPassar(marca: Leaflet.Marker) {
   marca.on("mouseover", () => { manter(); marca.openPopup(); });
   marca.on("mouseout", fechar);
   marca.on("popupopen", (e) => {
-    const el = (e as Leaflet.PopupEvent).popup.getElement();
+    const popup = (e as Leaflet.PopupEvent).popup;
+    const el = popup.getElement();
     if (!el) return;
     el.onmouseenter = manter;
     el.onmouseleave = fechar;
+    // Perto do topo do mapa a lista abriria escondida: abre para baixo do grupo.
+    const m = (marca as unknown as { _map?: Leaflet.Map })._map;
+    if (!m) return;
+    const y = m.latLngToContainerPoint(marca.getLatLng()).y;
+    const embaixo = y < el.offsetHeight + 30;
+    el.classList.toggle("mk-popup-baixo", embaixo);
+    popup.options.offset = embaixo ? [0, el.offsetHeight + 34] : [0, -6];
+    popup.update();
   });
 }
 
@@ -86,7 +95,7 @@ function listaDoGrupo(itens: CaminhaoMapa[], todos: boolean, abrir: (id: string)
       `<i class="ponto ponto-${c.situacao}"></i>` +
       `<span class="mk-lista-nome"><b>${esc(c.placa)}</b><small>${esc(c.motorista ?? "sem motorista")}${todos ? ` · ${esc(c.cliente)}` : ""}</small></span>` +
       `<span class="mk-lista-vel">${c.situacao === "movimento" ? `${c.velocidadeKmh} km/h` : ROTULO[c.situacao]}</span>` +
-      `<span class="mk-lista-ign${ligado ? " on" : ""}" title="Ignição ${ligado ? "ligada" : "desligada"}">⏻</span>` +
+      `<span class="mk-lista-ign${ligado ? " on" : ""}" title="Ignição ${ligado ? "ligada" : "desligada"}"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.5v6M4.4 3.8a5.5 5.5 0 1 0 7.2 0"/></svg></span>` +
       `<small class="mk-lista-quando">${quando(c.atualizadoEm)}</small>`;
     bt.onclick = () => abrir(c.id);
     lista.append(bt);
