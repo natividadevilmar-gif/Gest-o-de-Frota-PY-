@@ -55,6 +55,45 @@ const caminhao = (graus: number) => {
 const seta = (graus: number) =>
   `<i class="mk-seta" style="transform:rotate(${Math.round(graus)}deg)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1 14 14 8 10.5 2 14Z"/></svg></i>`;
 
+/** O balão do grupo abre ao passar o mouse e fica aberto enquanto o mouse está nele (ou no grupo). */
+function abrirAoPassar(marca: Leaflet.Marker) {
+  let t: ReturnType<typeof setTimeout> | undefined;
+  const fechar = () => { clearTimeout(t); t = setTimeout(() => marca.closePopup(), 350); };
+  const manter = () => clearTimeout(t);
+  marca.on("mouseover", () => { manter(); marca.openPopup(); });
+  marca.on("mouseout", fechar);
+  marca.on("popupopen", (e) => {
+    const el = (e as Leaflet.PopupEvent).popup.getElement();
+    if (!el) return;
+    el.onmouseenter = manter;
+    el.onmouseleave = fechar;
+  });
+}
+
+/** Lista do grupo, no estilo do Wialon: situação, placa e motorista, velocidade, ignição e último sinal. */
+function listaDoGrupo(itens: CaminhaoMapa[], todos: boolean, abrir: (id: string) => void) {
+  const lista = document.createElement("div");
+  lista.className = "mk-lista";
+  const titulo = document.createElement("b");
+  titulo.textContent = `${itens.length} caminhões aqui · clique para abrir`;
+  lista.append(titulo);
+  const ordem: Record<string, number> = { movimento: 0, parado: 1, "sem-sinal": 2, desligado: 3, aguardando: 4 };
+  for (const c of [...itens].sort((a, b) => (ordem[a.situacao] ?? 9) - (ordem[b.situacao] ?? 9) || a.placa.localeCompare(b.placa))) {
+    const bt = document.createElement("button");
+    bt.type = "button";
+    const ligado = c.situacao === "movimento" || c.situacao === "parado";
+    bt.innerHTML =
+      `<i class="ponto ponto-${c.situacao}"></i>` +
+      `<span class="mk-lista-nome"><b>${esc(c.placa)}</b><small>${esc(c.motorista ?? "sem motorista")}${todos ? ` · ${esc(c.cliente)}` : ""}</small></span>` +
+      `<span class="mk-lista-vel">${c.situacao === "movimento" ? `${c.velocidadeKmh} km/h` : ROTULO[c.situacao]}</span>` +
+      `<span class="mk-lista-ign${ligado ? " on" : ""}" title="Ignição ${ligado ? "ligada" : "desligada"}">⏻</span>` +
+      `<small class="mk-lista-quando">${quando(c.atualizadoEm)}</small>`;
+    bt.onclick = () => abrir(c.id);
+    lista.append(bt);
+  }
+  return lista;
+}
+
 export function MapaFrota({ inicial, hoje, todos = false, outraTela = false }: {
   inicial: CaminhaoMapa[]; hoje: string; todos?: boolean;
   /** Janela própria (só o mapa e a lista), para arrastar a outro monitor. */
@@ -72,10 +111,12 @@ export function MapaFrota({ inicial, hoje, todos = false, outraTela = false }: {
   const L = useRef<typeof Leaflet | null>(null);
   const mapa = useRef<Leaflet.Map | null>(null);
   const soltos = useRef(new Map<string, { marca: Leaflet.Marker; html: string }>());
+  const grupos = useRef(new Map<string, { marca: Leaflet.Marker; html: string }>());
   const movimento = useRef(new Movimento());
   const fundo = useRef<ReturnType<typeof fundosDoMapa> | null>(null);
   const linha = useRef<Leaflet.LayerGroup | null>(null);
   const [pronto, setPronto] = useState(false);
+  const [zoom, setZoom] = useState(0);
 
   // Cria o mapa uma vez (o Leaflet só roda no navegador).
   useEffect(() => {
@@ -87,15 +128,17 @@ export function MapaFrota({ inicial, hoje, todos = false, outraTela = false }: {
       fundo.current = fundosDoMapa(mod, m);
       linha.current = mod.layerGroup().addTo(m);
       mapa.current = m;
+      m.on("zoomend", () => setZoom(m.getZoom()));
       const pts = inicial.filter((c) => c.lat != null).map((c) => [c.lat!, c.lng!] as [number, number]);
       if (pts.length) m.fitBounds(pts, { padding: [40, 40], maxZoom: 10 });
       setPronto(true);
     });
-    const mov = movimento.current, marcados = soltos.current;
+    const mov = movimento.current, marcados = soltos.current, agrupados = grupos.current;
     return () => {
       vivo = false;
       mov.parar();
       marcados.clear();
+      agrupados.clear();
       mapa.current?.remove();
       mapa.current = null;
     };
@@ -116,9 +159,9 @@ export function MapaFrota({ inicial, hoje, todos = false, outraTela = false }: {
     if (!pronto || !mod) return;
     // Os marcadores ficam no mapa entre uma atualização e outra, para andarem até a posição nova.
     const usados = new Set<string>();
-    // Cada caminhão aparece separado, só com o ponto (ou a seta, em movimento). A placa aparece
-    // ao passar o mouse e no caminhão escolhido. Com um caminhão escolhido, o mapa mostra só ele
-    // e o trajeto dele; ao fechar, os outros voltam.
+    // Cada caminhão aparece com o ponto (ou a seta, em movimento); os que ficam em cima um do outro
+    // viram um grupo com o número. A placa aparece ao passar o mouse e no caminhão escolhido. Com um
+    // caminhão escolhido, o mapa mostra só ele e o trajeto dele; ao fechar, os outros voltam.
     const visiveis = frota.filter((c) => (sel ? c.id === sel : filtro === "todos" || c.situacao === filtro));
     const m = mapa.current;
     if (!m) return;
@@ -153,14 +196,50 @@ export function MapaFrota({ inicial, hoje, todos = false, outraTela = false }: {
       movimento.current.ir(c.id, s.marca, [c.lat!, c.lng!], c.atualizadoEm);
     };
 
-    for (const c of visiveis) if (c.lat != null && c.lng != null) marcar(c);
+    // Caminhões a menos de ~28 px um do outro (ex.: parados no mesmo pátio) viram um grupo com a contagem.
+    const juntos: { x: number; y: number; itens: CaminhaoMapa[] }[] = [];
+    for (const c of visiveis) {
+      if (c.lat == null || c.lng == null) continue;
+      if (c.id === sel) { marcar(c); continue; }
+      const p = m.project([c.lat, c.lng], m.getZoom());
+      const g = juntos.find((g) => Math.hypot(g.x - p.x, g.y - p.y) < 28);
+      if (g) g.itens.push(c);
+      else juntos.push({ x: p.x, y: p.y, itens: [c] });
+    }
+    const gruposUsados = new Set<string>();
+    for (const g of juntos) {
+      if (g.itens.length === 1) { marcar(g.itens[0]); continue; }
+      const chave = g.itens.map((c) => c.id).sort().join(",");
+      gruposUsados.add(chave);
+      const sit = g.itens.every((c) => c.situacao === g.itens[0].situacao) ? g.itens[0].situacao : "misto";
+      const html = `<div class="mk mk-grupo mk-${sit}${g.itens.some((c) => c.wialon) ? " mk-wialon" : ""}"><i></i>${g.itens.length}</div>`;
+      const centro = mod.latLng(g.itens.reduce((a, c) => a + c.lat!, 0) / g.itens.length, g.itens.reduce((a, c) => a + c.lng!, 0) / g.itens.length);
+      let gr = grupos.current.get(chave);
+      if (!gr) {
+        const marca = mod.marker(centro, { icon: mod.divIcon({ className: "", html, iconSize: undefined, iconAnchor: [14, 13] }), zIndexOffset: 500 })
+          .bindPopup("", { closeButton: false, autoPan: false, maxHeight: 320, minWidth: 330, className: "mk-popup", offset: [0, -6] })
+          .addTo(m);
+        abrirAoPassar(marca);
+        gr = { marca, html };
+        grupos.current.set(chave, gr);
+      } else {
+        gr.marca.setLatLng(centro);
+        if (gr.html !== html) { gr.marca.setIcon(mod.divIcon({ className: "", html, iconSize: undefined, iconAnchor: [14, 13] })); gr.html = html; }
+      }
+      gr.marca.setPopupContent(listaDoGrupo(g.itens, todos, (id) => { m.closePopup(); setSel(id); }));
+    }
     for (const [id, s] of soltos.current) {
       if (usados.has(id)) continue;
       s.marca.remove();
       soltos.current.delete(id);
       movimento.current.esquecer(id);
     }
-  }, [frota, sel, pronto, todos, filtro]);
+    for (const [chave, g] of grupos.current) {
+      if (gruposUsados.has(chave)) continue;
+      g.marca.remove();
+      grupos.current.delete(chave);
+    }
+  }, [frota, sel, pronto, todos, filtro, zoom]);
 
   // Ao trocar o filtro, o mapa enquadra só os caminhões daquela situação.
   useEffect(() => {
