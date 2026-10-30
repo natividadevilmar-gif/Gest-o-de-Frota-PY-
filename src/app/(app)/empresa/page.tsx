@@ -47,7 +47,7 @@ export default async function Empresa() {
       const [ind, revs, saldo] = await Promise.all([indicadoresFrota(c.id, mes), revisoesCliente(c.id), saldoEmpresa(c.id, mes)]);
       const gestao = ind.filter((i) => planoPermite(i.plano, "custos"));
       const tot = totaisFrota(gestao);
-      const revisoes = revs.filter((r) => planoPermite(r.caminhao.plano, "revisoes"));
+      const revisoes = revs.filter((r) => r.demo || planoPermite(r.caminhao.plano, "revisoes"));
       const vivo = agora.filter((f) => f.cliente === c.nome);
       return {
         c, planos, mrr: mensalidadeTotal(planos), situacao: situacaoPagamento(c.diasEmAtraso),

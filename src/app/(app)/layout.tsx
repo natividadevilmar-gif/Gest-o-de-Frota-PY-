@@ -35,7 +35,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const planos = cliente
     ? (await db.caminhao.findMany({ where: { clienteId: cliente.id }, select: { plano: true } })).map((c) => c.plano as Plano)
     : [];
-  const libera = (m: Modulo) => planos.some((p) => planoPermite(p, m));
+  // Revisões também abre quando o admin montou o plano de demonstração para o cliente.
+  const demoRevisoes = cliente ? (await db.itemRevisao.count({ where: { demo: true, caminhao: { clienteId: cliente.id } } })) > 0 : false;
+  const libera = (m: Modulo) => (m === "revisoes" && demoRevisoes) || planos.some((p) => planoPermite(p, m));
 
   // O motorista vê o menu no idioma escolhido por ele.
   const es = sessao.papel === "MOTORISTA" && ((await db.usuario.findUnique({ where: { id: sessao.usuarioId }, select: { idioma: true } }))?.idioma ?? cliente?.idioma) === "es";
