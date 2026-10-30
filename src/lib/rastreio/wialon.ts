@@ -391,7 +391,7 @@ async function espelharConta(db: PrismaClient, api: Wialon, clienteId: string, a
         where: { id: c.id, OR: [{ ultimaPosicaoEm: null }, { ultimaPosicaoEm: { lt: ultima.data } }] },
         data: {
           ultimaPosicaoEm: ultima.data, ultimaLat: ultima.lat, ultimaLng: ultima.lng,
-          ultimaVelocidade: ultima.velocidadeKmh, ultimaIgnicao: ultima.ignicao,
+          ultimaVelocidade: ultima.velocidadeKmh, ultimaIgnicao: ultima.ignicao, ultimaDirecao: ultima.direcao,
           ...(ultima.odometroKm ? { odometroKm: Math.round(ultima.odometroKm) } : {}),
         },
       });
@@ -448,7 +448,7 @@ export async function historicoWialon(db: PrismaClient, api: Wialon, clienteId: 
           const u2 = linhas.reduce((x, y) => (y.data > x.data ? y : x));
           await db.caminhao.updateMany({
             where: { id: c.id, ultimaPosicaoEm: null },
-            data: { ultimaPosicaoEm: u2.data, ultimaLat: u2.lat, ultimaLng: u2.lng, ultimaVelocidade: u2.velocidadeKmh, ultimaIgnicao: u2.ignicao },
+            data: { ultimaPosicaoEm: u2.data, ultimaLat: u2.lat, ultimaLng: u2.lng, ultimaVelocidade: u2.velocidadeKmh, ultimaIgnicao: u2.ignicao, ultimaDirecao: u2.direcao },
           });
         }
         for (const d of diasDoParaguai(linhas.map((l) => l.data))) dias.add(d.getTime());

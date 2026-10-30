@@ -150,7 +150,7 @@ function atender(sock: Socket) {
           where: { id: caminhao!.id, OR: [{ ultimaPosicaoEm: null }, { ultimaPosicaoEm: { lt: ultima.data } }] },
           data: {
             ultimaPosicaoEm: ultima.data, ultimaLat: ultima.lat, ultimaLng: ultima.lng,
-            ultimaVelocidade: ultima.velocidadeKmh, ultimaIgnicao: ultima.ignicao,
+            ultimaVelocidade: ultima.velocidadeKmh, ultimaIgnicao: ultima.ignicao, ultimaDirecao: ultima.direcao,
             ...(ultima.odometroKm ? { odometroKm: Math.round(ultima.odometroKm) } : {}),
           },
         });

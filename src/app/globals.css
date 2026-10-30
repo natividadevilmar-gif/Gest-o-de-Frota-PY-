@@ -444,7 +444,7 @@ label.plano-btn{cursor:pointer}
 .mk-cam svg{display:block;width:100%;height:100%;filter:drop-shadow(0 1px 1.5px rgba(0,0,0,.6))}
 .mk-cam svg circle{fill:#1c211e;stroke:#cfd3cf;stroke-width:1}
 .mk-carreta{fill:#f2f4f1;stroke:#3a403c;stroke-width:.8}
-.mk-cabine{fill:#e3242b;stroke:#1c211e;stroke-width:.8}
+.mk-cabine{fill:#1f6fd1;stroke:#1c211e;stroke-width:.8}
 .mk-cam-seta{fill:#2f9e5b;stroke:#fff;stroke-width:1;stroke-linejoin:round}
 .mk-caminhao:not(.mk-movimento) .mk-cam-seta{display:none}
 .mk-caminhao b{margin-top:14px;background:#c8261b;color:#fff;font:700 12px/1.25 var(--f-body);padding:2px 7px;border-radius:3px;white-space:nowrap;box-shadow:0 1px 3px rgba(0,0,0,.45)}

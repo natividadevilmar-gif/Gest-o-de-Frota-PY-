@@ -85,7 +85,7 @@ export async function cadastrarCaminhoesCusat(_: Resultado): Promise<Resultado> 
     if (outro) { semImei.push(`${a.name} (IMEI já está no ${outro.placa})`); continue; }
     await db.caminhao.update({
       where: { id: c.id },
-      data: { rastreadorId: imei, ultimaPosicaoEm: null, ultimaLat: null, ultimaLng: null, ultimaVelocidade: null, ultimaIgnicao: null },
+      data: { rastreadorId: imei, ultimaPosicaoEm: null, ultimaLat: null, ultimaLng: null, ultimaVelocidade: null, ultimaIgnicao: null, ultimaDirecao: null },
     });
     ligados.push(c.placa);
   }

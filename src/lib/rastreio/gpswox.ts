@@ -156,7 +156,7 @@ export async function espelharGpswox(db: PrismaClient, agora = new Date()) {
         await db.caminhao.update({
           where: { id: c.id },
           data: {
-            ultimaPosicaoEm: l.data, ultimaLat: l.lat, ultimaLng: l.lng, ultimaVelocidade: l.velocidadeKmh, ultimaIgnicao: l.ignicao,
+            ultimaPosicaoEm: l.data, ultimaLat: l.lat, ultimaLng: l.lng, ultimaVelocidade: l.velocidadeKmh, ultimaIgnicao: l.ignicao, ultimaDirecao: l.direcao,
             ...(l.odometroKm ? { odometroKm: Math.round(l.odometroKm) } : {}),
           },
         });
