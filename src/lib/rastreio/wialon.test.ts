@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { diasDoParaguai } from "../telemetria/sincronizar";
-import { credenciaisWialon, imeisPelaPlaca, ligarUnidades, paraPosicaoWialon, sensoresDiesel, telemetriaDaMensagem } from "./wialon";
+import { credenciaisWialon, imeisPelaPlaca, ligarUnidades, paraPosicaoWialon, sensoresDiesel, somaTanques, telemetriaDaMensagem } from "./wialon";
 
 const pos = { x: -57.5, y: -25.3, s: 72.4, c: 181, sc: 14 };
 
@@ -73,9 +73,23 @@ describe("sensores de diesel do Wialon", () => {
   });
   it("acha os sensores pelo tipo e mostra na central", () => {
     const u = { sens: { "1": { id: 1, n: "Tanque", t: "fuel level", p: "adc1" }, "2": { id: 2, n: "Consumo", t: "absolute fuel consumption", p: "can_fuel" } } };
-    expect(sensoresDiesel(u)).toEqual({ nivel: 1, consumo: 2 });
+    expect(sensoresDiesel(u)).toEqual({ nivel: [1], consumo: 2 });
     const t = telemetriaDaMensagem({ t: 1, pos, p: { adc1: 3.2 } }, u);
     expect(t.tanque && t.diesel).toBe(true);
     expect(t.parametros).toContain('sensor "Tanque" (fuel level: adc1)');
+  });
+  it("soma os dois tanques", () => {
+    const u = { sens: { "1": { id: 1, n: "Tanque 1", t: "fuel level", p: "adc1" }, "2": { id: 2, n: "Tanque 2", t: "fuel level", p: "adc2" } } };
+    expect(sensoresDiesel(u).nivel).toEqual([1, 2]);
+    expect(somaTanques([461, 216])).toBe(677);
+    expect(somaTanques([461, undefined])).toBeUndefined();
+  });
+  it("usa o total quando a unidade já tem um sensor que soma os tanques", () => {
+    const u = { sens: {
+      "1": { id: 1, n: "Tanque 1", t: "fuel level", p: "adc1" }, "2": { id: 2, n: "Tanque 2", t: "fuel level", p: "adc2" },
+      "3": { id: 3, n: "Combustible", t: "fuel level", p: "[Tanque 1]+[Tanque 2]" },
+    } };
+    expect(sensoresDiesel(u).nivel).toEqual([3]);
+    expect(somaTanques([461, 216, 679])).toBe(679);
   });
 });

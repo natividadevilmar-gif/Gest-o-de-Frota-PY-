@@ -34,9 +34,30 @@ export function sensoresDiesel(u: Pick<UnidadeWialon, "sens">) {
   const lista = Object.values(u.sens ?? {});
   const doTipo = (re: RegExp) => lista.find((s) => re.test(s.t ?? ""))?.id;
   return {
-    nivel: doTipo(/^fuel level$/i) ?? doTipo(/fuel level/i),
+    nivel: tanquesDiesel(lista),
     consumo: doTipo(/^absolute fuel consumption$/i) ?? doTipo(/^impulse fuel consumption$/i),
   };
+}
+
+/**
+ * Sensores de nível que somados dão o diesel do caminhão (os caminhões têm dois tanques).
+ * Um sensor calculado no Wialon, como "Combustible" = [Tanque 1]+[Tanque 2], já é o total.
+ */
+function tanquesDiesel(lista: SensorWialon[]): number[] | undefined {
+  const nivel = lista.filter((s) => /fuel level/i.test(s.t ?? ""));
+  if (!nivel.length) return undefined;
+  const total = nivel.find((s) => nivel.some((o) => o !== s && (s.p ?? "").includes(`[${o.n}]`)));
+  return total ? [total.id] : nivel.map((s) => s.id);
+}
+
+/** Soma do nível dos tanques numa leitura; se o total calculado bater com a soma dos outros, usa só ele. */
+export function somaTanques(valores: (number | undefined)[]): number | undefined {
+  if (!valores.length || valores.some((v) => v === undefined)) return undefined;
+  const v = valores as number[];
+  const soma = v.reduce((a, b) => a + b, 0);
+  const maior = Math.max(...v);
+  if (v.length >= 3 && Math.abs(soma - maior - maior) <= Math.max(2, maior * 0.02)) return maior;
+  return soma;
 }
 
 /** Valor que o Wialon devolve quando o sensor não tem leitura na mensagem. */
@@ -229,7 +250,7 @@ export class Wialon {
     return msgs.map((m, i) => ({
       ...m,
       sens: {
-        nivelL: sd.nivel !== undefined ? valorSensor(valores[i]?.[sd.nivel]) : undefined,
+        nivelL: sd.nivel ? somaTanques(sd.nivel.map((id) => valorSensor(valores[i]?.[id]))) : undefined,
         consumoL: sd.consumo !== undefined ? valorSensor(valores[i]?.[sd.consumo]) : undefined,
       },
     }));
