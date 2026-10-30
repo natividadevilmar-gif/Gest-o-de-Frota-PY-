@@ -60,6 +60,9 @@ export function somaTanques(valores: (number | undefined)[]): number | undefined
   return soma;
 }
 
+/** Unidade do Wialon que é a base de abastecimento (o surtidor de diesel), não um caminhão. */
+export const ehBaseCombustivel = (nome: string) => /surtidor|base de (abastecimento|combust)/i.test(nome);
+
 /** Valor que o Wialon devolve quando o sensor não tem leitura na mensagem. */
 const SEM_VALOR = -348201.3876;
 const valorSensor = (v: unknown) => (typeof v === "number" && Number.isFinite(v) && Math.abs(v - SEM_VALOR) > 0.01 ? v : undefined);

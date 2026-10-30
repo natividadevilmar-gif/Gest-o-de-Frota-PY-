@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { clienteAtual } from "@/lib/acesso";
 import { db } from "@/lib/db";
 import { diaNoParaguai } from "@/lib/rastreio/rotas";
-import { apiDoCliente, historicoWialon, imeisPelaPlaca, SERVIDORES_WIALON, telemetriaDaMensagem, Wialon, type TelemetriaUnidade } from "@/lib/rastreio/wialon";
+import { apiDoCliente, ehBaseCombustivel, historicoWialon, imeisPelaPlaca, SERVIDORES_WIALON, telemetriaDaMensagem, Wialon, type TelemetriaUnidade } from "@/lib/rastreio/wialon";
 
 // Conta Wialon do cliente, ligada pela equipe KM Cero na central de monitoramento.
 export type Resultado = { ok: boolean; msg: string } | null;
@@ -135,7 +135,10 @@ export async function importarUnidadesWialon(_: Resultado): Promise<Resultado> {
     let placa = u.nm.trim().toUpperCase().slice(0, 30) || u.uid;
     if (usadas.has(placa)) placa = `${placa} (${u.uid.slice(-4)})`;
     await db.caminhao.create({
-      data: { clienteId: cliente.id, placa, modelo: "Importado do Wialon", consumoRefKmL: 2.5, plano: cliente.planoContratado, rastreadorId: u.uid },
+      data: {
+        clienteId: cliente.id, placa, modelo: "Importado do Wialon", consumoRefKmL: 2.5, plano: cliente.planoContratado, rastreadorId: u.uid,
+        baseCombustivel: ehBaseCombustivel(u.nm),
+      },
     });
     usadas.add(placa);
     imeis.add(u.uid);

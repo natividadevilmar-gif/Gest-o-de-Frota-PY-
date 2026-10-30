@@ -132,6 +132,9 @@ model Caminhao {
   ultimaVelocidade  Int?
   // Rumo da última posição, em graus (0 = norte), para o caminhão no mapa apontar para onde vai.
   ultimaDirecao     Int?
+  // Unidade que é a base de abastecimento do cliente (ex.: "Surtidor" no Wialon), não um caminhão:
+  // fica fora do mapa, dos alertas e do relatório, e aparece no quadro próprio da Telemetria.
+  baseCombustivel   Boolean   @default(false)
   ultimaIgnicao     Boolean?
   // Cerca onde o caminhão está agora (para detectar entrada e saída).
   cercaAtualId      String?
