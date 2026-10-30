@@ -13,7 +13,7 @@ export default async function Painel() {
   const ind = await indicadoresFrota(cliente.id, mes);
   const gestao = ind.filter((i) => planoPermite(i.plano, "custos"));
   const tot = totaisFrota(gestao);
-  const revisoes = (await revisoesCliente(cliente.id)).filter((r) => planoPermite(r.caminhao.plano, "revisoes"));
+  const revisoes = (await revisoesCliente(cliente.id)).filter((r) => r.demo || planoPermite(r.caminhao.plano, "revisoes"));
   const viagens = (await viagensCliente(cliente.id, mes, ind)).filter((v) => v.margem);
   const frete = viagens.reduce((a, v) => a + v.freteUsd, 0);
   const margem = viagens.reduce((a, v) => a + (v.margem?.margemUsd ?? 0), 0);

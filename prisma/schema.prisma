@@ -227,6 +227,8 @@ model ItemRevisao {
   vencimento    DateTime?        @db.Date
   intervaloDias Int?
   resolvido     Boolean          @default(false)
+  // Item do plano de demonstração (botão do admin): aparece mesmo fora do plano Gestão e não lança despesa.
+  demo          Boolean          @default(false)
   servicos      ServicoRevisao[]
 }
 
