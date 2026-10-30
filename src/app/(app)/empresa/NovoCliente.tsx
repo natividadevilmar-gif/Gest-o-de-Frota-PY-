@@ -6,8 +6,8 @@ import { TEMAS } from "@/lib/temas";
 import { criarCliente } from "./actions";
 
 const RESUMO: Record<Plano, string> = {
-  BASICO: "Rastreador, mapa ao vivo, central de alertas e bloqueio do motor.",
-  GESTAO: "Tudo do Básico + despesas, custo por km, consumo, revisões e margem.",
+  BASICO: "Rastreador, mapa ao vivo, central de alertas, bloqueio do motor e lançar despesa.",
+  GESTAO: "Tudo do Básico + custo por km, consumo, revisões e margem.",
   VIDEO: "Tudo do Gestão + câmeras da estrada e da cabine com vídeo dos eventos.",
 };
 

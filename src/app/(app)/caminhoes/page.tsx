@@ -6,7 +6,7 @@ import { num, usd } from "@/lib/formato";
 import { mensalidadeTotal, NOME_PLANO, PRECO_MENSAL, type Plano } from "@/lib/indicadores";
 import { clienteUsaWialon } from "@/lib/rastreio/wialon";
 import { ehImei } from "@/lib/telemetria/posicoes";
-import { alternarBase, alternarDespesas, mudarCamera, mudarEixos, mudarPlano } from "./actions";
+import { alternarBase, mudarCamera, mudarEixos, mudarPlano } from "./actions";
 import { CampoRastreador } from "./CampoRastreador";
 import { NovoCaminhao } from "./NovoCaminhao";
 import { Planos } from "./Planos";
@@ -25,15 +25,6 @@ export default async function Caminhoes() {
         quantos={{ BASICO: lista.filter((c) => c.plano === "BASICO").length, GESTAO: lista.filter((c) => c.plano === "GESTAO").length, VIDEO: lista.filter((c) => c.plano === "VIDEO").length }}
         inicial={cliente.planoContratado as Plano}
       />
-      {pode && (
-        <form action={alternarDespesas} className="card card-h">
-          <p>
-            <b>Lançar despesa {cliente.despesasLiberadas ? "liberado" : "só no plano Gestão"}</b><br />
-            <small className="note">{cliente.despesasLiberadas ? "Gestor e motoristas lançam despesas de todos os caminhões, em qualquer plano." : "Só os caminhões no plano Gestão ou Vídeo lançam despesas."}</small>
-          </p>
-          <button type="submit" className={cliente.despesasLiberadas ? undefined : "pri"}>{cliente.despesasLiberadas ? "Voltar a exigir o plano Gestão" : "Liberar para todos os caminhões"}</button>
-        </form>
-      )}
       <div className="card">
         <div className="card-h">
           <h2>Frota cadastrada</h2>

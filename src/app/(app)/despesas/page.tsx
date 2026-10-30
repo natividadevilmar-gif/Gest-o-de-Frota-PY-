@@ -24,11 +24,11 @@ export default async function Despesas({ searchParams }: { searchParams: Promise
     where: { clienteId: cliente.id, ...(motoristaId !== null ? { motoristaId } : {}) },
     orderBy: { placa: "asc" },
     select: { id: true, placa: true, plano: true },
-  })).filter((c) => cliente.despesasLiberadas || planoPermite(c.plano, "custos"));
+  })).filter((c) => planoPermite(c.plano, "despesas"));
   if (caminhoes.length === 0 && motoristaId !== null) {
     return <><h1>{es ? "Cargar gasto" : "Lançar despesa"}</h1><div className="card"><p className="note">{es ? "Ninguno de sus camiones está habilitado para cargar gastos. Hable con el gestor de la flota." : "Nenhum caminhão seu está liberado para lançar despesas. Fale com o gestor da frota."}</p></div></>;
   }
-  if (caminhoes.length === 0) return <PlanoNecessario modulo="custos" titulo="Lançar despesas" />;
+  if (caminhoes.length === 0) return <PlanoNecessario modulo="despesas" titulo="Lançar despesas" />;
   const cotacao = await cotacaoDoDia();
   const lancamentos = await lancamentosMes(cliente.id, mes, new Set(caminhoes.map((c) => c.id)), motoristaId !== null ? sessao.usuarioId : undefined);
   const pode = podeEditarCadastros(sessao);

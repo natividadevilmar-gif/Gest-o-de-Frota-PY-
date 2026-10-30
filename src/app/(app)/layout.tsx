@@ -17,7 +17,7 @@ const MODULOS: { m: Modulo; href: string; rotulo: string; menu?: string }[] = [
   { m: "painel", href: "/telemetria", rotulo: "Telemetria" },
   { m: "painel", href: "/comandos", rotulo: "Comandos" },
   { m: "video", href: "/video", rotulo: "Vídeo" },
-  { m: "custos", href: "/despesas", rotulo: "Lançar despesa", menu: "Financeiro" },
+  { m: "despesas", href: "/despesas", rotulo: "Lançar despesa", menu: "Financeiro" },
   { m: "painel", href: "/fretes", rotulo: "Fretes e margem", menu: "Financeiro" },
   { m: "painel", href: "/pedagios", rotulo: "Pedágios", menu: "Financeiro" },
   { m: "painel", href: "/caixa", rotulo: "Caixa dos motoristas", menu: "Financeiro" },
@@ -48,7 +48,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     const item: ItemNav = {
       href: x.href,
       rotulo: es && x.href === "/despesas" ? "Cargar gasto" : admin && x.href === "/painel" ? "Painel do cliente" : x.href === "/monitoramento" ? "Central" : x.rotulo,
-      bloqueadoPor: libera(x.m) || (x.href === "/despesas" && cliente?.despesasLiberadas) ? undefined : NOME_PLANO[planoMinimo(x.m)],
+      bloqueadoPor: libera(x.m) ? undefined : NOME_PLANO[planoMinimo(x.m)],
     };
     const nomeMenu = soUm ? undefined : x.menu;
     if (!nomeMenu) { entradas.push(item); continue; }
