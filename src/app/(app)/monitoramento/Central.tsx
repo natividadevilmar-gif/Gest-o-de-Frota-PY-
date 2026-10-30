@@ -353,8 +353,8 @@ export function Central({ inicial, todos, clienteNome, podeCercas, tiposCerca, s
                     </div>
                     {o.lat != null && o.lng != null && <FotoLocal lat={o.lat} lng={o.lng} placa={o.titulo} />}
                     <div className="oc-links">
-                      {o.midiaId && <a className="oc-btn oc-video" href={`/video?midia=${o.midiaId}${todos ? "&todos=1" : ""}`}><span aria-hidden="true">▶</span> Ver vídeo</a>}
-                      <a className="oc-btn" href={`/comandos?caminhao=${o.caminhaoId}${todos ? "&todos=1" : ""}`}><span aria-hidden="true">⚙</span> Comandos</a>
+                      {o.midiaId && <a className="oc-btn oc-video" href={`/video?midia=${o.midiaId}&de=central${todos ? "&todos=1" : ""}`}><span aria-hidden="true">▶</span> Ver vídeo</a>}
+                      <a className="oc-btn" href={`/comandos?caminhao=${o.caminhaoId}&de=central${todos ? "&todos=1" : ""}`}><span aria-hidden="true">⚙</span> Comandos</a>
                       <button type="button" className="oc-btn oc-wa" aria-expanded={cobrando === o.id} onClick={() => setCobrando(cobrando === o.id ? null : o.id)}>
                         <span aria-hidden="true">✆</span> WhatsApp do motorista
                       </button>
