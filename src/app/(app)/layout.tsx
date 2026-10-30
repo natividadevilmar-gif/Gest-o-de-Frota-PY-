@@ -48,7 +48,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     const item: ItemNav = {
       href: x.href,
       rotulo: es && x.href === "/despesas" ? "Cargar gasto" : admin && x.href === "/painel" ? "Painel do cliente" : x.href === "/monitoramento" ? "Central" : x.rotulo,
-      bloqueadoPor: libera(x.m) ? undefined : NOME_PLANO[planoMinimo(x.m)],
+      bloqueadoPor: libera(x.m) || (x.href === "/despesas" && cliente?.despesasLiberadas) ? undefined : NOME_PLANO[planoMinimo(x.m)],
     };
     const nomeMenu = soUm ? undefined : x.menu;
     if (!nomeMenu) { entradas.push(item); continue; }
