@@ -494,6 +494,8 @@ model RotaFrete {
   rotaPedagioId String?
   // Praças de pedágio por onde a rota passa, na ordem da ida.
   pracas        String[] @default([])
+  // Países por onde a rota passa (para a média do diesel), na ordem da ida.
+  paises        String[] @default([])
   criadoEm      DateTime @default(now())
 
   @@index([clienteId])

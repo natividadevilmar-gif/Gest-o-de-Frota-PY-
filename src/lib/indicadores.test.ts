@@ -241,8 +241,10 @@ describe("simulação de frete", () => {
 });
 
 describe("diesel da rota", () => {
-  const precos = { PY: 1.26, BR: 1.38 };
-  it("um país só usa o preço dele", () => expect(dieselDaRota("PY", "PY", precos)).toBe(1.26));
-  it("cruzando a fronteira faz a média", () => expect(dieselDaRota("PY", "BR", precos)).toBeCloseTo(1.32));
-  it("sem preço do país fica sem valor", () => expect(dieselDaRota("PY", "BO", precos)).toBeNull());
+  const precos = { PY: 1.26, BR: 1.38, AR: 1.63 };
+  it("um país só usa o preço dele", () => expect(dieselDaRota(["PY", "PY"], precos)).toBe(1.26));
+  it("cruzando a fronteira faz a média", () => expect(dieselDaRota(["PY", "BR"], precos)).toBeCloseTo(1.32));
+  it("conta os países do caminho", () => expect(dieselDaRota(["PY", "AR", "BR"], precos)).toBeCloseTo((1.26 + 1.63 + 1.38) / 3));
+  it("país sem preço fica fora da média", () => expect(dieselDaRota(["PY", "BO"], precos)).toBe(1.26));
+  it("nenhum com preço fica sem valor", () => expect(dieselDaRota(["BO"], precos)).toBeNull());
 });

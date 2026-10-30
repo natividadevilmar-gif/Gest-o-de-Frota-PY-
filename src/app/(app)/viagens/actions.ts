@@ -5,7 +5,7 @@ import { z } from "zod";
 import { clienteAtual, exigirAdmin } from "@/lib/acesso";
 import { db } from "@/lib/db";
 import { pracasNaRota } from "@/lib/pedagio";
-import { calcularRota } from "@/lib/rastreio/rotaFrete";
+import { calcularRota, paisesNaRota } from "@/lib/rastreio/rotaFrete";
 
 const cidades = z.object({
   origem: z.string().trim().min(2).max(80),
@@ -14,20 +14,24 @@ const cidades = z.object({
   paisDestino: z.string().regex(/^[A-Z]{2}$/),
 });
 
-/** Km de estrada entre duas cidades (OpenStreetMap) e as praças de pedágio desse caminho, para o simulador. */
-export async function kmEntreCidades(c: z.infer<typeof cidades>): Promise<{ km: number; pracas: string[] } | { erro: string }> {
+/** Km de estrada entre duas cidades (OpenStreetMap), as praças de pedágio e os países desse caminho, para o simulador. */
+export async function kmEntreCidades(c: z.infer<typeof cidades>): Promise<{ km: number; pracas: string[]; paises: string[] } | { erro: string }> {
   await clienteAtual();
   const p = cidades.safeParse(c);
   if (!p.success) return { erro: "Informe a cidade de origem e a de destino." };
   const r = await calcularRota(p.data);
   if ("erro" in r) return r;
   const pracas = await db.pracaPedagio.findMany({ select: { id: true, lat: true, lng: true } });
-  return { km: r.km, pracas: pracasNaRota(r.rota, pracas) };
+  const paises = await paisesNaRota(r.rota);
+  // Origem e destino sempre entram, mesmo se o Nominatim não respondeu.
+  const todos = [...new Set([p.data.paisOrigem, ...paises, p.data.paisDestino])];
+  return { km: r.km, pracas: pracasNaRota(r.rota, pracas), paises: todos };
 }
 
 const rota = cidades.extend({
   km: z.coerce.number().int().positive(),
   pracas: z.array(z.string()).max(60),
+  paises: z.array(z.string().regex(/^[A-Z]{2}$/)).max(10),
 });
 
 /** Guarda a rota para escolher de novo no simulador. */
