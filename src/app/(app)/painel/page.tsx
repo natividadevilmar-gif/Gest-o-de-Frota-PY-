@@ -63,6 +63,7 @@ export default async function Painel() {
         <div className="acoes-painel">
           <Link className="btn pri" href="/despesas">+ Lançar despesa</Link>
           <Link className="btn pri" href="/fretes#novo">+ Lançar frete</Link>
+          <Link className="btn pri" href="/viagens#simulador">Simular frete</Link>
           <Link className="btn" href="/caixa#novo">Caixa inicial do motorista</Link>
         </div>
       </div>
