@@ -52,6 +52,19 @@ export async function criarAcesso(_: Resultado, form: FormData): Promise<Resulta
   return { ok: true, msg: `Acesso criado. ${mot.nome} entra com o celular ${d.celular} e o PIN informado.` };
 }
 
+/** Troca o caminhão do motorista. Sem caminhão, ele escolhe qualquer um da frota ao lançar despesa. */
+export async function trocarCaminhao(form: FormData) {
+  const { sessao, cliente } = await clienteAtual();
+  if (!podeEditarCadastros(sessao)) return;
+  const motoristaId = String(form.get("motoristaId"));
+  const caminhaoId = String(form.get("caminhaoId") ?? "");
+  const mot = await db.motorista.findFirst({ where: { id: motoristaId, clienteId: cliente.id }, select: { id: true } });
+  if (!mot) return;
+  await db.caminhao.updateMany({ where: { clienteId: cliente.id, motoristaId: mot.id }, data: { motoristaId: null } });
+  if (caminhaoId) await db.caminhao.updateMany({ where: { id: caminhaoId, clienteId: cliente.id }, data: { motoristaId: mot.id } });
+  revalidatePath("/motoristas");
+}
+
 export async function novoPin(form: FormData) {
   const { sessao, cliente } = await clienteAtual();
   if (!podeEditarCadastros(sessao)) return;
