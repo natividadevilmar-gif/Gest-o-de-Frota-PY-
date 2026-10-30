@@ -250,10 +250,18 @@ export class Wialon {
       source: "", indexFrom: 0, indexTo: msgs.length - 1, unitId: u.id, sensorId: 0,
     }).catch((e) => { console.error((e as Error).message); return null; });
     if (!Array.isArray(valores) || valores.length !== msgs.length) return msgs;
+    // Um tanque sem leitura numa mensagem (caminhão com 3 tanques, por exemplo) fica com a última
+    // leitura dele, em vez de deixar a mensagem inteira sem diesel.
+    const ultimoTanque = new Map<number, number>();
+    const tanque = (i: number, id: number) => {
+      const v = valorSensor(valores[i]?.[id]);
+      if (v !== undefined) ultimoTanque.set(id, v);
+      return v ?? ultimoTanque.get(id);
+    };
     return msgs.map((m, i) => ({
       ...m,
       sens: {
-        nivelL: sd.nivel ? somaTanques(sd.nivel.map((id) => valorSensor(valores[i]?.[id]))) : undefined,
+        nivelL: sd.nivel ? somaTanques(sd.nivel.map((id) => tanque(i, id))) : undefined,
         consumoL: sd.consumo !== undefined ? valorSensor(valores[i]?.[sd.consumo]) : undefined,
       },
     }));
