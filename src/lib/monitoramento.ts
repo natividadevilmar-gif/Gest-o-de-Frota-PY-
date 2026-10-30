@@ -104,7 +104,7 @@ export async function verificarFrota(clienteId: string | null, agora = new Date(
       });
     }
     if (c.situacao === "sem-sinal") {
-      novas.push({ ...base, tipo: "sem_sinal", gravidade: "alta", titulo: `${c.placa} sem sinal`, detalhe: "Ligado, mas sem enviar posição há mais de 30 minutos.", chave: `${c.id}:sem_sinal:${dia}` });
+      novas.push({ ...base, tipo: "sem_sinal", gravidade: "alta", titulo: `${c.placa} sem sinal`, detalhe: "Ligado, mas sem enviar posição há mais de 30 minutos.", chave: `${c.id}:sem_sinal:${c.atualizadoEm ?? dia}` });
     }
     if (c.situacao === "movimento" && (horaPy >= 22 || horaPy < 5)) {
       novas.push({ ...base, tipo: "ignicao_noturna", gravidade: "media", titulo: `${c.placa} rodando às ${horaPy}h`, detalhe: `Caminhão em movimento fora do horário normal${onde}`, chave: `${c.id}:noturna:${dia}` });
@@ -167,8 +167,27 @@ export async function verificarFrota(clienteId: string | null, agora = new Date(
   if (ALERTA_PEDAGIO_ATIVO) novas.push(...(await pedagiosSemRegistro(clienteId, agora).catch(() => [])));
 
   await Promise.all(mudancasCerca.map((m) => db.caminhao.update({ where: { id: m.id }, data: { cercaAtualId: m.cerca } })));
+  await fecharSemSinalQueVoltou(frota, agora);
   const r = novas.length ? await db.ocorrencia.createMany({ data: novas, skipDuplicates: true }) : { count: 0 };
   return { frota, novas: r.count };
+}
+
+/** O rastreador voltou a mandar posição: o alerta "sem sinal" se fecha sozinho, com a hora da volta. */
+async function fecharSemSinalQueVoltou(frota: CaminhaoMapa[], agora: Date) {
+  const voltou = frota.filter((c) => !c.demo && c.situacao !== "sem-sinal" && c.atualizadoEm && agora.getTime() - Date.parse(c.atualizadoEm) <= 30 * 60_000);
+  if (!voltou.length) return;
+  const abertas = await db.ocorrencia.findMany({
+    where: { tipo: "sem_sinal", status: { not: "resolvida" }, caminhaoId: { in: voltou.map((c) => c.id) } },
+    select: { id: true, caminhaoId: true, atendidaPor: true, atendidaEm: true },
+  });
+  const hora = new Map(voltou.map((c) => [c.id, new Date(c.atualizadoEm!).toLocaleString("pt-BR", { timeZone: "America/Asuncion", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })]));
+  await Promise.all(abertas.map((o) => db.ocorrencia.update({
+    where: { id: o.id },
+    data: {
+      status: "resolvida", resolvidaEm: agora, observacao: `Sinal voltou em ${hora.get(o.caminhaoId)} (fechado automaticamente).`,
+      atendidaPor: o.atendidaPor ?? "Automático", atendidaEm: o.atendidaEm ?? agora,
+    },
+  })));
 }
 
 export async function ocorrenciasAbertas(clienteId: string | null) {
