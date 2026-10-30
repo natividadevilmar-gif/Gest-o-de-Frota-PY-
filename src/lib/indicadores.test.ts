@@ -7,6 +7,7 @@ import {
   custoTotal,
   desvioCombustivelPct,
   freteMinimoPorTonelada,
+  freteSugeridoTonelada,
   fracaoMes,
   intervaloMes,
   kmPorLitro,
@@ -14,6 +15,7 @@ import {
   margemViagem,
   mensalidadeTotal,
   planoPermite,
+  simularFrete,
   situacaoPagamento,
   statusRevisao,
   suspeitaDesvio,
@@ -184,5 +186,36 @@ describe("câmbio", () => {
     expect(paraUsd(2_500_000, "PYG", c)).toBe(342.47);
     expect(paraUsd(540, "BRL", c)).toBe(100);
     expect(paraUsd(99.9, "USD", c)).toBe(99.9);
+  });
+});
+
+describe("simulação de frete", () => {
+  const base = { toneladas: 30, freteTonelada: 26, kmIda: 480, voltaVazio: true, kmLCarregado: 2.4, kmLVazio: 3.2, precoDiesel: 1, outrosKm: 0.3, pedagioIda: 20, extras: 50 };
+
+  it("volta vazio soma km, diesel de vazio e pedágio da volta", () => {
+    const s = simularFrete(base);
+    expect(s.kmTotal).toBe(960);
+    expect(s.litros).toBeCloseTo(200 + 150);
+    expect(s.diesel).toBeCloseTo(350);
+    expect(s.outros).toBeCloseTo(288);
+    expect(s.pedagio).toBe(40);
+    expect(s.custo).toBeCloseTo(728);
+    expect(s.frete).toBe(780);
+    expect(s.margem).toBeCloseTo(52);
+    expect(s.freteMinimoTonelada).toBeCloseTo(728 / 30);
+  });
+
+  it("volta carregado conta só a ida", () => {
+    const s = simularFrete({ ...base, voltaVazio: false });
+    expect(s.kmTotal).toBe(480);
+    expect(s.litros).toBeCloseTo(200);
+    expect(s.pedagio).toBe(20);
+  });
+
+  it("frete sugerido dá a margem pedida", () => {
+    const t = freteSugeridoTonelada(800, 40, 20)!;
+    expect(t).toBeCloseTo(25);
+    expect((t * 40 - 800) / (t * 40)).toBeCloseTo(0.2);
+    expect(freteSugeridoTonelada(800, 0, 20)).toBeNull();
   });
 });
