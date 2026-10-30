@@ -32,6 +32,19 @@ const quando = (iso: string | null) => {
   return new Date(iso).toLocaleDateString("pt-BR", { timeZone: "America/Asuncion" });
 };
 
+/** Tempo desde `iso`, sempre somando: "45 min", "2 h 05 min", "1 d 3 h". */
+const duracao = (iso: string) => {
+  const min = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 60_000));
+  if (min < 60) return `${min} min`;
+  if (min < 24 * 60) return `${Math.floor(min / 60)} h ${String(min % 60).padStart(2, "0")} min`;
+  return `${Math.floor(min / 1440)} d ${Math.floor((min % 1440) / 60)} h`;
+};
+/** Diesel gasto parado ligado; "≈" quando é a média de marcha lenta, sem leitura do tanque. */
+const litrosParado = (p: NonNullable<CaminhaoMapa["parado"]>) => (p.litros == null ? "" : `${p.estimado ? "≈ " : ""}${numero(p.litros, 1)} L`);
+/** "Parado ligado · 1 h 05 min · 3,2 L" para o caminhão parado com o motor ligado. */
+const situacaoTexto = (c: CaminhaoMapa) =>
+  c.situacao === "parado" && c.parado ? [ROTULO.parado, duracao(c.parado.desde), litrosParado(c.parado)].filter(Boolean).join(" · ") : ROTULO[c.situacao];
+
 function esc(s: string) {
   return s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
 }
@@ -94,7 +107,7 @@ function listaDoGrupo(itens: CaminhaoMapa[], todos: boolean, abrir: (id: string)
     bt.innerHTML =
       `<i class="ponto ponto-${c.situacao}"></i>` +
       `<span class="mk-lista-nome"><b>${esc(c.placa)}</b><small>${esc(c.motorista ?? "sem motorista")}${todos ? ` · ${esc(c.cliente)}` : ""}</small></span>` +
-      `<span class="mk-lista-vel">${c.situacao === "movimento" ? `${c.velocidadeKmh} km/h` : ROTULO[c.situacao]}</span>` +
+      `<span class="mk-lista-vel">${c.situacao === "movimento" ? `${c.velocidadeKmh} km/h` : ROTULO[c.situacao]}${c.situacao === "parado" && c.parado ? `<small>${duracao(c.parado.desde)}${c.parado.litros != null ? ` · ${litrosParado(c.parado)}` : ""}</small>` : ""}</span>` +
       `<span class="mk-lista-ign${ligado ? " on" : ""}" title="Ignição ${ligado ? "ligada" : "desligada"}"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.5v6M4.4 3.8a5.5 5.5 0 1 0 7.2 0"/></svg></span>` +
       `<small class="mk-lista-quando">${quando(c.atualizadoEm)}</small>`;
     bt.onclick = () => abrir(c.id);
@@ -185,7 +198,7 @@ export function MapaFrota({ inicial, hoje, todos = false, outraTela = false }: {
         : mod.divIcon({ className: "", html, iconSize: undefined, iconAnchor: [10, 12] });
       usados.add(c.id);
       // Ao passar o mouse: placa, modelo, motorista e situação.
-      const dica = `<b>${esc(c.placa)}</b> · ${esc(c.modelo)}<br>${esc(c.motorista ?? "sem motorista")}${todos ? ` · ${esc(c.cliente)}` : ""}<br>${ROTULO[c.situacao]}${c.situacao === "movimento" ? ` · ${c.velocidadeKmh} km/h` : ""}`;
+      const dica = `<b>${esc(c.placa)}</b> · ${esc(c.modelo)}<br>${esc(c.motorista ?? "sem motorista")}${todos ? ` · ${esc(c.cliente)}` : ""}<br>${situacaoTexto(c)}${c.situacao === "movimento" ? ` · ${c.velocidadeKmh} km/h` : ""}`;
       let s = soltos.current.get(c.id);
       if (!s) {
         const marca = mod.marker([c.lat!, c.lng!], { icon: icone() })
@@ -397,7 +410,12 @@ export function MapaFrota({ inicial, hoje, todos = false, outraTela = false }: {
               <button type="button" className="fechar" onClick={() => setSel(null)} aria-label="Fechar">×</button>
             </div>
             <dl className="rastreio-agora">
-              <div><dt>Velocidade</dt><dd>{escolhido.velocidadeKmh} km/h</dd></div>
+              {escolhido.situacao === "parado" && escolhido.parado ? (
+                <>
+                  <div className="rastreio-parado"><dt>Parado ligado há</dt><dd>{duracao(escolhido.parado.desde)}</dd></div>
+                  <div className="rastreio-parado"><dt>Diesel parado{escolhido.parado.estimado ? " (estimado)" : ""}</dt><dd>{escolhido.parado.litros != null ? litrosParado(escolhido.parado) : "–"}</dd></div>
+                </>
+              ) : <div><dt>Velocidade</dt><dd>{escolhido.velocidadeKmh} km/h</dd></div>}
               <div><dt>Odômetro</dt><dd>{r ? numero(r.odometroKm) : "…"}</dd></div>
               <div><dt>km no mês</dt><dd>{r ? numero(r.kmMes) : "…"}</dd></div>
               <div><dt>Consumo CAN</dt><dd>{r ? (r.kmL != null ? `${numero(r.kmL, 2)} km/l` : "sem CAN") : "…"}</dd></div>
@@ -461,7 +479,7 @@ export function MapaFrota({ inicial, hoje, todos = false, outraTela = false }: {
                 <i className={`ponto ponto-${c.situacao}`} />
                 <span className="rastreio-item">
                   <b>{c.placa}{c.demo && <span className="tag-demo">demonstração</span>}{c.wialon && <span className="tag-demo tag-wialon" title="Posições trazidas do Wialon">Wialon</span>}</b>
-                  <small>{todos ? `${c.cliente} · ` : ""}{c.motorista ?? "sem motorista"} · {ROTULO[c.situacao]}</small>
+                  <small>{todos ? `${c.cliente} · ` : ""}{c.motorista ?? "sem motorista"} · {situacaoTexto(c)}</small>
                 </span>
                 <span className="quando">
                   {c.situacao === "movimento" && <b>{c.velocidadeKmh} km/h</b>}
