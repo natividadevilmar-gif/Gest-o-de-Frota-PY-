@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { CaminhaoMapa, ResumoCaminhao, Situacao, Trajeto } from "@/lib/rastreio/dados";
 import { LIMITE_VELOCIDADE_KMH } from "@/lib/telemetria/posicoes";
 import { fundosDoMapa, Movimento } from "./mapaBase";
+import { FotoLocal } from "./FotoLocal";
 
 const ROTULO: Record<Situacao, string> = {
   movimento: "Em movimento",
@@ -34,6 +35,12 @@ const quando = (iso: string | null) => {
 function esc(s: string) {
   return s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
 }
+
+/** Caminhão visto de cima (cabine na frente, carreta atrás), virado para a direção em graus. */
+const caminhao = (graus: number) =>
+  `<span class="mk-cam" style="transform:rotate(${Math.round(graus)}deg)"><svg viewBox="0 0 20 40" aria-hidden="true">` +
+  `<rect class="mk-carreta" x="2" y="13" width="16" height="26" rx="1.5"/><rect class="mk-cabine" x="3.5" y="1" width="13" height="10.5" rx="3"/>` +
+  `<rect x="5" y="2.6" width="10" height="3" rx="1" fill="#0b1a2a" opacity=".55"/></svg></span>`;
 
 /** Em movimento, a bolinha vira uma seta apontando para onde o caminhão vai. */
 const seta = (graus: number) =>
@@ -108,8 +115,13 @@ export function MapaFrota({ inicial, hoje, todos = false, outraTela = false }: {
     if (!m) return;
     const marcar = (c: CaminhaoMapa) => {
       const ativo = c.id === sel;
-      const html = `<div class="mk mk-${c.situacao}${ativo ? " mk-sel" : " mk-ponto"}${c.wialon ? " mk-wialon" : ""}">${c.situacao === "movimento" ? seta(c.direcao) : "<i></i>"}${ativo ? esc(c.placa) : ""}</div>`;
-      const icone = () => mod.divIcon({ className: "", html, iconSize: undefined, iconAnchor: [10, 12] });
+      // O caminhão escolhido aparece como um caminhão visto de cima, virado para onde vai, com a placa embaixo.
+      const html = ativo
+        ? `<div class="mk-caminhao mk-${c.situacao}">${caminhao(c.direcao)}<b>${esc(c.placa)}</b></div>`
+        : `<div class="mk mk-${c.situacao} mk-ponto${c.wialon ? " mk-wialon" : ""}">${c.situacao === "movimento" ? seta(c.direcao) : "<i></i>"}</div>`;
+      const icone = () => ativo
+        ? mod.divIcon({ className: "", html, iconSize: [140, 74], iconAnchor: [70, 27] })
+        : mod.divIcon({ className: "", html, iconSize: undefined, iconAnchor: [10, 12] });
       usados.add(c.id);
       // Ao passar o mouse: placa, modelo, motorista e situação.
       const dica = `<b>${esc(c.placa)}</b> · ${esc(c.modelo)}<br>${esc(c.motorista ?? "sem motorista")}${todos ? ` · ${esc(c.cliente)}` : ""}<br>${ROTULO[c.situacao]}${c.situacao === "movimento" ? ` · ${c.velocidadeKmh} km/h` : ""}`;
@@ -163,7 +175,7 @@ export function MapaFrota({ inicial, hoje, todos = false, outraTela = false }: {
     }
     const c = frota.find((x) => x.id === sel);
     fundo.current?.usar("satelite");
-    if (c?.lat != null && c.lng != null) m.flyTo([c.lat, c.lng], 17, { duration: 0.8 });
+    if (c?.lat != null && c.lng != null) m.flyTo([c.lat, c.lng], 14, { duration: 0.8 });
     setSeguir(true);
     // Arrastar o mapa com o mouse para de acompanhar, para percorrer o trajeto do dia à vontade.
     const soltar = () => setSeguir(false);
@@ -185,7 +197,7 @@ export function MapaFrota({ inicial, hoje, todos = false, outraTela = false }: {
 
   function voltarAoCaminhao() {
     const marca = sel ? soltos.current.get(sel)?.marca : null;
-    if (marca) mapa.current?.flyTo(marca.getLatLng(), Math.max(mapa.current.getZoom(), 15), { duration: 0.6 });
+    if (marca) mapa.current?.flyTo(marca.getLatLng(), Math.max(mapa.current.getZoom(), 14), { duration: 0.6 });
     setSeguir(true);
   }
 
@@ -211,8 +223,8 @@ export function MapaFrota({ inicial, hoje, todos = false, outraTela = false }: {
     // Ciano forte com contorno escuro: aparece bem no satélite e não se confunde com as estradas (laranja).
     // Rota prevista do frete, tracejada por baixo do caminho feito.
     if (trajeto.rotaPrevista?.length) mod.polyline(trajeto.rotaPrevista, { color: "#e0a100", weight: 4, opacity: 0.9, dashArray: "8 8" }).bindTooltip("Rota prevista do frete").addTo(grupo);
-    mod.polyline(trajeto.pontos, { color: "#0b1a2a", weight: 9, opacity: 0.75 }).addTo(grupo);
-    mod.polyline(trajeto.pontos, { color: COR_TRAJETO, weight: 5, opacity: 1 }).addTo(grupo);
+    mod.polyline(trajeto.pontos, { color: "#0b1a2a", weight: 7, opacity: 0.7 }).addTo(grupo);
+    mod.polyline(trajeto.pontos, { color: COR_TRAJETO, weight: 4, opacity: 1 }).addTo(grupo);
     // A bolinha verde fica onde o caminhão começou a andar, com a hora exata da saída.
     // A bolinha branca marca o primeiro sinal do dia, quando ele vem antes da saída.
     const s = trajeto.saida;
@@ -290,6 +302,7 @@ export function MapaFrota({ inicial, hoje, todos = false, outraTela = false }: {
               <div><dt>RPM agora</dt><dd>{rpm != null ? numero(rpm) : "–"}</dd></div>
               <div><dt>Custo por km</dt><dd>{r ? (r.custoKm != null ? `USD ${numero(r.custoKm, 2)}` : "–") : "…"}</dd></div>
             </dl>
+            {escolhido.lat != null && escolhido.lng != null && <FotoLocal lat={escolhido.lat} lng={escolhido.lng} placa={escolhido.placa} />}
             {(!seguir || dia !== hoje) && (
               <button type="button" className="rastreio-voltar" onClick={voltarAoCaminhao}>Voltar ao caminhão</button>
             )}
