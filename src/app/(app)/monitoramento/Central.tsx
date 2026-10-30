@@ -294,6 +294,7 @@ export function Central({ inicial, todos, clienteNome, podeCercas, tiposCerca, s
                       {o.status === "aberta" && <button type="button" disabled={pendente} onClick={() => agir(() => atenderOcorrencia(o.id))}>Atender</button>}
                       <button type="button" className="pri" disabled={pendente} onClick={() => { setResolvendo(resolvendo === o.id ? null : o.id); setObs(""); }}>Resolver</button>
                     </div>
+                    {o.lat != null && o.lng != null && <FotoLocal lat={o.lat} lng={o.lng} placa={o.titulo} />}
                     <div className="oc-links">
                       {o.midiaId && <a className="oc-btn oc-video" href={`/video?midia=${o.midiaId}${todos ? "&todos=1" : ""}`}><span aria-hidden="true">▶</span> Ver vídeo</a>}
                       <a className="oc-btn" href={`/comandos?caminhao=${o.caminhaoId}${todos ? "&todos=1" : ""}`}><span aria-hidden="true">⚙</span> Comandos</a>
@@ -379,5 +380,21 @@ export function Central({ inicial, todos, clienteNome, podeCercas, tiposCerca, s
         </div>}
       </div>
     </div>
+  );
+}
+
+const ESRI = "https://server.arcgisonline.com/ArcGIS/rest/services";
+
+/** Imagem de satélite (Esri) de uns 3 km em volta do caminhão, com as estradas e o ponto marcado. */
+function FotoLocal({ lat, lng, placa }: { lat: number; lng: number; placa: string }) {
+  const dy = 0.008, dx = dy * 2 / Math.cos((lat * Math.PI) / 180);
+  const q = `bbox=${lng - dx},${lat - dy},${lng + dx},${lat + dy}&bboxSR=4326&imageSR=3857&size=480,240&f=image`;
+  return (
+    <a className="oc-foto" href={`https://www.google.com/maps?q=${lat},${lng}`} target="_blank" rel="noreferrer" title="Abrir no Google Maps">
+      <img src={`${ESRI}/World_Imagery/MapServer/export?${q}&format=jpg`} alt={`Imagem de satélite onde está ${placa}`} loading="lazy" />
+      <img src={`${ESRI}/Reference/World_Transportation/MapServer/export?${q}&format=png32&transparent=true`} alt="" loading="lazy" />
+      <i aria-hidden="true" />
+      <small>{lat.toFixed(5)}, {lng.toFixed(5)} · abrir no mapa</small>
+    </a>
   );
 }
