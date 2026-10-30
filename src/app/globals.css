@@ -151,8 +151,8 @@ button.mini{padding:3px 8px;font-size:.8rem}
 .resumo-frete small{color:var(--muted)}
 .login-fundo{background-color:#0b0d10;background-size:contain;background-position:center top;background-repeat:no-repeat}
 .login-fundo .login{box-shadow:0 12px 40px rgba(0,0,0,.45)}
-@media (min-width:900px){.login-fundo{place-items:end center;padding-bottom:4vh}}
-@media (max-width:899px){.login-fundo{align-items:start;padding-top:calc(100vw * 600 / 1600 + 16px)}}
+@media (min-width:900px){.login-fundo{background-size:cover;background-position:30% center;place-items:center end;padding-right:6vw}}
+@media (max-width:899px){.login-fundo{align-items:start;padding-top:calc(100vw * 768 / 1408 + 16px)}}
 .resumo-frete b.t-local{font-size:.95rem;font-weight:600}
 .resumo-frete b.t-pct{font-size:inherit;color:var(--fg)}
 @media (max-width:520px){.resumo-frete{grid-template-columns:1fr}}

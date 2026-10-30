@@ -94,21 +94,26 @@ export async function paisesNaRota(rota: PontoRota[]): Promise<string[]> {
   const passo = Math.max(1, Math.ceil(amostra.length / 10));
   const paises: string[] = [];
   for (let i = 0; i < amostra.length; i += passo) {
-    const espera = ultimaBusca + 1100 - Date.now();
-    if (espera > 0) await new Promise((ok) => setTimeout(ok, espera));
-    ultimaBusca = Date.now();
-    try {
-      const [lat, lng] = amostra[i];
-      const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=3&lat=${lat}&lon=${lng}`, { headers: AGENTE, signal: AbortSignal.timeout(6000) });
-      if (!r.ok) continue;
-      const j = (await r.json()) as { address?: { country_code?: string } };
-      const pais = j.address?.country_code?.toUpperCase();
-      if (pais && PAISES_ROTA.has(pais) && !paises.includes(pais)) paises.push(pais);
-    } catch {
-      // sem resposta para este ponto: segue com os outros
-    }
+    const pais = await paisDoPonto(...amostra[i]);
+    if (pais && !paises.includes(pais)) paises.push(pais);
   }
   return paises;
+}
+
+/** País (PY, BR, AR, UY, CL, BO) de um ponto, pelo Nominatim; null sem resposta ou fora desses. */
+export async function paisDoPonto(lat: number, lng: number): Promise<string | null> {
+  const espera = ultimaBusca + 1100 - Date.now();
+  if (espera > 0) await new Promise((ok) => setTimeout(ok, espera));
+  ultimaBusca = Date.now();
+  try {
+    const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=3&lat=${lat}&lon=${lng}`, { headers: AGENTE, signal: AbortSignal.timeout(6000) });
+    if (!r.ok) return null;
+    const j = (await r.json()) as { address?: { country_code?: string } };
+    const pais = j.address?.country_code?.toUpperCase();
+    return pais && PAISES_ROTA.has(pais) ? pais : null;
+  } catch {
+    return null;
+  }
 }
 
 /** Tira pontos a menos de ~200 m um do outro: a rota fica leve e continua fiel à estrada. */
