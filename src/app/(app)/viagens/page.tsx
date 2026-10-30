@@ -77,7 +77,7 @@ export default async function Viagens({ searchParams }: { searchParams: Promise<
           </div>
         )}
       </div>
-      <div className="card">
+      <div className="card" id="simulador">
         <div className="card-h"><h2>Simular um frete antes de aceitar</h2><p>Rota, praças de pedágio do caminho, diesel e volta vazio; consumo e custos do caminhão neste mês</p></div>
         <Simulador caminhoes={caminhoes} rotas={rotas} pracas={pracas} taxas={taxas} precoDiesel={precoDiesel} dieselPais={dieselPais} paisCliente={cliente.pais} />
       </div>
