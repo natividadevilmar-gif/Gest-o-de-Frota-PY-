@@ -88,6 +88,14 @@ export async function mudarCamera(form: FormData) {
 }
 
 /** Marca (ou desmarca) a unidade como base de abastecimento: sai do mapa e dos alertas. */
+/** Libera (ou bloqueia) o Lançar despesa para todos os caminhões do cliente, mesmo fora do plano Gestão. */
+export async function alternarDespesas() {
+  const { sessao, cliente } = await clienteAtual();
+  if (!soKmCero(sessao)) return;
+  await db.cliente.update({ where: { id: cliente.id }, data: { despesasLiberadas: !cliente.despesasLiberadas } });
+  revalidatePath("/", "layout");
+}
+
 export async function alternarBase(form: FormData) {
   const { sessao, cliente } = await clienteAtual();
   if (!soKmCero(sessao)) return;

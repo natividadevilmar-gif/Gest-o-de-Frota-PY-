@@ -31,7 +31,7 @@ export default async function Motoristas() {
           idioma={cliente.idioma}
           pais={cliente.pais}
           motoristas={motoristas.filter((m) => !m.acesso).map((m) => ({ id: m.id, nome: m.nome }))}
-          caminhoes={caminhoes.map((c) => ({ id: c.id, placa: c.placa, motorista: c.motorista?.nome ?? null, lanca: planoPermite(c.plano, "custos") }))}
+          caminhoes={caminhoes.map((c) => ({ id: c.id, placa: c.placa, motorista: c.motorista?.nome ?? null, lanca: cliente.despesasLiberadas || planoPermite(c.plano, "custos") }))}
         />
       </div>
       <div className="card">

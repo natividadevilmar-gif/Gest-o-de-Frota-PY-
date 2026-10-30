@@ -24,7 +24,7 @@ export default async function Despesas({ searchParams }: { searchParams: Promise
     where: { clienteId: cliente.id, ...(motoristaId !== null ? { motoristaId } : {}) },
     orderBy: { placa: "asc" },
     select: { id: true, placa: true, plano: true },
-  })).filter((c) => planoPermite(c.plano, "custos"));
+  })).filter((c) => cliente.despesasLiberadas || planoPermite(c.plano, "custos"));
   if (caminhoes.length === 0 && motoristaId !== null) {
     return <><h1>{es ? "Cargar gasto" : "Lançar despesa"}</h1><div className="card"><p className="note">{es ? "Ninguno de sus camiones está habilitado para cargar gastos. Hable con el gestor de la flota." : "Nenhum caminhão seu está liberado para lançar despesas. Fale com o gestor da frota."}</p></div></>;
   }
