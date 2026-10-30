@@ -226,7 +226,9 @@ button.link{background:none;border:0;padding:0;min-height:0;color:var(--accent);
 .mk-lista button{all:unset;cursor:pointer;padding:5px 6px;border-radius:6px;display:grid;grid-template-columns:12px 1fr auto 16px 58px;align-items:center;gap:8px;border-bottom:1px solid #eef0ec}
 .mk-lista-nome{display:flex;flex-direction:column;min-width:0}.mk-lista-nome b{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.mk-lista-nome small{color:#6b736d;font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mk-lista-vel{font-weight:600;font-size:12.5px;white-space:nowrap}
-.mk-lista-ign{color:#b9bfba;font-size:14px;text-align:center}.mk-lista-ign.on{color:#2f9e5b}
+.mk-lista-ign{color:#b9bfba;display:flex;justify-content:center}.mk-lista-ign.on{color:#2f9e5b}
+.mk-lista-ign svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round}
+.mk-popup-baixo .leaflet-popup-tip-container{top:auto;bottom:100%;transform:rotate(180deg)}
 .mk-lista-quando{color:#6b736d;font-size:11.5px;text-align:right;white-space:nowrap}
 .mk-popup .leaflet-popup-content{margin:8px 10px}
 .mk-lista button:hover,.mk-lista button:focus-visible{background:#eceeea}
