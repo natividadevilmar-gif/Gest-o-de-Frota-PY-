@@ -36,11 +36,20 @@ function esc(s: string) {
   return s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
 }
 
-/** Caminhão visto de cima (cabine na frente, carreta atrás), virado para a direção em graus. */
-const caminhao = (graus: number) =>
-  `<span class="mk-cam" style="transform:rotate(${Math.round(graus)}deg)"><svg viewBox="0 0 20 40" aria-hidden="true">` +
-  `<rect class="mk-carreta" x="2" y="13" width="16" height="26" rx="1.5"/><rect class="mk-cabine" x="3.5" y="1" width="13" height="10.5" rx="3"/>` +
-  `<rect x="5" y="2.6" width="10" height="3" rx="1" fill="#0b1a2a" opacity=".55"/></svg></span>`;
+/**
+ * Caminhão visto de lado (carreta branca, cabine vermelha e a seta verde na frente), como no Wialon,
+ * com a frente apontando para onde ele vai: indo para o
+ * oeste o desenho é espelhado, para as rodas nunca ficarem para cima.
+ */
+const caminhao = (graus: number) => {
+  const g = ((Math.round(graus) % 360) + 360) % 360;
+  const virar = g > 180 ? `rotate(${g - 270}deg) scaleX(-1)` : `rotate(${g - 90}deg)`;
+  return `<span class="mk-cam" style="transform:${virar}"><svg viewBox="0 0 46 20" aria-hidden="true">` +
+  `<rect class="mk-carreta" x="1" y="2" width="22" height="11" rx="1"/>` +
+  `<path class="mk-cabine" d="M24 5h6.5l3.5 4.5V15H24Z"/><path d="M26 6.5h4l2.4 3H26Z" fill="#cfe6f5"/>` +
+  `<rect x="1" y="13.5" width="33" height="1.6" fill="#3a403c"/>` +
+  `<circle cx="6" cy="16.5" r="2.4"/><circle cx="12" cy="16.5" r="2.4"/><circle cx="29" cy="16.5" r="2.4"/><path class="mk-cam-seta" d="M37 4.5 45.5 10 37 15.5 39 10Z"/></svg></span>`;
+};
 
 /** Em movimento, a bolinha vira uma seta apontando para onde o caminhão vai. */
 const seta = (graus: number) =>
@@ -120,7 +129,7 @@ export function MapaFrota({ inicial, hoje, todos = false, outraTela = false }: {
         ? `<div class="mk-caminhao mk-${c.situacao}">${caminhao(c.direcao)}<b>${esc(c.placa)}</b></div>`
         : `<div class="mk mk-${c.situacao} mk-ponto${c.wialon ? " mk-wialon" : ""}">${c.situacao === "movimento" ? seta(c.direcao) : "<i></i>"}</div>`;
       const icone = () => ativo
-        ? mod.divIcon({ className: "", html, iconSize: [140, 74], iconAnchor: [70, 27] })
+        ? mod.divIcon({ className: "", html, iconSize: [120, 52], iconAnchor: [60, 13] })
         : mod.divIcon({ className: "", html, iconSize: undefined, iconAnchor: [10, 12] });
       usados.add(c.id);
       // Ao passar o mouse: placa, modelo, motorista e situação.
