@@ -221,6 +221,8 @@ export type EntradaSimulacao = {
   outrosKm: number;
   pedagioIda: number;
   extras: number;
+  /** Comissão do motorista, em % do frete. */
+  comissaoPct?: number;
 };
 
 /**
@@ -233,9 +235,14 @@ export function simularFrete(e: EntradaSimulacao) {
   const litros = (e.kmLCarregado > 0 ? e.kmIda / e.kmLCarregado : 0) + (e.kmLVazio > 0 ? kmVolta / e.kmLVazio : 0);
   const diesel = litros * e.precoDiesel;
   const outros = kmTotal * e.outrosKm;
-  const pedagio = e.pedagioIda * (e.voltaVazio ? 2 : 1);
-  const custo = diesel + outros + pedagio + e.extras;
+  const pedagioVolta = e.voltaVazio ? e.pedagioIda : 0;
+  const pedagio = e.pedagioIda + pedagioVolta;
   const frete = e.toneladas * e.freteTonelada;
+  const pct = (e.comissaoPct ?? 0) / 100;
+  const comissao = frete * pct;
+  // Custo que não depende do frete; a comissão cresce junto com ele.
+  const custoFixo = diesel + outros + pedagio + e.extras;
+  const custo = custoFixo + comissao;
   const margem = frete - custo;
   return {
     kmVolta,
@@ -244,12 +251,15 @@ export function simularFrete(e: EntradaSimulacao) {
     diesel,
     outros,
     pedagio,
+    pedagioVolta,
+    comissao,
+    custoFixo,
     custo,
     frete,
     margem,
     margemPct: frete > 0 ? (margem / frete) * 100 : null,
     custoKm: kmTotal > 0 ? custo / kmTotal : null,
-    freteMinimoTonelada: e.toneladas > 0 ? custo / e.toneladas : null,
+    freteMinimoTonelada: freteSugeridoTonelada(custoFixo, e.toneladas, 0, e.comissaoPct),
   };
 }
 
@@ -263,9 +273,10 @@ export function dieselDaRota(paisOrigem: string, paisDestino: string, usdPorPais
   return paisOrigem === paisDestino ? a : (a + b) / 2;
 }
 
-/** Frete por tonelada que deixa a margem pedida (em %) sobre o custo da simulação. */
-export function freteSugeridoTonelada(custo: number, toneladas: number, margemPct: number): number | null {
-  return toneladas > 0 && margemPct < 100 ? custo / (1 - margemPct / 100) / toneladas : null;
+/** Frete por tonelada que deixa a margem pedida (em %) sobre o custo, pagando a comissão (em % do frete). */
+export function freteSugeridoTonelada(custoFixo: number, toneladas: number, margemPct: number, comissaoPct = 0): number | null {
+  const sobra = 1 - margemPct / 100 - comissaoPct / 100;
+  return toneladas > 0 && sobra > 0 ? custoFixo / sobra / toneladas : null;
 }
 
 // ---- Cobrança (visão interna) ----
