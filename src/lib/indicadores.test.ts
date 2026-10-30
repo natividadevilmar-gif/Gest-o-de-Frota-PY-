@@ -230,6 +230,14 @@ describe("simulação de frete", () => {
     expect(com.margemPct).toBeCloseTo(20);
     expect(simularFrete({ ...base, comissaoPct: 16, freteTonelada: com.freteMinimoTonelada! }).margem).toBeCloseTo(0);
   });
+
+  it("manutenção em % do frete entra no custo", () => {
+    const s = simularFrete({ ...base, comissaoPct: 16, manutencaoPct: 5 });
+    expect(s.manutencao).toBeCloseTo(39);
+    expect(s.custo).toBeCloseTo(728 + 124.8 + 39);
+    const t = freteSugeridoTonelada(728, 30, 20, 21)!;
+    expect(simularFrete({ ...base, comissaoPct: 16, manutencaoPct: 5, freteTonelada: t }).margemPct).toBeCloseTo(20);
+  });
 });
 
 describe("diesel da rota", () => {

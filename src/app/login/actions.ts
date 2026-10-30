@@ -4,8 +4,9 @@ import bcrypt from "bcryptjs";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
+import { fundoDoCliente } from "@/lib/fundoLogin";
 import { normalizarLogin } from "@/lib/login";
-import { assinarSessao, COOKIE_CLIENTE, COOKIE_SESSAO, MAX_AGE_SESSAO } from "@/lib/sessao";
+import { assinarSessao, COOKIE_CLIENTE, COOKIE_SESSAO, lerSessao, MAX_AGE_SESSAO } from "@/lib/sessao";
 
 export type EstadoLogin = { erro: string; email: string } | null;
 
@@ -33,7 +34,10 @@ export async function entrar(_: EstadoLogin, form: FormData): Promise<EstadoLogi
 
 export async function sair() {
   const jar = await cookies();
+  // Cliente com fundo próprio (SVM) volta ao login com a foto dele; só nessa saída.
+  const sessao = await lerSessao(jar.get(COOKIE_SESSAO)?.value);
+  const fundo = sessao && sessao.papel !== "ADMIN" ? await fundoDoCliente(sessao.clienteId).catch(() => null) : null;
   jar.delete(COOKIE_SESSAO);
   jar.delete(COOKIE_CLIENTE);
-  redirect("/login");
+  redirect(fundo ? `/login?fundo=${fundo}` : "/login");
 }

@@ -4,10 +4,10 @@ import { useActionState } from "react";
 import { Marca } from "@/components/Marca";
 import { entrar } from "./actions";
 
-export function Formulario({ motorista = false }: { motorista?: boolean }) {
+export function Formulario({ motorista = false, fundo = null }: { motorista?: boolean; fundo?: string | null }) {
   const [estado, acao, enviando] = useActionState(entrar, null);
   return (
-    <main className="center">
+    <main className={fundo ? "center login-fundo" : "center"} style={fundo ? { backgroundImage: `linear-gradient(rgba(0,0,0,.25), rgba(0,0,0,.25)), url(${fundo})` } : undefined}>
       <div className="card login">
         <div className="logo" style={{ padding: 0 }}>
           <Marca tamanho={30} />
