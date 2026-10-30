@@ -25,6 +25,19 @@ const litros = (l: number | null) => (l == null ? "–" : `${num(l, 1)} l`);
 
 type Envio = { placa: string; ultima: Date | null; t: TelemetriaUnidade };
 
+/** Bases de abastecimento do cliente (o surtidor no Wialon), com o último sinal e o último nível do tanque. */
+async function basesDeAbastecimento(clienteId: string) {
+  const bases = await db.caminhao.findMany({
+    where: { clienteId, baseCombustivel: true },
+    select: { id: true, placa: true, ultimaPosicaoEm: true },
+    orderBy: { placa: "asc" },
+  });
+  return Promise.all(bases.map(async (b) => {
+    const p = await db.posicao.findFirst({ where: { caminhaoId: b.id, nivelCombustivelL: { not: null } }, orderBy: { data: "desc" }, select: { nivelCombustivelL: true, data: true } });
+    return { ...b, nivel: p?.nivelCombustivelL ?? null, nivelEm: p?.data ?? null };
+  }));
+}
+
 /** O que o rastreador de cada caminhão manda pelo Wialon agora (sem esperar mais de 8 s pelo Wialon). */
 async function envioDosRastreadores(cliente: { id: string; nome: string; wialonToken: string | null; wialonHost: string | null }): Promise<Envio[] | null> {
   const api = apiDoCliente(cliente);
@@ -54,7 +67,7 @@ export default async function Telemetria({ searchParams }: { searchParams: Promi
   if (ate < de) ate = de;
   const cortado = ate.getTime() - de.getTime() >= MAX_DIAS_RELATORIO * 86_400_000;
   if (cortado) ate = new Date(de.getTime() + (MAX_DIAS_RELATORIO - 1) * 86_400_000);
-  const [linhas, envio] = await Promise.all([relatorioDaFrota(cliente.id, de, ate), envioDosRastreadores(cliente)]);
+  const [linhas, envio, bases] = await Promise.all([relatorioDaFrota(cliente.id, de, ate), envioDosRastreadores(cliente), basesDeAbastecimento(cliente.id)]);
 
   // Total da frota: soma dos km, horas e diesel; médias pesadas pelo total.
   const com = linhas.flatMap((l) => (l.relatorio ? [l.relatorio] : []));
@@ -147,6 +160,26 @@ export default async function Telemetria({ searchParams }: { searchParams: Promi
           O tanque no fim maior que no início indica abastecimento no período.
         </p>
       </div>
+      {bases.length > 0 && (
+        <div className="card">
+          <div className="card-h"><h2>Base de abastecimento</h2><p>O surtidor do cliente: não aparece no mapa nem gera alertas</p></div>
+          <div className="tw">
+            <table>
+              <thead><tr><th>Base</th><th className="n">Diesel no tanque</th><th>Leitura do tanque</th><th>Último sinal</th></tr></thead>
+              <tbody>
+                {bases.map((b) => (
+                  <tr key={b.id}>
+                    <td><b>{b.placa}</b></td>
+                    <td className="n">{litros(b.nivel)}</td>
+                    <td>{b.nivelEm ? b.nivelEm.toLocaleString("pt-BR", { timeZone: "America/Asuncion" }) : "sem leitura"}</td>
+                    <td>{b.ultimaPosicaoEm ? b.ultimaPosicaoEm.toLocaleString("pt-BR", { timeZone: "America/Asuncion" }) : "aguardando 1º sinal"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
       {envio && envio.length > 0 && (
         <div className="card">
           <div className="card-h"><h2>O que cada rastreador envia</h2><p>Última mensagem de cada caminhão no Wialon</p></div>

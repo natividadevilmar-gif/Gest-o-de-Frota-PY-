@@ -23,7 +23,7 @@ export const MAX_DIAS_RELATORIO = 7;
 export async function relatorioDaFrota(clienteId: string, de: Date, ate: Date, agora = new Date()): Promise<LinhaRelatorio[]> {
   await espelharSeDevido(db, agora);
   const caminhoes = await db.caminhao.findMany({
-    where: { clienteId, rastreadorId: { not: null } },
+    where: { clienteId, rastreadorId: { not: null }, baseCombustivel: false },
     include: { motorista: { select: { nome: true } } },
     orderBy: { placa: "asc" },
   });

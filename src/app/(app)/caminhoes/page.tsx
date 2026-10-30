@@ -6,7 +6,7 @@ import { num, usd } from "@/lib/formato";
 import { mensalidadeTotal, NOME_PLANO, PRECO_MENSAL, type Plano } from "@/lib/indicadores";
 import { clienteUsaWialon } from "@/lib/rastreio/wialon";
 import { ehImei } from "@/lib/telemetria/posicoes";
-import { mudarCamera, mudarEixos, mudarPlano } from "./actions";
+import { alternarBase, mudarCamera, mudarEixos, mudarPlano } from "./actions";
 import { CampoRastreador } from "./CampoRastreador";
 import { NovoCaminhao } from "./NovoCaminhao";
 import { Planos } from "./Planos";
@@ -56,7 +56,14 @@ export default async function Caminhoes() {
                     ) : c.eixos}
                   </td>
                   <td>{pode ? <CampoRastreador id={c.id} placa={c.placa} atual={c.rastreadorId} /> : c.rastreadorId ? <span className="mono">{c.rastreadorId}</span> : <span className="pill warn">sem rastreador</span>}
-                    {wialon && ehImei(c.rastreadorId) && <span className="tag-demo tag-wialon" title="Posições trazidas do Wialon">Wialon</span>}</td>
+                    {wialon && ehImei(c.rastreadorId) && <span className="tag-demo tag-wialon" title="Posições trazidas do Wialon">Wialon</span>}
+                    {c.baseCombustivel && <span className="tag-demo tag-base" title="Fica fora do mapa e dos alertas; aparece em Telemetria">Base de abastecimento</span>}
+                    {pode && (
+                      <form action={alternarBase} style={{ marginTop: 6 }}>
+                        <input type="hidden" name="id" value={c.id} />
+                        <button type="submit" className="link">{c.baseCombustivel ? "É um caminhão" : "É a base de abastecimento"}</button>
+                      </form>
+                    )}</td>
                   <td className="n">{usd(c.salarioMotorista + c.seguroMensal + c.depreciacaoMensal)}</td>
                   <td>
                     {pode ? (

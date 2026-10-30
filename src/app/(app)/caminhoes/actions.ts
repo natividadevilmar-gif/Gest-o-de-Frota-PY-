@@ -87,3 +87,19 @@ export async function mudarCamera(form: FormData) {
   revalidatePath("/", "layout");
 }
 
+/** Marca (ou desmarca) a unidade como base de abastecimento: sai do mapa e dos alertas. */
+export async function alternarBase(form: FormData) {
+  const { sessao, cliente } = await clienteAtual();
+  if (!soKmCero(sessao)) return;
+  const id = String(form.get("id"));
+  const c = await db.caminhao.findFirst({ where: { id, clienteId: cliente.id }, select: { baseCombustivel: true } });
+  if (!c) return;
+  await db.caminhao.update({ where: { id }, data: { baseCombustivel: !c.baseCombustivel } });
+  if (!c.baseCombustivel) {
+    await db.ocorrencia.updateMany({
+      where: { caminhaoId: id, status: { not: "resolvida" } },
+      data: { status: "resolvida", resolvidaEm: new Date(), observacao: "Base de abastecimento: não gera alertas." },
+    });
+  }
+  revalidatePath("/", "layout");
+}

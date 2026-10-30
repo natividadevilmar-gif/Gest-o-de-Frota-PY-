@@ -47,7 +47,7 @@ function situacao(em: Date | null, ignicao: boolean | null, vel: number, agora: 
 export async function frotaNoMapa(clienteId: string | null, agora = new Date()): Promise<CaminhaoMapa[]> {
   await espelharSeDevido(db, agora);
   const lista = await db.caminhao.findMany({
-    where: clienteId ? { clienteId } : {},
+    where: { baseCombustivel: false, ...(clienteId ? { clienteId } : {}) },
     include: { motorista: { select: { nome: true } }, cliente: { select: { nome: true, wialonToken: true, wialonHost: true } } },
     orderBy: [{ cliente: { nome: "asc" } }, { placa: "asc" }],
   });

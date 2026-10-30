@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { diasDoParaguai } from "../telemetria/sincronizar";
-import { credenciaisWialon, imeisPelaPlaca, ligarUnidades, paraPosicaoWialon, sensoresDiesel, somaTanques, telemetriaDaMensagem } from "./wialon";
+import { credenciaisWialon, ehBaseCombustivel, imeisPelaPlaca, ligarUnidades, paraPosicaoWialon, sensoresDiesel, somaTanques, telemetriaDaMensagem } from "./wialon";
 
 const pos = { x: -57.5, y: -25.3, s: 72.4, c: 181, sc: 14 };
 
@@ -91,5 +91,13 @@ describe("sensores de diesel do Wialon", () => {
     } };
     expect(sensoresDiesel(u).nivel).toEqual([3]);
     expect(somaTanques([461, 216, 679])).toBe(679);
+  });
+});
+
+describe("base de abastecimento", () => {
+  it("reconhece o surtidor pelo nome da unidade", () => {
+    expect(ehBaseCombustivel("SURTIDOR SVM ASIS")).toBe(true);
+    expect(ehBaseCombustivel("Base de abastecimento Santa Rita")).toBe(true);
+    expect(ehBaseCombustivel("DIEGO AAVO_858")).toBe(false);
   });
 });
