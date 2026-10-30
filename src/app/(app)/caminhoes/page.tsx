@@ -61,7 +61,7 @@ export default async function Caminhoes() {
                     {pode && (
                       <form action={alternarBase} style={{ marginTop: 6 }}>
                         <input type="hidden" name="id" value={c.id} />
-                        <button type="submit" className="link">{c.baseCombustivel ? "É um caminhão" : "É a base de abastecimento"}</button>
+                        <button type="submit" className="link">{c.baseCombustivel ? "Desmarcar: é um caminhão" : "Marcar como base de abastecimento"}</button>
                       </form>
                     )}</td>
                   <td className="n">{usd(c.salarioMotorista + c.seguroMensal + c.depreciacaoMensal)}</td>
