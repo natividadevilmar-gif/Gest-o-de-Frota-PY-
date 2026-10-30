@@ -14,7 +14,7 @@ export type DieselPais = { pais: string; moeda: string; valor: number; usd: numb
 const SIMBOLO_MOEDA: Record<string, string> = { PYG: "₲", BRL: "R$", ARS: "AR$", UYU: "$U", USD: "US$" };
 const precoLocal = (d: DieselPais) => `${SIMBOLO_MOEDA[d.moeda] ?? d.moeda} ${num(d.valor, d.moeda === "PYG" ? 0 : 2)}`;
 
-export type RotaSalva = { id: string; origem: string; paisOrigem: string; destino: string; paisDestino: string; km: number; pracas: string[] };
+export type RotaSalva = { id: string; origem: string; paisOrigem: string; destino: string; paisDestino: string; km: number; pracas: string[]; paises: string[] };
 
 /** Moeda do frete por país de origem; no Paraguai o frete costuma ser por quilo. */
 const MOEDA_FRETE: Record<string, string> = { PY: "PYG", BR: "BRL", AR: "ARS" };
@@ -66,8 +66,8 @@ function Numero({ valor, mudar, casas, inteiro, ...props }: { valor: number; mud
 export function Simulador({ caminhoes, rotas, pracas, taxas, precoDiesel, dieselPais, paisCliente }: { caminhoes: Cam[]; rotas: RotaSalva[]; pracas: Praca[]; taxas: Taxas; precoDiesel: number; dieselPais: DieselPais[]; paisCliente: string }) {
   const pais0 = PAISES[paisCliente] ? paisCliente : "PY";
   const usdPorPais = Object.fromEntries(dieselPais.map((d) => [d.pais, d.usd]));
-  // Diesel do país da rota; cruzando a fronteira, a média entre o país de origem e o de destino.
-  const dieselDe = (o: string, d: string) => dieselDaRota(o, d, usdPorPais) ?? precoDiesel;
+  // Diesel da rota: média dos países por onde ela passa; sem preço de nenhum, a dos abastecimentos.
+  const dieselDe = (paises: string[]) => dieselDaRota(paises, usdPorPais) ?? precoDiesel;
   const taxaM = (m: string) => (m === "USD" ? 1 : taxas[m] ?? 1);
   const moedaDieselDe = (pais: string) => (taxas[MOEDA_DIESEL[pais]] ? MOEDA_DIESEL[pais] : "USD");
   const casasDiesel = (m: string) => (m === "PYG" ? 0 : 2);
@@ -101,14 +101,12 @@ export function Simulador({ caminhoes, rotas, pracas, taxas, precoDiesel, diesel
   const [kmLC, setKmLC] = useState(kmLDe(c));
   const [kmLV, setKmLV] = useState(arred(kmLDe(c) * FATOR_VAZIO, 1));
   const [moedaDiesel, setMoedaDiesel] = useState(moedaDieselDe(pais0));
-  const [dieselLocal, setDieselLocal] = useState(dieselNa(dieselDe(pais0, pais0), moedaDieselDe(pais0)));
+  const [dieselLocal, setDieselLocal] = useState(dieselNa(dieselDe([pais0]), moedaDieselDe(pais0)));
   const diesel = dieselLocal / taxaM(moedaDiesel);
-  // Rota nova: diesel do país (ou a média) na moeda do país de origem.
-  function dieselDaRotaNova(o: string, d: string) {
-    const m = moedaDieselDe(o);
-    setMoedaDiesel(m);
-    setDieselLocal(dieselNa(dieselDe(o, d), m));
-  }
+  // Países do caminho achados ao calcular a rota (ou guardados na rota salva); null até calcular.
+  const [paisesRota, setPaisesRota] = useState<string[] | null>(null);
+  // Nova rota: o diesel volta para a média dos países, na moeda escolhida (o valor digitado era só daquela simulação).
+  const dieselDaRotaNova = (paises: string[]) => setDieselLocal(dieselNa(dieselDe(paises), moedaDiesel));
   const [outrosKm, setOutrosKm] = useState(arred(c?.outrosKm ?? 0, 3));
   const [extras, setExtras] = useState(0);
   const [alvo, setAlvo] = useState(20);
@@ -116,6 +114,11 @@ export function Simulador({ caminhoes, rotas, pracas, taxas, precoDiesel, diesel
   const [ocupado, iniciar] = useTransition();
 
   const porId = new Map(pracas.map((p) => [p.id, p]));
+  const semRepetir = (l: string[]) => [...new Set(l)];
+  // Sem a lista de países da rota, usa origem, os países das praças do caminho e o destino.
+  const paisesDe = (o: string, ids: string[] | null, d: string) => semRepetir([o, ...(ids ?? []).flatMap((id) => porId.get(id)?.pais ?? []), d]);
+  const paisesViagem = paisesRota ?? paisesDe(paisOrigem, noCaminho, paisDestino);
+  const dieselMedia = dieselNa(dieselDe(paisesViagem), moedaDiesel);
   const ped = c && noCaminho ? previstoRota(noCaminho.flatMap((id) => porId.get(id) ?? []), c.eixos, taxas) : null;
   const pedagioIda = ped?.usd ?? 0;
   const prUsdT = (pr / taxaDe(moedaFrete)) * porT(unidade);
@@ -153,24 +156,29 @@ export function Simulador({ caminhoes, rotas, pracas, taxas, precoDiesel, diesel
       setOrigem(salva.origem); setPaisOrigem(salva.paisOrigem);
       setDestino(salva.destino); setPaisDestino(salva.paisDestino);
       setKm(salva.km); setNoCaminho(salva.pracas);
-      dieselDaRotaNova(salva.paisOrigem, salva.paisDestino);
+      const paises = salva.paises.length ? salva.paises : paisesDe(salva.paisOrigem, salva.pracas, salva.paisDestino);
+      setPaisesRota(paises);
+      dieselDaRotaNova(paises);
     }
   }
 
   // Mudou a cidade: o pedágio da rota anterior não vale mais até calcular de novo.
-  const mudarCidade = (f: (v: string) => void) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => { f(e.target.value); setNoCaminho(null); setRotaId(""); };
+  const mudarCidade = (f: (v: string) => void) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => { f(e.target.value); setNoCaminho(null); setRotaId(""); setPaisesRota(null); };
 
   const mudarPais = (origemMudou: boolean) => (e: React.ChangeEvent<HTMLSelectElement>) => {
     const o = origemMudou ? e.target.value : paisOrigem, d = origemMudou ? paisDestino : e.target.value;
     mudarCidade(origemMudou ? setPaisOrigem : setPaisDestino)(e);
-    dieselDaRotaNova(o, d);
+    dieselDaRotaNova(semRepetir([o, d]));
   };
-  const precoO = dieselPais.find((x) => x.pais === paisOrigem), precoD = dieselPais.find((x) => x.pais === paisDestino);
-  const fonteDiesel = !precoO || !precoD
-    ? `sem preço cadastrado para ${PAISES[!precoO ? paisOrigem : paisDestino]}: média dos últimos abastecimentos lançados`
-    : paisOrigem === paisDestino
-      ? `${PAISES[paisOrigem]} ${precoLocal(precoO)} (${usd(precoO.usd, 2)}), ${precoO.fonte}`
-      : `média de ${PAISES[paisOrigem]} ${precoLocal(precoO)} (${usd(precoO.usd, 2)}) e ${PAISES[paisDestino]} ${precoLocal(precoD)} (${usd(precoD.usd, 2)})`;
+  const comPreco = paisesViagem.flatMap((p) => dieselPais.filter((x) => x.pais === p));
+  const semPreco = paisesViagem.filter((p) => !comPreco.some((x) => x.pais === p));
+  const fonteDiesel = (comPreco.length === 0
+    ? "sem preço cadastrado para os países da rota: média dos últimos abastecimentos lançados"
+    : comPreco.length === 1
+      ? `${PAISES[comPreco[0].pais] ?? comPreco[0].pais} ${precoLocal(comPreco[0])} (${usd(comPreco[0].usd, 2)}), ${comPreco[0].fonte}`
+      : `média de ${comPreco.map((x) => `${PAISES[x.pais] ?? x.pais} ${precoLocal(x)} (${usd(x.usd, 2)})`).join(", ")}`)
+    + (comPreco.length && semPreco.length ? `; sem preço cadastrado: ${semPreco.map((p) => PAISES[p] ?? p).join(", ")}` : "")
+    + (paisesRota ? "" : " (clique em Calcular km para incluir os países do caminho)");
 
   const calcularKm = () => iniciar(async () => {
     setAviso(null);
@@ -179,12 +187,14 @@ export function Simulador({ caminhoes, rotas, pracas, taxas, precoDiesel, diesel
     else {
       setKm(r.km);
       setNoCaminho(r.pracas);
+      setPaisesRota(r.paises);
+      dieselDaRotaNova(r.paises);
       setAviso({ ok: true, msg: `${origem} → ${destino}: ${num(r.km)} km de estrada, ${r.pracas.length ? `${r.pracas.length} ${r.pracas.length === 1 ? "praça" : "praças"} de pedágio no caminho` : "sem praça de pedágio no caminho"}.` });
     }
   });
 
   const guardarRota = () => iniciar(async () => {
-    const r = await salvarRota({ origem, paisOrigem, destino, paisDestino, km, pracas: noCaminho ?? [] });
+    const r = await salvarRota({ origem, paisOrigem, destino, paisDestino, km, pracas: noCaminho ?? [], paises: paisesRota ?? [] });
     setAviso(r);
     if (r.id) setRotaId(r.id);
   });
@@ -273,13 +283,15 @@ export function Simulador({ caminhoes, rotas, pracas, taxas, precoDiesel, diesel
         <label htmlFor="sExtras">Aduana, despachante, chapa (USD)<Numero id="sExtras" casas={2} min="0" valor={extras} mudar={setExtras} /></label>
       </form>
       <p className="note">
-        Diesel: {fonteDiesel}. Pode alterar o valor para esta simulação.<br />
+        Diesel: {fonteDiesel}. Pode alterar o valor para esta simulação; numa rota nova ele volta para a média.
+        {dieselLocal !== dieselMedia && <> <button type="button" className="link" onClick={() => setDieselLocal(dieselMedia)}>Usar a média dos países ({SIMBOLO_MOEDA[moedaDiesel] ?? moedaDiesel} {num(dieselMedia, casasDiesel(moedaDiesel))})</button></>}
+        <br />
         km/l {c?.kmL ? "medido pela CAN neste mês" : "padrão de 2,5 (sem leitura CAN no mês)"}; outros custos por km {c?.outrosKm ? "das despesas do mês (manutenção, pneus, motorista, seguro…)" : "sem despesas no mês: informe pneus, motorista e seguro por km (a manutenção já entra em % do frete)"}.
       </p>
 
       <div className="resumo-frete">
         <div><span>Distância</span><b>{num(s.kmTotal)} km</b><small>{num(km)} ida{voltaVazio ? ` + ${num(s.kmVolta)} volta vazio` : ", volta carregado"}</small></div>
-        <div><span>Diesel</span><b>{num(s.litros)} litros</b><small>{usd(s.diesel)} a {usd(diesel, 2)}/l{moedaDiesel !== "USD" ? ` (${SIMBOLO_MOEDA[moedaDiesel] ?? moedaDiesel} ${num(dieselLocal, casasDiesel(moedaDiesel))})` : ""}</small></div>
+        <div><span>Diesel</span><b>{num(s.litros)} litros</b><small>{usd(s.diesel)} a {usd(diesel, 2)}/l{moedaDiesel !== "USD" ? ` (${SIMBOLO_MOEDA[moedaDiesel] ?? moedaDiesel} ${num(dieselLocal, casasDiesel(moedaDiesel))})` : ""}</small><small><b className="t-pct">{s.custo > 0 ? num((s.diesel / s.custo) * 100, 0) : "—"}% do custo da viagem</b>{s.frete > 0 ? ` · ${num((s.diesel / s.frete) * 100, 0)}% do frete` : ""}</small></div>
         <div><span>Custo da viagem</span><b>{usd(s.custo)}</b>{local(s.custo)}<small>diesel {usd(s.diesel, 0)} + outros {usd(s.outros, 0)} + pedágio {usd(s.pedagio, 0)}{voltaVazio && s.pedagio ? ` (ida ${usd(pedagioIda, 0)} + volta ${usd(s.pedagioVolta, 0)})` : ""}{comissao ? ` + comissão ${num(comissao, comissao % 1 ? 1 : 0)}% ${usd(s.comissao, 0)}` : ""}{manutencao ? ` + manutenção ${num(manutencao, manutencao % 1 ? 1 : 0)}% ${usd(s.manutencao, 0)}` : ""}{extras ? ` + extras ${usd(extras, 0)}` : ""}</small></div>
         <div><span>Frete</span><b>{usd(s.frete)}</b>{local(s.frete)}<small>{num(ton)} t × {naMoeda(prUsdT)}{moedaFrete !== "USD" || unidade !== "t" ? ` (${usd(prUsdT, 2)}/t)` : ""}</small></div>
         <div><span>Margem</span><b className={s.margem < 0 ? "t-bad" : "t-ok"}>{usd(s.margem)} <small>{num(s.margemPct, 0)}%</small></b>{local(s.margem)}<small>custo de {usd(s.custoKm, 2)} por km rodado</small></div>

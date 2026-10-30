@@ -75,6 +75,42 @@ export async function calcularRota(f: { origem: string; paisOrigem: string; dest
   }
 }
 
+const PAISES_ROTA = new Set(["PY", "BR", "AR", "UY", "CL", "BO"]);
+
+/**
+ * Países por onde a rota passa, na ordem: um ponto a cada ~150 km (no máximo 10) perguntado ao
+ * Nominatim, uma consulta por segundo. Ponto sem resposta é pulado.
+ */
+export async function paisesNaRota(rota: PontoRota[]): Promise<string[]> {
+  if (rota.length === 0) return [];
+  let km = 0;
+  const amostra: PontoRota[] = [rota[0]];
+  for (let i = 1; i < rota.length; i++) {
+    const [lat, lng] = rota[i - 1];
+    km += distanciaAteRotaKm({ lat, lng }, [rota[i]]);
+    if (km >= 150) { amostra.push(rota[i]); km = 0; }
+  }
+  amostra.push(rota.at(-1)!);
+  const passo = Math.max(1, Math.ceil(amostra.length / 10));
+  const paises: string[] = [];
+  for (let i = 0; i < amostra.length; i += passo) {
+    const espera = ultimaBusca + 1100 - Date.now();
+    if (espera > 0) await new Promise((ok) => setTimeout(ok, espera));
+    ultimaBusca = Date.now();
+    try {
+      const [lat, lng] = amostra[i];
+      const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=3&lat=${lat}&lon=${lng}`, { headers: AGENTE, signal: AbortSignal.timeout(6000) });
+      if (!r.ok) continue;
+      const j = (await r.json()) as { address?: { country_code?: string } };
+      const pais = j.address?.country_code?.toUpperCase();
+      if (pais && PAISES_ROTA.has(pais) && !paises.includes(pais)) paises.push(pais);
+    } catch {
+      // sem resposta para este ponto: segue com os outros
+    }
+  }
+  return paises;
+}
+
 /** Tira pontos a menos de ~200 m um do outro: a rota fica leve e continua fiel à estrada. */
 export function simplificar(rota: PontoRota[], minKm = 0.2): PontoRota[] {
   if (rota.length < 3) return rota;
