@@ -4,7 +4,7 @@ import { indicadoresFrota, viagensCliente } from "@/lib/dados";
 import { dataBr, mesValido, nomeMes, num, usd } from "@/lib/formato";
 import { mesAtual, planoPermite } from "@/lib/indicadores";
 import { db } from "@/lib/db";
-import { rotasPedagio, taxasDoDia } from "@/lib/pedagioDados";
+import { taxasDoDia } from "@/lib/pedagioDados";
 import Link from "next/link";
 import { Simulador } from "./Formularios";
 
@@ -17,10 +17,10 @@ export default async function Viagens({ searchParams }: { searchParams: Promise<
   const ind = (await indicadoresFrota(cliente.id, mes)).filter((i) => planoPermite(i.plano, "viagens"));
   if (ind.length === 0) return <PlanoNecessario modulo="viagens" titulo="Margem por viagem" />;
   const viagens = (await viagensCliente(cliente.id, mes, ind)).filter((v) => ind.some((i) => i.id === v.caminhaoId));
-  const [cams, rotas, corredores, taxas, abastecimentos] = await Promise.all([
+  const [cams, rotas, pracas, taxas, abastecimentos] = await Promise.all([
     db.caminhao.findMany({ where: { clienteId: cliente.id }, select: { id: true, eixos: true } }),
     db.rotaFrete.findMany({ where: { clienteId: cliente.id }, orderBy: [{ origem: "asc" }, { destino: "asc" }] }),
-    rotasPedagio(),
+    db.pracaPedagio.findMany({ select: { id: true, pais: true, rodovia: true, nome: true, moeda: true, tarifaEixo: true, tarifaFixa: true } }),
     taxasDoDia(),
     db.despesa.findMany({ where: { caminhao: { clienteId: cliente.id }, categoria: "DIESEL", litros: { gt: 0 } }, select: { valorUsd: true, litros: true }, orderBy: { data: "desc" }, take: 20 }),
   ]);
@@ -71,8 +71,8 @@ export default async function Viagens({ searchParams }: { searchParams: Promise<
         )}
       </div>
       <div className="card">
-        <div className="card-h"><h2>Simular um frete antes de aceitar</h2><p>Rota, diesel, pedágio e volta vazio; consumo e custos do caminhão neste mês</p></div>
-        <Simulador caminhoes={caminhoes} rotas={rotas} corredores={corredores} taxas={taxas} precoDiesel={precoDiesel} paisCliente={cliente.pais} />
+        <div className="card-h"><h2>Simular um frete antes de aceitar</h2><p>Rota, praças de pedágio do caminho, diesel e volta vazio; consumo e custos do caminhão neste mês</p></div>
+        <Simulador caminhoes={caminhoes} rotas={rotas} pracas={pracas} taxas={taxas} precoDiesel={precoDiesel} paisCliente={cliente.pais} />
       </div>
       <p className="note">Para lançar um frete com cliente, rota, produto e recebimento, use <Link href="/fretes#novo">Fretes e margem</Link>.</p>
     </>

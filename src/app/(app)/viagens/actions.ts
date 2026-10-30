@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { clienteAtual } from "@/lib/acesso";
 import { db } from "@/lib/db";
+import { pracasNaRota } from "@/lib/pedagio";
 import { calcularRota } from "@/lib/rastreio/rotaFrete";
 
 const cidades = z.object({
@@ -13,18 +14,20 @@ const cidades = z.object({
   paisDestino: z.string().regex(/^[A-Z]{2}$/),
 });
 
-/** Km de estrada entre duas cidades (OpenStreetMap), para o simulador. */
-export async function kmEntreCidades(c: z.infer<typeof cidades>): Promise<{ km: number } | { erro: string }> {
+/** Km de estrada entre duas cidades (OpenStreetMap) e as praças de pedágio desse caminho, para o simulador. */
+export async function kmEntreCidades(c: z.infer<typeof cidades>): Promise<{ km: number; pracas: string[] } | { erro: string }> {
   await clienteAtual();
   const p = cidades.safeParse(c);
   if (!p.success) return { erro: "Informe a cidade de origem e a de destino." };
   const r = await calcularRota(p.data);
-  return "erro" in r ? r : { km: r.km };
+  if ("erro" in r) return r;
+  const pracas = await db.pracaPedagio.findMany({ select: { id: true, lat: true, lng: true } });
+  return { km: r.km, pracas: pracasNaRota(r.rota, pracas) };
 }
 
 const rota = cidades.extend({
   km: z.coerce.number().int().positive(),
-  rotaPedagioId: z.string().optional(),
+  pracas: z.array(z.string()).max(60),
 });
 
 /** Guarda a rota para escolher de novo no simulador. */
@@ -33,7 +36,7 @@ export async function salvarRota(r: z.infer<typeof rota>): Promise<{ ok: boolean
   if (sessao.papel === "MOTORISTA") return { ok: false, msg: "Sem permissão." };
   const p = rota.safeParse(r);
   if (!p.success) return { ok: false, msg: "Informe origem, destino e km de ida." };
-  const nova = await db.rotaFrete.create({ data: { ...p.data, rotaPedagioId: p.data.rotaPedagioId || null, clienteId: cliente.id } });
+  const nova = await db.rotaFrete.create({ data: { ...p.data, clienteId: cliente.id } });
   revalidatePath("/viagens");
   return { ok: true, msg: `Rota ${p.data.origem} → ${p.data.destino} salva.`, id: nova.id };
 }
