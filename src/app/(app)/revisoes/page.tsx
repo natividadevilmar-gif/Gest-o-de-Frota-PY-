@@ -6,11 +6,19 @@ import { dataBr, num } from "@/lib/formato";
 import { AVISO_KM, planoPermite, type Plano } from "@/lib/indicadores";
 import { montarDemonstracao, removerDemonstracao } from "./actions";
 import { NovoItem, RegistrarServico } from "./Formularios";
+import Link from "next/link";
 
 const COR = { vencida: "var(--bad)", proxima: "var(--warn)", em_dia: "var(--ok)" } as const;
+const FILTROS = [
+  { s: "vencida", classe: "bad", rotulo: "vencidas" },
+  { s: "proxima", classe: "warn", rotulo: "próximas" },
+  { s: "em_dia", classe: "ok", rotulo: "em dia" },
+] as const;
 
-export default async function Revisoes() {
+export default async function Revisoes({ searchParams }: { searchParams: Promise<{ situacao?: string }> }) {
   const { sessao, cliente } = await clienteAtual();
+  const pedido = (await searchParams).situacao;
+  const filtro = FILTROS.find((f) => f.s === pedido)?.s;
   // Itens da demonstração aparecem mesmo em caminhão fora do plano Gestão.
   const itens = (await revisoesCliente(cliente.id)).filter((r) => r.demo || planoPermite(r.caminhao.plano as Plano, "revisoes"));
   const comDemo = new Set(itens.filter((i) => i.demo).map((i) => i.caminhaoId));
@@ -55,15 +63,18 @@ export default async function Revisoes() {
           <p>Por km ou por data · aviso com {num(AVISO_KM)} km de antecedência</p>
         </div>
         <div className="legend">
-          <span className="pill bad">{conta("vencida")} vencidas</span>
-          <span className="pill warn">{conta("proxima")} próximas</span>
-          <span className="pill ok">{conta("em_dia")} em dia</span>
+          {FILTROS.map((f) => (
+            <Link key={f.s} href={filtro === f.s ? "/revisoes" : `/revisoes?situacao=${f.s}`} className={`pill ${f.classe} pill-filtro${filtro === f.s ? " ativo" : ""}`} aria-pressed={filtro === f.s}>
+              {conta(f.s)} {f.rotulo}
+            </Link>
+          ))}
+          {filtro && <Link href="/revisoes">Mostrar todas</Link>}
         </div>
         <div className="tw">
           <table>
             <thead><tr><th>Caminhão</th><th>Item</th><th>Gatilho</th><th>Vence</th><th>Uso do intervalo</th><th className="n">Falta</th><th>Situação</th></tr></thead>
             <tbody>
-              {itens.map((i) => {
+              {itens.filter((i) => !filtro || i.status.situacao === filtro).map((i) => {
                 const s = i.status;
                 return (
                   <tr key={i.id}>

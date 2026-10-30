@@ -80,6 +80,9 @@ tr:last-child td{border-bottom:0}
 .bar span{height:100%}
 .legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:.8rem;color:var(--muted)}
 .legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.pill-filtro{text-decoration:none;cursor:pointer;border:1px solid transparent}
+.pill-filtro:hover{border-color:currentColor}
+.pill-filtro.ativo{border-color:currentColor;box-shadow:0 0 0 1px currentColor}
 .prog{height:8px;border-radius:4px;background:var(--surface-2);overflow:hidden;min-width:80px}
 .prog span{display:block;height:100%}
 .formula{font-family:var(--f-mono);font-size:.82rem;background:var(--surface-2);border-radius:6px;padding:10px 12px;line-height:1.6;overflow-x:auto}
