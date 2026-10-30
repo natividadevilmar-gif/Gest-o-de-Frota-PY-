@@ -168,9 +168,14 @@ export function MapaFrota({ inicial, hoje, todos = false, outraTela = false }: {
     if (!pronto || !m) return;
     const pts = frota.filter((c) => c.lat != null && (filtro === "todos" || c.situacao === filtro)).map((c) => [c.lat!, c.lng!] as [number, number]);
     if (pts.length) m.fitBounds(pts, { padding: [40, 40], maxZoom: 10 });
-    setSel((atual) => (atual && frota.some((c) => c.id === atual && (filtro === "todos" || c.situacao === filtro)) ? atual : null));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filtro, pronto]);
+
+  /** Tocar num filtro (mesmo o que já está marcado) solta o caminhão escolhido e volta à visão geral. */
+  function filtrar(f: Situacao | "todos") {
+    setSel(null);
+    setFiltro(f);
+  }
 
   // Visão geral no mapa de ruas. Ao escolher um caminhão, o mapa aproxima nele em satélite e vai acompanhando.
   useEffect(() => {
@@ -354,9 +359,9 @@ export function MapaFrota({ inicial, hoje, todos = false, outraTela = false }: {
           </button>
         )}
         <div className="filtros" role="group" aria-label="Filtrar por situação">
-          <button type="button" aria-pressed={filtro === "todos"} onClick={() => setFiltro("todos")}>Todos {frota.length}</button>
+          <button type="button" aria-pressed={filtro === "todos"} onClick={() => filtrar("todos")}>Todos {frota.length}</button>
           {(Object.keys(ROTULO) as Situacao[]).filter((s) => contagem[s]).map((s) => (
-            <button key={s} type="button" aria-pressed={filtro === s} onClick={() => setFiltro(s)}>
+            <button key={s} type="button" aria-pressed={filtro === s} onClick={() => filtrar(s)}>
               <i className={`ponto ponto-${s}`} /> {ROTULO[s]} {contagem[s]}
             </button>
           ))}
