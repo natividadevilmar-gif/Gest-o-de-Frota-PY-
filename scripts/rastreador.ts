@@ -154,6 +154,7 @@ function atender(sock: Socket) {
             ...(ultima.odometroKm ? { odometroKm: Math.round(ultima.odometroKm) } : {}),
           },
         });
+        await db.caminhao.update({ where: { id: caminhao!.id }, data: { diretoEm: new Date() } });
         sock.write(confirmacao(linhas.length));
         gravadas += linhas.length;
         conectados.set(caminhao!.placa, new Date());

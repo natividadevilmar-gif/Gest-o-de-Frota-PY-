@@ -1,0 +1,1 @@
+ALTER TABLE "Caminhao" ADD COLUMN "diretoEm" TIMESTAMP(3);
