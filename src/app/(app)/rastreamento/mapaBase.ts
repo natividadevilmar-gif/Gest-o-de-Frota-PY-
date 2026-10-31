@@ -94,3 +94,18 @@ export class Movimento {
     this.quadro = requestAnimationFrame(passo);
   }
 }
+
+const FOLGA = 6;
+
+/** Onde abrir o quadro (direção do Leaflet e deslocamento em px), dado o ponto do caminhão no mapa. */
+export function posicaoDaDica(x: number, y: number, larg: number, alt: number, w: number, h: number): [Leaflet.Direction, [number, number]] {
+  const cabeNaLargura = x >= w / 2 + FOLGA && x <= larg - w / 2 - FOLGA;
+  if (cabeNaLargura && y - 10 - h >= FOLGA) return ["top", [0, -10]];
+  if (cabeNaLargura && y + 14 + h <= alt - FOLGA) return ["bottom", [0, 14]];
+  // Para o lado onde há mais espaço, centrado no caminhão e empurrado para dentro do mapa.
+  const lado: Leaflet.Direction = x < larg / 2 ? "right" : "left";
+  const minimo = FOLGA + h / 2 - y; // deslocamento que encosta o topo na borda de cima
+  const maximo = alt - FOLGA - h / 2 - y; // deslocamento que encosta a base na borda de baixo
+  const dy = Math.round(Math.max(minimo, Math.min(0, maximo)));
+  return [lado, [lado === "right" ? 12 : -12, dy]];
+}
