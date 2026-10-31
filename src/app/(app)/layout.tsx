@@ -50,7 +50,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   for (const x of visiveis) {
     const item: ItemNav = {
       href: x.href,
-      rotulo: admin && x.href === "/painel" ? "Painel do cliente" : x.href === "/monitoramento" ? "Central" : x.rotulo,
+      rotulo: admin && x.href === "/painel" ? "Painel do cliente" : x.rotulo,
       bloqueadoPor: libera(x.m) ? undefined : NOME_PLANO[planoMinimo(x.m)],
     };
     const nomeMenu = soUm ? undefined : x.menu;
