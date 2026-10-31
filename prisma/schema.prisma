@@ -128,6 +128,8 @@ model Caminhao {
   odometroKm        Int             @default(0)
   // Identificador do equipamento na plataforma de rastreamento.
   rastreadorId      String?
+  // Último pacote que o aparelho mandou direto ao receptor próprio (sem passar pelo Wialon).
+  diretoEm          DateTime?
   // Última posição recebida do rastreador próprio (atualizada pelo receptor).
   ultimaPosicaoEm   DateTime?
   ultimaLat         Float?

@@ -350,6 +350,9 @@ export async function espelharSeDevido(db: PrismaClient, agora = new Date()) {
 
 /** Na primeira leitura de um caminhão, quanto do passado buscar. */
 const INICIO_MS = 48 * 3600_000;
+/** Sem pacote direto por esse tempo, o caminhão volta a vir do Wialon. */
+const DIRETO_MS = 30 * 60_000;
+export const recebeDireto = (c: { diretoEm?: Date | null }, agora = new Date()) => !!c.diretoEm && agora.getTime() - c.diretoEm.getTime() < DIRETO_MS;
 
 /**
  * Traz as mensagens novas de cada caminhão ligado a uma unidade do Wialon para Posicao
@@ -382,13 +385,15 @@ const resumidoEm = new Map<string, number>();
 
 async function espelharConta(db: PrismaClient, api: Wialon, clienteId: string, agora: Date) {
   const [caminhoes, unidades] = await Promise.all([
-    db.caminhao.findMany({ where: { clienteId }, select: { id: true, placa: true, rastreadorId: true, ultimaPosicaoEm: true, odometroKm: true, plano: true } }),
+    db.caminhao.findMany({ where: { clienteId }, select: { id: true, placa: true, rastreadorId: true, ultimaPosicaoEm: true, odometroKm: true, plano: true, diretoEm: true } }),
     api.unidades(),
   ]);
   let gravadas = 0;
   const erros: string[] = [];
   for (const { caminhao: c, unidade: u } of ligarUnidades(caminhoes, unidades)) {
     if (!u.lmsg || (c.ultimaPosicaoEm && u.lmsg.t * 1000 <= c.ultimaPosicaoEm.getTime())) continue;
+    // O aparelho já manda direto ao receptor próprio: não duplica com as mensagens do Wialon.
+    if (recebeDireto(c, agora)) continue;
     try {
       const de = c.ultimaPosicaoEm ? new Date(c.ultimaPosicaoEm.getTime() + 1000) : new Date(agora.getTime() - INICIO_MS);
       const linhas = (await api.mensagens(u, de, new Date(u.lmsg.t * 1000)))
