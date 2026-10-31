@@ -9,7 +9,9 @@ const ATRIB_ESRI = "Mapa &copy; Esri, HERE, Garmin, &copy; OpenStreetMap";
 export function fundosDoMapa(L: typeof Leaflet, m: Leaflet.Map) {
   const ruas = L.tileLayer(`${ESRI}/World_Street_Map/MapServer/tile/{z}/{y}/{x}`, { maxZoom: 19, attribution: ATRIB_ESRI });
   const satelite = L.layerGroup([
-    L.tileLayer(`${ESRI}/World_Imagery/MapServer/tile/{z}/{y}/{x}`, { maxZoom: 19, attribution: "Imagens &copy; Esri, Maxar, Earthstar Geographics" }),
+    // No interior do Paraguai a imagem só vai até o zoom 17; acima disso o Esri devolve "Map data
+    // not yet available". Até o 17 usa a foto de verdade e, mais perto, amplia essa mesma foto.
+    L.tileLayer(`${ESRI}/World_Imagery/MapServer/tile/{z}/{y}/{x}`, { maxZoom: 19, maxNativeZoom: 17, attribution: "Imagens &copy; Esri, Maxar, Earthstar Geographics" }),
     L.tileLayer(`${ESRI}/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}`, { maxZoom: 19 }),
     L.tileLayer(`${ESRI}/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}`, { maxZoom: 19 }),
   ]);
