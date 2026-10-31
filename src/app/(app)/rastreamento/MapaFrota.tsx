@@ -5,7 +5,7 @@ import type * as Leaflet from "leaflet";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CaminhaoMapa, ResumoCaminhao, Situacao, Trajeto } from "@/lib/rastreio/dados";
 import { LIMITE_VELOCIDADE_KMH } from "@/lib/telemetria/posicoes";
-import { fundosDoMapa, Movimento } from "./mapaBase";
+import { fundosDoMapa, Movimento, posicaoDaDica } from "./mapaBase";
 import { FotoLocal } from "./FotoLocal";
 
 const ROTULO: Record<Situacao, string> = {
@@ -69,8 +69,10 @@ function dicaCompleta(c: CaminhaoMapa, todos: boolean) {
 }
 
 /**
- * O quadro do caminhão é alto: perto da borda de cima do mapa ele abre para baixo, e perto
- * das laterais abre para o lado, para não ficar cortado.
+ * O quadro do caminhão é alto. Se cabe inteiro acima (ou abaixo) do caminhão, abre ali; se não cabe
+ * nem em cima nem embaixo (mapa baixo ou caminhão no meio da altura), abre para o lado e desliza
+ * para cima ou para baixo até ficar todo dentro do mapa. Se o mapa for mais baixo que o quadro,
+ * o topo (placa e situação) fica sempre visível.
  */
 function ajustarDica(m: Leaflet.Map, marca: Leaflet.Marker) {
   const dica = marca.getTooltip();
@@ -78,13 +80,9 @@ function ajustarDica(m: Leaflet.Map, marca: Leaflet.Marker) {
   if (!dica || !el) return;
   const p = m.latLngToContainerPoint(marca.getLatLng());
   const { x: larg, y: alt } = m.getSize();
-  const meiaLarg = el.offsetWidth / 2 + 10;
-  const [direction, offset]: [Leaflet.Direction, [number, number]] =
-    p.x < meiaLarg ? ["right", [12, 0]]
-    : p.x > larg - meiaLarg ? ["left", [-12, 0]]
-    : p.y < el.offsetHeight + 20 && p.y < alt / 2 ? ["bottom", [0, 14]]
-    : ["top", [0, -10]];
-  if (dica.options.direction === direction) return;
+  const [direction, offset] = posicaoDaDica(p.x, p.y, larg, alt, el.offsetWidth, el.offsetHeight);
+  const atual = dica.options.offset as [number, number] | undefined;
+  if (dica.options.direction === direction && atual?.[0] === offset[0] && atual?.[1] === offset[1]) return;
   dica.options.direction = direction;
   dica.options.offset = offset;
   dica.update();
@@ -259,6 +257,7 @@ export function MapaFrota({ inicial, hoje, todos = false, outraTela = false }: {
           s.html = html;
         }
         s.marca.setTooltipContent(dica);
+        if (s.marca.isTooltipOpen()) ajustarDica(m, s.marca);
       }
       s.marca.setZIndexOffset(c.id === sel ? 1000 : 0);
       movimento.current.ir(c.id, s.marca, [c.lat!, c.lng!], c.atualizadoEm);
