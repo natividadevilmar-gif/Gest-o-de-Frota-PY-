@@ -3,13 +3,15 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import type { Idioma } from "@/lib/i18n/idiomas";
+import { SeletorIdioma } from "./SeletorIdioma";
 
 export type ItemNav = { href: string; rotulo: string; bloqueadoPor?: string; grupo?: string };
 /** Um item solto na barra ou um menu que abre com os itens dele. */
 export type EntradaNav = ItemNav | { menu: string; itens: ItemNav[] };
 
 /** Barra de navegação no topo (como no Wialon): as telas principais à vista e o resto em menus. */
-export function Nav({ entradas, conta }: { entradas: EntradaNav[]; conta: React.ReactNode }) {
+export function Nav({ entradas, conta, idioma }: { entradas: EntradaNav[]; conta: React.ReactNode; idioma: Idioma }) {
   const atual = usePathname();
   const [aberto, setAberto] = useState<string | null>(null);
   const barra = useRef<HTMLElement>(null);
@@ -42,7 +44,10 @@ export function Nav({ entradas, conta }: { entradas: EntradaNav[]; conta: React.
   return (
     <nav className="nav" ref={barra}>
       {entradas.map((e) => ("menu" in e ? menu(e.menu, e.itens.map(link), e.itens.some((i) => ativo(i.href))) : link(e)))}
-      <div className="nav-conta">{menu("Conta", conta, false, true)}</div>
+      <div className="nav-conta">
+        <SeletorIdioma atual={idioma} />
+        {menu("Conta", conta, false, true)}
+      </div>
     </nav>
   );
 }

@@ -75,14 +75,6 @@ export async function lancarDespesa(_: Resultado, form: FormData): Promise<Resul
   return { ok: true, msg: `${usd(valorUsd, 2)}${conv} ${es ? "cargado en" : "lançado em"} ${cam.placa}${d.litros ? `, ${num(d.litros, 1)} litros` : ""}.` };
 }
 
-/** Guarda o idioma escolhido pelo usuário na tela de despesas (vale nas próximas vezes). */
-export async function salvarIdioma(idioma: "pt" | "es") {
-  const { sessao } = await clienteAtual();
-  if (idioma !== "pt" && idioma !== "es") return;
-  await db.usuario.update({ where: { id: sessao.usuarioId }, data: { idioma } });
-  revalidatePath("/despesas");
-}
-
 export async function excluirDespesa(form: FormData) {
   const { sessao, cliente } = await clienteAtual();
   if (!podeEditarCadastros(sessao)) return;
