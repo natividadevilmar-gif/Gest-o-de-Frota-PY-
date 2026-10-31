@@ -5,7 +5,7 @@ import { paraUsd, SIMBOLO, type Moeda } from "@/lib/cambio";
 import { lerFalaLocal, lerNotaLocal } from "@/lib/falaLocal";
 import { num } from "@/lib/formato";
 import { TEXTOS, type Lingua } from "@/lib/textosDespesa";
-import { lancarDespesa, lerDespesaAction, salvarIdioma, type Leitura } from "./actions";
+import { lancarDespesa, lerDespesaAction, type Leitura } from "./actions";
 
 type Props = {
   caminhoes: { id: string; placa: string }[];
@@ -81,7 +81,8 @@ async function reduzirFoto(arquivo: File): Promise<string> {
 
 export function LancarDespesa({ caminhoes, hoje, cotacao, idioma, leituraAtiva }: Props) {
   const [r, acao, enviando] = useActionState(lancarDespesa, null);
-  const [lingua, setLingua] = useState<Lingua>(idioma);
+  // Idioma dos textos e da voz: o do seletor da barra do topo (espanhol ou português).
+  const lingua: Lingua = idioma;
   const t = TEXTOS[lingua];
   const [lendo, iniciarLeitura] = useTransition();
   const [aviso, setAviso] = useState<string | null>(null);
@@ -379,13 +380,6 @@ export function LancarDespesa({ caminhoes, hoje, cotacao, idioma, leituraAtiva }
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-      <div className="lingua" role="group" aria-label="Idioma / Idioma">
-        {(["pt", "es"] as const).map((l) => (
-          <button key={l} type="button" aria-pressed={lingua === l} className={lingua === l ? "pri" : ""} onClick={() => { setLingua(l); void salvarIdioma(l); }}>
-            {l === "pt" ? "Português" : "Español"}
-          </button>
-        ))}
-      </div>
       <label htmlFor="categoria" className="tipo-topo">{t.tipoDespesa}
         <select id="categoria" value={f.categoria} onChange={(e) => { tipoEscolhido.current = true; set("categoria", e.target.value); }}>
           {Object.entries(t.tipos).map(([k, v]) => <option key={k} value={k}>{v}</option>)}

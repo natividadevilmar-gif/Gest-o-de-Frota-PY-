@@ -74,7 +74,8 @@ export default async function Contrato({ params, searchParams }: { params: Promi
         </details>
       )}
 
-      <article className="contrato">
+      {/* O contrato sai no idioma escolhido acima (português ou espanhol), sem passar pelo tradutor das telas. */}
+      <article className="contrato" translate="no">
         <header>
           <p className="contrato-num">{dados.numero}</p>
           <h2>{t.titulo}</h2>

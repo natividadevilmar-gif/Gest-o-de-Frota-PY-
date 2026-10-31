@@ -229,7 +229,7 @@ export function paraVista(o: Awaited<ReturnType<typeof ocorrenciasAbertas>>[numb
   return {
     id: o.id, tipo: o.tipo, gravidade: o.gravidade, titulo: o.titulo, detalhe: o.detalhe, status: o.status,
     lat: o.lat, lng: o.lng, placa: o.caminhao.placa, caminhaoId: o.caminhaoId, cliente: o.cliente.nome, midiaId: o.midias[0]?.id ?? null,
-    motorista: o.caminhao.motorista ? { nome: o.caminhao.motorista.nome, celular: celularMotorista(o.caminhao.motorista.ddi, o.caminhao.motorista.acesso?.email), idioma: o.caminhao.motorista.acesso?.idioma ?? o.cliente.idioma } : null,
+    motorista: o.caminhao.motorista ? { nome: o.caminhao.motorista.nome, celular: celularMotorista(o.caminhao.motorista.ddi, o.caminhao.motorista.acesso?.email), idioma: (o.caminhao.motorista.acesso?.idioma ?? o.cliente.idioma) === "es" ? "es" : "pt" } : null,
     pais: o.cliente.pais,
     criadaEm: o.criadaEm.toISOString(), atendidaPor: o.atendidaPor, resolvidaEm: o.resolvidaEm?.toISOString() ?? null, observacao: o.observacao,
   };

@@ -6,6 +6,7 @@ import { SeletorCliente } from "@/components/SeletorCliente";
 import { VoltarInicio } from "@/components/VoltarInicio";
 import { clienteOpcional } from "@/lib/acesso";
 import { db } from "@/lib/db";
+import { idiomaAtual } from "@/lib/i18n/atual";
 import { NOME_PLANO, planoMinimo, planoPermite, type Modulo, type Plano } from "@/lib/indicadores";
 import { sair } from "../login/actions";
 
@@ -39,8 +40,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const demoRevisoes = cliente ? (await db.itemRevisao.count({ where: { demo: true, caminhao: { clienteId: cliente.id } } })) > 0 : false;
   const libera = (m: Modulo) => (m === "revisoes" && demoRevisoes) || planos.some((p) => planoPermite(p, m));
 
-  // O motorista vê o menu no idioma escolhido por ele.
-  const es = sessao.papel === "MOTORISTA" && ((await db.usuario.findUnique({ where: { id: sessao.usuarioId }, select: { idioma: true } }))?.idioma ?? cliente?.idioma) === "es";
+  // Os textos do menu ficam em português; o Tradutor (layout raiz) mostra no idioma escolhido.
+  const idioma = await idiomaAtual();
   const admin = sessao.papel === "ADMIN";
   const visiveis = sessao.papel === "MOTORISTA" ? MODULOS.filter((x) => x.href === "/despesas") : sessao.papel === "OPERADOR" ? MODULOS.filter((x) => x.href !== "/contrato") : MODULOS;
   // O motorista só lança despesa: o item fica à vista.
@@ -49,7 +50,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   for (const x of visiveis) {
     const item: ItemNav = {
       href: x.href,
-      rotulo: es && x.href === "/despesas" ? "Cargar gasto" : admin && x.href === "/painel" ? "Painel do cliente" : x.href === "/monitoramento" ? "Central" : x.rotulo,
+      rotulo: admin && x.href === "/painel" ? "Painel do cliente" : x.href === "/monitoramento" ? "Central" : x.rotulo,
       bloqueadoPor: libera(x.m) ? undefined : NOME_PLANO[planoMinimo(x.m)],
     };
     const nomeMenu = soUm ? undefined : x.menu;
@@ -71,14 +72,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </div>
         <Nav
           entradas={entradas}
+          idioma={idioma}
           conta={
             <form action={sair} className="nav-conta-lista">
               <div className="nav-quem">
                 <strong>{cliente?.nome ?? "Nenhum cliente cadastrado"}</strong>
                 <small>{cliente ? `${cliente.cidade} · ${planos.length} caminhões · ` : ""}{sessao.nome}</small>
               </div>
-              <Link href="/senha">{es ? "Cambiar PIN" : "Trocar senha"}</Link>
-              <button className="sair" type="submit">{es ? "Salir" : "Sair"}</button>
+              <Link href="/senha">{sessao.papel === "MOTORISTA" ? "Trocar PIN" : "Trocar senha"}</Link>
+              <button className="sair" type="submit">Sair</button>
             </form>
           }
         />

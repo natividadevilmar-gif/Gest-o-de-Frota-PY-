@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { caixasMotoristas, lancamentosMes } from "@/lib/dados";
 import { dataBr, mesValido, nomeMes, num, usd } from "@/lib/formato";
 import { mesAtual, NOME_CATEGORIA, planoPermite } from "@/lib/indicadores";
+import { idiomaAtual } from "@/lib/i18n/atual";
 import { leitorConfigurado } from "@/lib/leitorDespesa";
 import { TEXTOS } from "@/lib/textosDespesa";
 import { excluirDespesa } from "../custos/actions";
@@ -16,8 +17,8 @@ export default async function Despesas({ searchParams }: { searchParams: Promise
   const { sessao, cliente } = await clienteAtual();
   const mes = mesValido((await searchParams).mes, mesAtual());
   const motoristaId = await motoristaDaSessao(sessao);
-  const usuario = await db.usuario.findUnique({ where: { id: sessao.usuarioId }, select: { idioma: true } });
-  const idioma = usuario?.idioma ?? cliente.idioma;
+  // Em espanhol a tela sai com os textos próprios do motorista; nos outros idiomas, em português e o Tradutor troca.
+  const idioma = (await idiomaAtual()) === "es" ? "es" : "pt";
   const es = idioma === "es";
   const t = TEXTOS[idioma];
   const caminhoes = (await db.caminhao.findMany({

@@ -65,6 +65,8 @@ export default async function Motoristas() {
                         <select name="idioma" defaultValue={m.acesso.idioma ?? cliente.idioma} aria-label={`Idioma de ${m.nome}`}>
                           <option value="pt">Português</option>
                           <option value="es">Español</option>
+                          <option value="en">English</option>
+                          <option value="de">Deutsch</option>
                         </select>
                         <button type="submit">Salvar</button>
                       </form>

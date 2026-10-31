@@ -2,12 +2,15 @@
 
 import { useActionState } from "react";
 import { Marca } from "@/components/Marca";
+import { SeletorIdioma } from "@/components/SeletorIdioma";
+import type { Idioma } from "@/lib/i18n/idiomas";
 import { entrar } from "./actions";
 
-export function Formulario({ motorista = false, fundo = null }: { motorista?: boolean; fundo?: string | null }) {
+export function Formulario({ motorista = false, fundo = null, idioma }: { motorista?: boolean; fundo?: string | null; idioma: Idioma }) {
   const [estado, acao, enviando] = useActionState(entrar, null);
   return (
     <main className={fundo ? "center login-fundo" : "center"} style={fundo ? { backgroundImage: `linear-gradient(rgba(0,0,0,.25), rgba(0,0,0,.25)), url(${fundo})` } : undefined}>
+      <div className="login-idioma"><SeletorIdioma atual={idioma} claro /></div>
       <div className="card login">
         <div className="logo" style={{ padding: 0 }}>
           <Marca tamanho={30} />
