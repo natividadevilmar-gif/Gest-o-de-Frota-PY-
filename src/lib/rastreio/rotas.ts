@@ -159,6 +159,13 @@ function viagemDemo(caminhaoId: string, dia: Date) {
   return { pontos, total, saida, chegada, media, kmIni, origem, destino, rodovia: cod ?? null, nome: ida ? rota.nome : rota.nome.split(" → ").reverse().join(" → ").replace(/ \((.+)\)$/, "") };
 }
 
+/** Rota fixa por onde o caminhão de demonstração anda (origem, destino e pontos), para fretes de exemplo. */
+export function rotaDemoDoCaminhao(caminhaoId: string): { origem: string; destino: string; pontos: Ponto[]; km: number } {
+  const rota = ROTAS[hash(caminhaoId) % ROTAS.length];
+  const [, origem, destino] = /^(.+) → (.+?)(?: \((.+)\))?$/.exec(rota.nome) ?? [];
+  return { origem, destino, pontos: rota.pontos, km: comprimentoKm(rota.pontos) };
+}
+
 /** Distância percorrida `d` a partir de `kmIni`, indo e voltando numa rota de `total` km. */
 function vaiEVolta(kmIni: number, d: number, total: number): { km: number; volta: boolean } {
   const m = (kmIni + d) % (2 * total);

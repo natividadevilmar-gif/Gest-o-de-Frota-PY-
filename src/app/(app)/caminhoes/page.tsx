@@ -1,6 +1,7 @@
 import { RolagemFixa } from "@/components/RolagemFixa";
 import { Placa } from "@/components/ui";
 import { clienteAtual } from "@/lib/acesso";
+import { NOME_APRESENTACAO } from "@/lib/apresentacao";
 import { db } from "@/lib/db";
 import { num, usd } from "@/lib/formato";
 import { mensalidadeTotal, NOME_PLANO, PRECO_MENSAL, type Plano } from "@/lib/indicadores";
@@ -16,6 +17,9 @@ export default async function Caminhoes() {
   // Só a equipe KM Cero cadastra caminhão, muda plano ou rastreador (depois de instalar o equipamento).
   const pode = sessao.papel === "ADMIN";
   const wialon = clienteUsaWialon(cliente);
+  // Na empresa de apresentação, o código do simulador aparece como um IMEI comum.
+  const vitrine = cliente.nome === NOME_APRESENTACAO;
+  const mostrar = (r: string | null) => (vitrine && r?.startsWith("SIM-") ? imeiDeVitrine(r) : r);
   const lista = await db.caminhao.findMany({ where: { clienteId: cliente.id }, include: { motorista: true }, orderBy: { placa: "asc" } });
   return (
     <>
@@ -55,7 +59,7 @@ export default async function Caminhoes() {
                       </form>
                     ) : c.eixos}
                   </td>
-                  <td>{pode ? <CampoRastreador id={c.id} placa={c.placa} atual={c.rastreadorId} /> : c.rastreadorId ? <span className="mono">{c.rastreadorId}</span> : <span className="pill warn">sem rastreador</span>}
+                  <td>{pode && !vitrine ? <CampoRastreador id={c.id} placa={c.placa} atual={c.rastreadorId} /> : c.rastreadorId ? <span className="mono">{mostrar(c.rastreadorId)}</span> : <span className="pill warn">sem rastreador</span>}
                     {ehImei(c.rastreadorId) && (recebeDireto(c)
                       ? <span className="tag-demo tag-wialon" title="O aparelho manda as posições direto à plataforma">Direto</span>
                       : wialon && <span className="tag-demo tag-wialon" title="Posições trazidas do Wialon">Wialon</span>)}
@@ -109,4 +113,12 @@ export default async function Caminhoes() {
       )}
     </>
   );
+}
+
+/** Um IMEI fixo e com cara de real para cada código do simulador. */
+function imeiDeVitrine(codigo: string): string {
+  let h = 2166136261;
+  for (const ch of codigo) h = Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0;
+  const g = Math.imul(h ^ (h >>> 15), 2246822507) >>> 0;
+  return `86${String(h).padStart(10, "0").slice(-7)}${String(g).padStart(10, "0").slice(-6)}`;
 }

@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { frotaNoMapa } from "@/lib/rastreio/dados";
 import { diaNoParaguai } from "@/lib/rastreio/rotas";
 import { MapaFrota } from "./MapaFrota";
+import { NOME_APRESENTACAO } from "@/lib/apresentacao";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +14,8 @@ export default async function Rastreamento({ searchParams }: { searchParams: Pro
   const todos = admin && (await searchParams).todos === "1";
   const frota = await frotaNoMapa(todos ? null : cliente.id);
   const hoje = diaNoParaguai(new Date()).toISOString().slice(0, 10);
-  const demo = frota.some((c) => c.demo);
+  const apresentacao = cliente.nome === NOME_APRESENTACAO && !todos;
+  const demo = !apresentacao && frota.some((c) => c.demo);
   return (
     <>
       <div className="titulo-acoes">
@@ -26,7 +28,7 @@ export default async function Rastreamento({ searchParams }: { searchParams: Pro
           Ao cadastrar o IMEI do rastreador em Caminhões e planos, o caminhão passa a mostrar a posição verdadeira.
         </p>
       )}
-      <MapaFrota key={todos ? "todos" : cliente.id} inicial={frota} hoje={hoje} todos={todos} />
+      <MapaFrota key={todos ? "todos" : cliente.id} inicial={frota} hoje={hoje} todos={todos} semTagDemo={apresentacao} />
     </>
   );
 }
