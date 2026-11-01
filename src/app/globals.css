@@ -517,3 +517,5 @@ label.plano-btn{cursor:pointer}
 .mapa-entrega{height:min(60vh,520px);border-radius:10px;overflow:hidden;border:1px solid rgba(0,0,0,.12)}
 .mk-destino{font-size:24px;line-height:1}
 .mk-entrega{width:30px;height:30px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.4))}
+.nav-lista .nav-instalar{background:none;border:0;color:var(--fg);text-align:left;padding:9px 10px;border-radius:6px;font:inherit;cursor:pointer}
+.nav-lista .nav-instalar:hover{background:rgba(0,0,0,.06)}

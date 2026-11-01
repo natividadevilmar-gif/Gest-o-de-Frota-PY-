@@ -348,4 +348,5 @@ export const FINANCEIRO: Linha[] = [
   ["copiar", "copiar", "copy", "kopieren"],
   ["copiado!", "¡copiado!", "copied!", "kopiert!"],
   ["encerrar", "finalizar", "end", "beenden"],
+  ["📱 Instalar no celular", "📱 Instalar en el celular", "📱 Install on phone", "📱 Auf dem Handy installieren"],
 ];
