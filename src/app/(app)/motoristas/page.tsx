@@ -67,6 +67,7 @@ export default async function Motoristas() {
                           <option value="es">Español</option>
                           <option value="en">English</option>
                           <option value="de">Deutsch</option>
+                          <option value="it">Italiano</option>
                         </select>
                         <button type="submit">Salvar</button>
                       </form>

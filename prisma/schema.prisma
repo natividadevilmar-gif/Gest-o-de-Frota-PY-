@@ -28,6 +28,7 @@ enum Idioma {
   es
   en
   de
+  it
 }
 
 enum CategoriaDespesa {
