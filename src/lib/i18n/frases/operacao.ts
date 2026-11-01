@@ -168,6 +168,7 @@ export const OPERACAO: Linha[] = [
   ["Saiu da cerca", "Salió de la geocerca", "Left geofence", "Geofence verlassen"],
   ["Pedágio não registrado", "Peaje no registrado", "Toll not logged", "Maut nicht erfasst"],
   ["Desvio de rota", "Desvío de ruta", "Route deviation", "Routenabweichung"],
+  ["Queda de diesel no tanque", "Caída de gasoil en el tanque", "Fuel tank drop", "Tankfüllstand gefallen"],
   ["Automático", "Automático", "Automatic", "Automatisch"],
   ["Motor bloqueado pela central", "Motor bloqueado por la central", "Engine immobilized by the monitoring center", "Motor von der Zentrale gesperrt"],
   ["Pedido pela central", "Pedido por la central", "Requested by the monitoring center", "Von der Zentrale angefordert"],
