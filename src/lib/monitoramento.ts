@@ -5,6 +5,7 @@ import { juntarNumero } from "@/lib/whatsapp";
 import { frotaNoMapa, type CaminhaoMapa } from "@/lib/rastreio/dados";
 import { diaNoParaguai, distanciaKm } from "@/lib/rastreio/rotas";
 import { ehImei, LIMITE_VELOCIDADE_KMH } from "@/lib/telemetria/posicoes";
+import { quedasDeDiesel } from "@/lib/telemetria/quedaDiesel";
 import { calcularRota, distanciaAteRotaKm, foraDaRota, type PontoRota } from "@/lib/rastreio/rotaFrete";
 import { Prisma } from "@prisma/client";
 
@@ -24,6 +25,7 @@ export const NOME_OCORRENCIA: Record<string, string> = {
   curva: "Curva brusca",
   pedagio_sem_registro: "Pedágio não registrado",
   desvio_rota: "Desvio de rota",
+  queda_diesel: "Queda de diesel no tanque",
 };
 
 /** Calcula e guarda a rota prevista de um frete (origem → destino). */
@@ -163,6 +165,10 @@ export async function verificarFrota(clienteId: string | null, agora = new Date(
     }
   }
 
+  // Diesel sumindo do tanque com o caminhão parado (furto ou vazamento), nas últimas 6 horas
+  // (pega o que aconteceu com a central fechada, quando ela abrir de novo).
+  if (imeis.length) novas.push(...(await quedasDeDieselDaFrota(imeis, frota, agora).catch(() => [])));
+
   // Um erro no pedágio (cotação, praça sem dado) não pode derrubar a central.
   if (ALERTA_PEDAGIO_ATIVO) novas.push(...(await pedagiosSemRegistro(clienteId, agora).catch(() => [])));
 
@@ -170,6 +176,35 @@ export async function verificarFrota(clienteId: string | null, agora = new Date(
   await fecharSemSinalQueVoltou(frota, agora);
   const r = novas.length ? await db.ocorrencia.createMany({ data: novas, skipDuplicates: true }) : { count: 0 };
   return { frota, novas: r.count };
+}
+
+const hm = (d: Date) => d.toLocaleTimeString("pt-BR", { timeZone: "America/Asuncion", hour: "2-digit", minute: "2-digit" });
+
+/** Quedas bruscas do nível do tanque com o caminhão parado: um alerta por caminhão a cada 6 horas. */
+async function quedasDeDieselDaFrota(ids: string[], frota: CaminhaoMapa[], agora: Date): Promise<Nova[]> {
+  const pontos = await db.posicao.findMany({
+    where: { caminhaoId: { in: ids }, nivelCombustivelL: { not: null }, data: { gte: new Date(agora.getTime() - 6 * 3600_000) } },
+    select: { caminhaoId: true, data: true, nivelCombustivelL: true, velocidadeKmh: true, lat: true, lng: true },
+    orderBy: { data: "asc" },
+  });
+  const porCaminhao = new Map<string, typeof pontos>();
+  for (const p of pontos) porCaminhao.set(p.caminhaoId, [...(porCaminhao.get(p.caminhaoId) ?? []), p]);
+  const dados = new Map(frota.map((c) => [c.id, c]));
+  const novas: Nova[] = [];
+  for (const [id, ps] of porCaminhao) {
+    const c = dados.get(id);
+    if (!c) continue;
+    for (const q of quedasDeDiesel(ps)) {
+      const bloco = new Date(Math.floor(q.fim.getTime() / (6 * 3600_000)) * 6 * 3600_000).toISOString().slice(0, 13);
+      novas.push({
+        clienteId: c.clienteId, caminhaoId: id, tipo: "queda_diesel", gravidade: "alta",
+        titulo: `${c.placa}: sumiram ${q.litros} L do tanque`,
+        detalhe: `Tanque caiu de ${q.antesL} L para ${q.depoisL} L entre ${hm(q.inicio)} e ${hm(q.fim)}, com o caminhão parado. Confira se houve furto ou vazamento.`,
+        lat: q.lat, lng: q.lng, velocidadeKmh: 0, chave: `${id}:diesel:${bloco}`,
+      });
+    }
+  }
+  return novas;
 }
 
 /** O rastreador voltou a mandar posição: o alerta "sem sinal" se fecha sozinho, com a hora da volta. */
