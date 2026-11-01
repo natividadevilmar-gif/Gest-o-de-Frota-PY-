@@ -334,6 +334,7 @@ export const GERAL: Linha[] = [
   ["Excessos e freadas por dia", "Excesos y frenadas por día", "Speeding and harsh braking per day", "Tempoverstöße und Vollbremsungen pro Tag", "Eccessi e frenate al giorno"],
   ["Fretes do período", "Fletes del período", "Freight in the period", "Frachten im Zeitraum", "Noli del periodo"],
   ["✕ Fechar", "✕ Cerrar", "✕ Close", "✕ Schließen", "✕ Chiudi"],
+  ["Período", "Período", "Period", "Zeitraum", "Periodo"],
   ["Por semana", "Por semana", "Per week", "Pro Woche", "Per settimana"],
   ["Cobrar em Contas a receber", "Cobrar en Cuentas por cobrar", "Collect in Accounts receivable", "In Forderungen einziehen", "Incassa in Crediti da incassare"],
   ["Pagar em Contas a pagar", "Pagar en Cuentas por pagar", "Pay in Accounts payable", "In Verbindlichkeiten bezahlen", "Paga in Debiti da pagare"],

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { FiltroLinks } from "@/components/FiltroLinks";
 import { BarrasH, GraficoLinha, GraficoSemanas } from "@/components/Graficos";
 import { Kpi } from "@/components/ui";
 import { clienteAtual } from "@/lib/acesso";
@@ -189,14 +190,17 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
     <>
       <div className="card-h">
         <h1>Dashboard{cam ? ` · ${cam.placa}` : ""}</h1>
-        <nav className="dash-periodo" aria-label="Período">
-          {PERIODOS.map((p) => <Link key={p} href={url(f, { dias: p })} aria-current={p === dias ? "true" : undefined}>{`Últimos ${p} dias`}</Link>)}
-        </nav>
+        <div className="dash-filtros">
+          <FiltroLinks rotulo="Período" opcoes={PERIODOS.map((p) => ({ nome: `Últimos ${p} dias`, href: url(f, { dias: p }), atual: p === dias }))} />
+          <FiltroLinks
+            rotulo="Caminhão"
+            opcoes={[
+              { nome: "Frota inteira", href: url(f, { caminhao: undefined, tipo: undefined, receber: undefined, pagar: undefined, alerta: undefined }), atual: !cam },
+              ...caminhoes.map((c) => ({ nome: c.placa, href: doCaminhao(c.id), atual: c.id === cam?.id })),
+            ]}
+          />
+        </div>
       </div>
-      <nav className="dash-chips" aria-label="Caminhão">
-        <Link href={url(f, { caminhao: undefined, tipo: undefined, receber: undefined, pagar: undefined, alerta: undefined })} aria-current={!cam ? "true" : undefined}>Frota inteira</Link>
-        {caminhoes.map((c) => <Link key={c.id} href={doCaminhao(c.id)} aria-current={c.id === cam?.id ? "true" : undefined}>{c.placa}</Link>)}
-      </nav>
       {cam && <p className="note">{cam.modelo}{cam.motorista ? ` · motorista ${cam.motorista.nome}` : ""}. Todos os gráficos abaixo são só deste caminhão.</p>}
 
       <div className="grid g4">
