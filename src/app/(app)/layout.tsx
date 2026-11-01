@@ -24,6 +24,7 @@ const MODULOS: { m: Modulo; href: string; rotulo: string; menu?: string }[] = [
   { m: "painel", href: "/receber", rotulo: "Contas a receber", menu: "Financeiro" },
   { m: "painel", href: "/pagar", rotulo: "Contas a pagar", menu: "Financeiro" },
   { m: "painel", href: "/fluxo", rotulo: "Fluxo de caixa", menu: "Financeiro" },
+  { m: "painel", href: "/resultado", rotulo: "Resultado do mês", menu: "Financeiro" },
   { m: "painel", href: "/pedagios", rotulo: "Pedágios", menu: "Financeiro" },
   { m: "painel", href: "/caixa", rotulo: "Caixa dos motoristas", menu: "Financeiro" },
   { m: "caminhoes", href: "/caminhoes", rotulo: "Caminhões e planos", menu: "Frota" },
