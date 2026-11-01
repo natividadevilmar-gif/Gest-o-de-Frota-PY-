@@ -25,6 +25,7 @@ export const GERAL: Linha[] = [
   ["Fotos da carga", "Fotos de la carga", "Cargo photos", "Ladungsfotos"],
   ["Contas a receber", "Cuentas por cobrar", "Accounts receivable", "Forderungen"],
   ["Contas a pagar", "Cuentas por pagar", "Accounts payable", "Verbindlichkeiten"],
+  ["Fluxo de caixa", "Flujo de caja", "Cash flow", "Cashflow"],
   ["Custo por km", "Costo por km", "Cost per km", "Kosten pro km"],
   ["Consumo e motoristas", "Consumo y choferes", "Fuel use and drivers", "Verbrauch und Fahrer"],
   ["Revisões", "Mantenimientos", "Maintenance", "Wartung"],

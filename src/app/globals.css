@@ -565,3 +565,8 @@ label.plano-btn{cursor:pointer}
 .receber-form input[type=date]{width:9.5em}
 .nova-conta{align-items:flex-end}
 .nova-conta label{display:flex;flex-direction:column;gap:4px;min-width:170px;flex:1 1 170px}
+.fluxo-alerta{border-left:4px solid var(--bad)}
+.fluxo-alerta p{margin:4px 0 0}
+.fluxo-barra{width:28%;min-width:90px}
+.fluxo-barra span{display:block;height:10px;border-radius:5px;background:var(--ok,#2f9e5b);opacity:.75}
+.fluxo-barra span.neg{background:var(--bad)}
