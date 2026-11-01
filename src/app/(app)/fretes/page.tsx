@@ -12,6 +12,7 @@ import { previstoRota } from "@/lib/pedagio";
 import { rotasPedagio, taxasDoDia } from "@/lib/pedagioDados";
 import { marcarRecebido, recalcularRota } from "./actions";
 import { ExcluirFrete } from "./Excluir";
+import { LinkRastreio } from "./LinkRastreio";
 import { NovoFrete, PAISES } from "./NovoFrete";
 
 const corMargem = (p: number | null) => (p === null ? "" : p < 5 ? "bad" : p < 15 ? "warn" : "ok");
@@ -149,6 +150,8 @@ export default async function Fretes({ searchParams }: { searchParams: Promise<{
                         </form>
                       </td>
                       <td>
+                        <LinkRastreio id={f.id} token={f.linkToken} expira={f.linkExpiraEm?.toISOString() ?? null} placa={f.caminhao.placa} destino={f.destino} paisDestino={f.paisDestino} />
+                        <br />
                         <ExcluirFrete id={f.id} rota={`${f.origem} → ${f.destino}`} />
                       </td>
                     </tr>
