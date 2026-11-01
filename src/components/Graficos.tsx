@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 // Gráficos do Dashboard, desenhados no servidor com HTML e um SVG simples (sem biblioteca).
 // Cada marca tem uma dica (tooltip) ao passar o mouse ou tocar, e os valores ficam escritos ao lado.
 
@@ -51,14 +53,14 @@ export function GraficoLinha({ pontos, media, fmt, nome }: { pontos: { dia: Date
   );
 }
 
-/** Barras agrupadas por semana: duas séries no mesmo eixo (ex.: fretes e despesas). */
-export function GraficoSemanas({ semanas, series, fmt }: { semanas: { inicio: Date; fim: Date; valores: number[] }[]; series: [string, string]; fmt: Fmt }) {
+/** Barras por semana: uma ou duas séries no mesmo eixo (ex.: fretes e despesas). */
+export function GraficoSemanas({ semanas, series, fmt }: { semanas: { inicio: Date; fim: Date; valores: number[] }[]; series: string[]; fmt: Fmt }) {
   const top = teto(Math.max(...semanas.flatMap((s) => s.valores), 0));
   return (
     <div className="gb">
-      <div className="legenda-g">
+      {series.length > 1 && <div className="legenda-g">
         {series.map((s, k) => <span key={s}><i className={`g-cor g${k + 1}`} />{s}</span>)}
-      </div>
+      </div>}
       <div className="gb-corpo">
         <div className="gl-eixo">{[top, top / 2, 0].map((v) => <span key={v}>{fmt(v)}</span>)}</div>
         <div className="gb-plot">
@@ -69,7 +71,7 @@ export function GraficoSemanas({ semanas, series, fmt }: { semanas: { inicio: Da
               <span className={`dica ${i > semanas.length * 0.6 ? "dica-esq" : ""}`}>
                 <b>{dataCurta(s.inicio)} a {dataCurta(s.fim)}</b>
                 {s.valores.map((v, k) => <small key={k}><i className={`g-cor g${k + 1}`} />{series[k]}: {fmt(v)}</small>)}
-                <small>Diferença: {fmt(s.valores[0] - s.valores[1])}</small>
+                {series.length === 2 && <small>Diferença: {fmt(s.valores[0] - s.valores[1])}</small>}
               </span>
             </div>
           ))}
@@ -80,7 +82,8 @@ export function GraficoSemanas({ semanas, series, fmt }: { semanas: { inicio: Da
   );
 }
 
-export type ItemBarra = { nome: string; valor: number; detalhe?: string; ref?: number };
+/** `href`: a linha vira link (abre o detalhe do item); `ativo`: item aberto agora. */
+export type ItemBarra = { nome: string; valor: number; detalhe?: string; ref?: number; href?: string; ativo?: boolean };
 
 /**
  * Barras deitadas, uma por item, com o valor escrito ao lado. Valores negativos crescem para a
@@ -93,19 +96,26 @@ export function BarrasH({ itens, fmt, refNome, largo, vazio = "Sem dados no per�
   const pct = (v: number) => (Math.abs(v) / max) * (temNeg ? 50 : 100);
   return (
     <div className={`bh ${largo ? "bh-largo" : ""}`}>
-      {itens.map((i) => (
-        <div key={i.nome} className="bh-linha" tabIndex={0}>
-          <span className="bh-nome">{i.nome}</span>
-          <span className={`bh-trilho ${temNeg ? "bh-div" : ""}`}>
-            <i
-              className={`bh-barra ${i.valor < 0 ? "g2" : "g1"}`}
-              style={temNeg ? { width: `${pct(i.valor)}%`, [i.valor < 0 ? "right" : "left"]: "50%" } : { width: `${pct(i.valor)}%` }}
-            />
-            {i.ref !== undefined && <i className="bh-ref" style={{ left: `${pct(i.ref)}%` }} title={`${refNome ?? "Referência"}: ${fmt(i.ref)}`} />}
-          </span>
-          <span className="bh-valor">{fmt(i.valor)}{i.detalhe && <small>{i.detalhe}</small>}</span>
-        </div>
-      ))}
+      {itens.map((i) => {
+        const conteudo = (
+          <>
+            <span className="bh-nome">{i.nome}</span>
+            <span className={`bh-trilho ${temNeg ? "bh-div" : ""}`}>
+              <i
+                className={`bh-barra ${i.valor < 0 ? "g2" : "g1"} ${i.valor === 0 ? "bh-zero" : ""}`}
+                style={temNeg ? { width: `${pct(i.valor)}%`, [i.valor < 0 ? "right" : "left"]: "50%" } : { width: `${pct(i.valor)}%` }}
+              />
+              {i.ref !== undefined && <i className="bh-ref" style={{ left: `${pct(i.ref)}%` }} title={`${refNome ?? "Referência"}: ${fmt(i.ref)}`} />}
+            </span>
+            <span className="bh-valor">{fmt(i.valor)}{i.detalhe && <small>{i.detalhe}</small>}</span>
+          </>
+        );
+        return i.href ? (
+          <Link key={i.nome} href={i.href} className={`bh-linha bh-link ${i.ativo ? "bh-ativo" : ""}`} aria-current={i.ativo ? "true" : undefined}>{conteudo}</Link>
+        ) : (
+          <div key={i.nome} className="bh-linha" tabIndex={0}>{conteudo}</div>
+        );
+      })}
       {refNome && <p className="note"><i className="bh-ref-legenda" /> {refNome}</p>}
     </div>
   );
