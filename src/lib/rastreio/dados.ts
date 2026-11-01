@@ -239,13 +239,20 @@ const saidaDe = (pts: { data: Date; velocidadeKmh: number; lat: number; lng: num
   return s ? { hora: s.data.toISOString(), lat: s.lat, lng: s.lng } : null;
 };
 
-/** Trajeto de um caminhão num dia do Paraguai (`dia` = meia-noite UTC dessa data). `clienteId` null = qualquer cliente. */
-export async function trajetoDoDia(clienteId: string | null, caminhaoId: string, dia: Date, agora = new Date()): Promise<Trajeto | null> {
+/** Período máximo do trajeto, em dias. */
+export const MAX_DIAS_TRAJETO = 31;
+
+/**
+ * Trajeto de um caminhão do dia `dia` até o dia `ate` (inclusive), em dias do Paraguai
+ * (meia-noite UTC de cada data). `clienteId` null = qualquer cliente.
+ */
+export async function trajetoDoDia(clienteId: string | null, caminhaoId: string, dia: Date, agora = new Date(), ate: Date = dia): Promise<Trajeto | null> {
+  const dias = Math.min(MAX_DIAS_TRAJETO, Math.max(1, Math.round((ate.getTime() - dia.getTime()) / 86_400_000) + 1));
   const c = await db.caminhao.findFirst({ where: { id: caminhaoId, ...(clienteId ? { clienteId } : {}) }, select: { id: true, rastreadorId: true, odometroKm: true } });
   if (!c || !c.rastreadorId) return null;
 
   if (!ehImei(c.rastreadorId)) {
-    const pts = trajetoDemo(c.id, dia, agora);
+    const pts = Array.from({ length: dias }, (_, i) => trajetoDemo(c.id, new Date(dia.getTime() + i * 86_400_000), agora)).flat();
     let km = 0;
     for (let i = 1; i < pts.length; i++) km += (pts[i].velocidadeKmh * 5) / 60;
     return {
@@ -262,7 +269,7 @@ export async function trajetoDoDia(clienteId: string | null, caminhaoId: string,
   }
 
   const ini = new Date(dia.getTime() + 3 * 3600_000);
-  const fim = new Date(ini.getTime() + 24 * 3600_000);
+  const fim = new Date(ini.getTime() + dias * 24 * 3600_000);
   const pts = await db.posicao.findMany({
     where: { caminhaoId: c.id, data: { gte: ini, lt: fim } },
     orderBy: { data: "asc" },
@@ -297,7 +304,7 @@ export async function trajetoDoDia(clienteId: string | null, caminhaoId: string,
     saida: saidaDe(pts),
     fim: pts.at(-1)?.data.toISOString() ?? null,
     demo: false,
-    rotaPrevista: await rotaDoDia(c.id, dia),
+    rotaPrevista: await rotaDoDia(c.id, new Date(dia.getTime() + (dias - 1) * 86_400_000)),
   };
 }
 
