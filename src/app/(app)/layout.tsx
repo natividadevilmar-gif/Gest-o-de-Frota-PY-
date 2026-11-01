@@ -1,3 +1,4 @@
+import { InstalarApp } from "@/components/InstalarApp";
 import Link from "next/link";
 import { Bandeira, EstiloTema } from "@/components/Bandeira";
 import { Marca } from "@/components/Marca";
@@ -79,6 +80,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                 <strong>{cliente?.nome ?? "Nenhum cliente cadastrado"}</strong>
                 <small>{cliente ? `${cliente.cidade} · ${planos.length} caminhões · ` : ""}{sessao.nome}</small>
               </div>
+              <InstalarApp />
               <Link href="/senha">{sessao.papel === "MOTORISTA" ? "Trocar PIN" : "Trocar senha"}</Link>
               <button className="sair" type="submit">Sair</button>
             </form>

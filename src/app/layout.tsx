@@ -1,5 +1,6 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { OuvirInstalacao } from "@/components/InstalarApp";
 import { Tradutor } from "@/components/Tradutor";
 import { idiomaAtual } from "@/lib/i18n/atual";
 import { LANG_HTML } from "@/lib/i18n/idiomas";
@@ -7,7 +8,12 @@ import { LANG_HTML } from "@/lib/i18n/idiomas";
 export const metadata: Metadata = {
   title: "KM Cero · Gestão de frota",
   description: "Custo por km, consumo, revisões e margem por viagem para transportadoras do Paraguai.",
+  // Instalada no iPhone (Adicionar à Tela de Início) abre em tela cheia, com o ícone da KM Cero.
+  appleWebApp: { capable: true, title: "KM Cero", statusBarStyle: "black" },
+  icons: { apple: "/marca/app-apple-180.png" },
 };
+
+export const viewport: Viewport = { themeColor: "#111827" };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const idioma = await idiomaAtual();
@@ -23,6 +29,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       </head>
       <body>
         {children}
+        <OuvirInstalacao />
         {idioma !== "pt" && <Tradutor idioma={idioma} />}
       </body>
     </html>
