@@ -65,6 +65,7 @@ export default async function Painel() {
           <Link className="btn pri" href="/fretes#novo">+ Lançar frete</Link>
           <Link className="btn pri" href="/viagens#simulador">Simular frete</Link>
           <Link className="btn" href="/caixa#novo">Caixa inicial do motorista</Link>
+          <Link className="btn" href="/painel/semana">📊 Relatório da semana</Link>
         </div>
       </div>
       <div className="grid g4">
