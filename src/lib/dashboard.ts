@@ -70,19 +70,29 @@ export function mediaMovel(pontos: PontoDia[], janela = 7): PontoDia[] {
   });
 }
 
-/** Faixas de vencimento do que falta receber: vencido há mais de 30 dias, vencido, vence em 7 dias, depois. */
+export const FAIXAS = ["Vencido há mais de 30 dias", "Vencido até 30 dias", "Vence em até 7 dias", "Vence depois"] as const;
+
+/** Índice da faixa de vencimento (0 a 3, na ordem de FAIXAS). */
+export function faixaDe(vencimento: Date, hoje: Date): number {
+  const d = Math.round((diaUtc(vencimento) - diaUtc(hoje)) / DIA);
+  return d < -30 ? 0 : d < 0 ? 1 : d <= 7 ? 2 : 3;
+}
+
+/** Faixas de vencimento do que falta receber (ou pagar): vencido há mais de 30 dias, vencido, vence em 7 dias, depois. */
 export function faixasReceber(itens: { vencimento: Date; saldo: number }[], hoje: Date) {
-  const faixas = [
-    { nome: "Vencido há mais de 30 dias", valor: 0 },
-    { nome: "Vencido até 30 dias", valor: 0 },
-    { nome: "Vence em até 7 dias", valor: 0 },
-    { nome: "Vence depois", valor: 0 },
-  ];
-  const h = diaUtc(hoje);
+  const faixas = FAIXAS.map((nome) => ({ nome: nome as string, valor: 0, qtd: 0 }));
   for (const x of itens) {
     if (x.saldo <= 0) continue;
-    const d = Math.round((diaUtc(x.vencimento) - h) / DIA);
-    faixas[d < -30 ? 0 : d < 0 ? 1 : d <= 7 ? 2 : 3].valor += x.saldo;
+    const f = faixas[faixaDe(x.vencimento, hoje)];
+    f.valor += x.saldo;
+    f.qtd++;
   }
   return faixas.map((f) => ({ ...f, valor: r2(f.valor) }));
+}
+
+/** Rendimento por dia (km ÷ litros), só nos dias com leitura de litros. */
+export function kmPorLitroDia(itens: { data: Date; km: number; litros: number | null }[], inicio: Date, dias: number): PontoDia[] {
+  const km = porDia(itens.filter((x) => x.litros).map((x) => ({ data: x.data, valor: x.km })), inicio, dias);
+  const l = porDia(itens.filter((x) => x.litros).map((x) => ({ data: x.data, valor: x.litros ?? 0 })), inicio, dias);
+  return km.map((p, i) => ({ dia: p.dia, valor: l[i].valor > 0 ? r2(p.valor / l[i].valor) : 0 }));
 }

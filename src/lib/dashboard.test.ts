@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { faixasReceber, inicioJanela, mediaMovel, periodoValido, porDia, porSemana, somaPor } from "./dashboard";
+import { faixaDe, faixasReceber, kmPorLitroDia, inicioJanela, mediaMovel, periodoValido, porDia, porSemana, somaPor } from "./dashboard";
 
 const hoje = new Date("2026-11-10T15:00:00Z");
 const d = (s: string) => new Date(`${s}T00:00:00Z`);
@@ -41,5 +41,12 @@ describe("séries", () => {
       { vencimento: d("2026-11-15"), saldo: 300 }, { vencimento: d("2026-12-30"), saldo: 400 }, { vencimento: d("2026-11-15"), saldo: 0 },
     ], hoje);
     expect(f.map((x) => x.valor)).toEqual([100, 200, 300, 400]);
+  });
+  it("acha a faixa de cada vencimento e o km/l de cada dia", () => {
+    expect(faixaDe(d("2026-11-10"), hoje)).toBe(2);
+    expect(faixaDe(d("2026-11-09"), hoje)).toBe(1);
+    expect(faixasReceber([{ vencimento: d("2026-11-11"), saldo: 5 }, { vencimento: d("2026-11-12"), saldo: 5 }], hoje)[2]).toMatchObject({ valor: 10, qtd: 2 });
+    const k = kmPorLitroDia([{ data: d("2026-11-08"), km: 500, litros: 200 }, { data: d("2026-11-09"), km: 300, litros: null }], d("2026-11-08"), 2);
+    expect(k.map((p) => p.valor)).toEqual([2.5, 0]);
   });
 });

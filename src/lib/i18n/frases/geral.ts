@@ -328,4 +328,13 @@ export const GERAL: Linha[] = [
   ["Últimos 30 dias", "Últimos 30 días", "Last 30 days", "Letzte 30 Tage"],
   ["Últimos 60 dias", "Últimos 60 días", "Last 60 days", "Letzte 60 Tage"],
   ["Últimos 90 dias", "Últimos 90 días", "Last 90 days", "Letzte 90 Tage"],
+  ["Frota inteira", "Toda la flota", "Whole fleet", "Ganze Flotte"],
+  ["Consumo por dia", "Consumo por día", "Consumption per day", "Verbrauch pro Tag"],
+  ["Excessos e freadas por dia", "Excesos y frenadas por día", "Speeding and harsh braking per day", "Tempoverstöße und Vollbremsungen pro Tag"],
+  ["Fretes do período", "Fletes del período", "Freight in the period", "Frachten im Zeitraum"],
+  ["✕ Fechar", "✕ Cerrar", "✕ Close", "✕ Schließen"],
+  ["Por semana", "Por semana", "Per week", "Pro Woche"],
+  ["Cobrar em Contas a receber", "Cobrar en Cuentas por cobrar", "Collect in Accounts receivable", "In Forderungen einziehen"],
+  ["Pagar em Contas a pagar", "Pagar en Cuentas por pagar", "Pay in Accounts payable", "In Verbindlichkeiten bezahlen"],
+  ["Abrir a Central", "Abrir la Central", "Open monitoring", "Zentrale öffnen"],
 ];
