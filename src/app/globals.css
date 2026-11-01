@@ -573,3 +573,11 @@ label.plano-btn{cursor:pointer}
 .dre td{padding:7px 10px}
 .dre .dre-forte td{font-weight:700;border-top:1.5px solid var(--line)}
 .dre-ajuda{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:8px;font-size:14px;line-height:1.45}
+.acerto{font-family:var(--f-body);font-size:14px}
+.acerto table{width:100%;border-collapse:collapse;margin-bottom:16px}
+.acerto-dados th{text-align:left;width:120px;color:#555;font-weight:500;padding:3px 0;background:none;text-transform:none;letter-spacing:0;border:0}
+.acerto-dados td{padding:3px 0;border:0}
+.acerto-lista th,.acerto-lista td{padding:5px 6px;border-bottom:1px solid #ddd;color:#1a1a1a;background:none}
+.acerto-lista tfoot td{font-weight:600}
+.acerto-saldo td{font-size:16px;font-weight:700;border-top:2px solid #333}
+.acerto-nota{font-size:12px;color:#666}
