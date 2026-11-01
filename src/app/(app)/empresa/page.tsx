@@ -89,6 +89,7 @@ export default async function Empresa() {
         <div className="acoes-painel">
           <Link className="btn pri" href="/rastreamento?todos=1">Mapa ao vivo de todos</Link>
           <Link className="btn" href="#novo-cliente">+ Cadastrar cliente</Link>
+          <Link className="btn" href="#apresentacao">🎬 Apresentação</Link>
         </div>
       </div>
       <div className="grid g4">
