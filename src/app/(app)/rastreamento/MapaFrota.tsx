@@ -23,6 +23,13 @@ const COR_TRAJETO = "#00e5ff";
 const numero = (n: number, casas = 0) => n.toLocaleString("pt-BR", { minimumFractionDigits: casas, maximumFractionDigits: casas });
 const hora = (iso: string | null) =>
   iso ? new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Asuncion" }) : "–";
+const diaHora = (iso: string | null) =>
+  iso ? new Date(iso).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "America/Asuncion" }).replace(",", "") : "–";
+/** Data "AAAA-MM-DD" deslocada em `n` dias. */
+const somaDias = (d: string, n: number) => new Date(Date.parse(`${d}T00:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
+/** Atalhos do período do trajeto: dias contando hoje. */
+const ATALHOS = [[1, "Hoje"], [2, "Ontem e hoje"], [7, "7 dias"], [30, "30 dias"]] as const;
+const MAX_DIAS = 31;
 const quando = (iso: string | null) => {
   if (!iso) return "nunca";
   const min = Math.round((Date.now() - new Date(iso).getTime()) / 60_000);
@@ -159,6 +166,12 @@ function listaDoGrupo(itens: CaminhaoMapa[], todos: boolean, abrir: (id: string)
   return lista;
 }
 
+/** Alertas do trajeto em texto; num período longo, mostra os 12 primeiros e quantos faltam. */
+function listaEventos(eventos: Trajeto["eventos"], hr: (iso: string | null) => string) {
+  const txt = eventos.slice(0, 12).map((e) => `${EVENTO[e.tipo] ?? e.tipo} ${hr(e.hora)}`).join(" · ");
+  return eventos.length > 12 ? `${txt} · e mais ${eventos.length - 12}` : txt;
+}
+
 export function MapaFrota({ inicial, hoje, todos = false, outraTela = false, semTagDemo = false }: {
   inicial: CaminhaoMapa[]; hoje: string; todos?: boolean;
   /** Empresa de apresentação: os caminhões simulados aparecem como se fossem de verdade. */
@@ -168,7 +181,9 @@ export function MapaFrota({ inicial, hoje, todos = false, outraTela = false, sem
 }) {
   const [frota, setFrota] = useState(inicial);
   const [sel, setSel] = useState<string | null>(null);
+  // Período do trajeto: do dia `dia` ao dia `ate` (iguais = um dia só).
   const [dia, setDia] = useState(hoje);
+  const [ate, setAte] = useState(hoje);
   const [trajeto, setTrajeto] = useState<(Trajeto & { resumo: ResumoCaminhao | null }) | null>(null);
   const [carregando, setCarregando] = useState(false);
   const [filtro, setFiltro] = useState<Situacao | "todos">("todos");
@@ -370,12 +385,12 @@ export function MapaFrota({ inicial, hoje, todos = false, outraTela = false, sem
     // Tira na hora o trajeto do caminhão anterior.
     setTrajeto(null);
     setCarregando(true);
-    fetch(`/rastreamento/trajeto?caminhao=${sel}&dia=${dia}`, { cache: "no-store" })
+    fetch(`/rastreamento/trajeto?caminhao=${sel}&dia=${dia}&ate=${ate}`, { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
       .then((t) => vivo && setTrajeto(t))
       .finally(() => vivo && setCarregando(false));
     return () => { vivo = false; };
-  }, [sel, dia]);
+  }, [sel, dia, ate]);
 
   useEffect(() => {
     const mod = L.current, grupo = linha.current, m = mapa.current;
@@ -418,9 +433,9 @@ export function MapaFrota({ inicial, hoje, todos = false, outraTela = false, sem
           .catch(() => ponto.setTooltipContent(corpo("não identificado")));
       });
     }
-    // Hoje o mapa fica no caminhão; num dia anterior, mostra o trajeto inteiro.
-    if (dia !== hoje) m.fitBounds(trajeto.pontos, { padding: [40, 40] });
-  }, [trajeto, pronto, dia, hoje]);
+    // Só hoje: o mapa fica no caminhão; outro dia ou um período, mostra o trajeto inteiro.
+    if (dia !== hoje || ate !== hoje) m.fitBounds(trajeto.pontos, { padding: [40, 40] });
+  }, [trajeto, pronto, dia, ate, hoje]);
 
   const contagem = useMemo(() => {
     const n: Partial<Record<Situacao, number>> = {};
@@ -430,6 +445,12 @@ export function MapaFrota({ inicial, hoje, todos = false, outraTela = false, sem
   const lista = frota.filter((c) => filtro === "todos" || c.situacao === filtro);
   const escolhido = frota.find((c) => c.id === sel) ?? null;
   const r = trajeto?.resumo ?? null;
+  const periodo = dia !== ate;
+  // Num período, as horas levam a data junto.
+  const hr = periodo ? diaHora : hora;
+  const umDia = (d: string) => { setDia(d); setAte(d); };
+  const mudarDe = (d: string) => { setDia(d); if (d > ate) setAte(d); else if (somaDias(d, MAX_DIAS - 1) < ate) setAte(somaDias(d, MAX_DIAS - 1)); };
+  const mudarAte = (d: string) => { setAte(d); if (d < dia) setDia(d); else if (somaDias(d, -(MAX_DIAS - 1)) > dia) setDia(somaDias(d, -(MAX_DIAS - 1))); };
   const rpm = escolhido?.rpm ?? r?.rpm ?? null;
 
   function escolher(c: CaminhaoMapa) {
@@ -470,30 +491,42 @@ export function MapaFrota({ inicial, hoje, todos = false, outraTela = false, sem
               <div><dt>Custo por km</dt><dd>{r ? (r.custoKm != null ? `USD ${numero(r.custoKm, 2)}` : "–") : "…"}</dd></div>
             </dl>
             {escolhido.lat != null && escolhido.lng != null && <FotoLocal lat={escolhido.lat} lng={escolhido.lng} placa={escolhido.placa} />}
-            {(!seguir || dia !== hoje) && (
+            {(!seguir || dia !== hoje || ate !== hoje) && (
               <button type="button" className="rastreio-voltar" onClick={voltarAoCaminhao}>Voltar ao caminhão</button>
             )}
-            <label className="rastreio-dia">
-              Trajeto do dia
-              <input type="date" value={dia} max={hoje} onChange={(e) => e.target.value && setDia(e.target.value)} />
-            </label>
+            <div className="rastreio-periodo">
+              <div className="rastreio-periodo-h">Trajeto</div>
+              <div className="rastreio-atalhos" role="group" aria-label="Período do trajeto">
+                {ATALHOS.map(([n, nome]) => {
+                  const de = somaDias(hoje, 1 - n);
+                  return (
+                    <button key={n} type="button" aria-pressed={dia === de && ate === hoje} onClick={() => { setDia(de); setAte(hoje); }}>{nome}</button>
+                  );
+                })}
+              </div>
+              <div className="rastreio-datas">
+                <label>De<input type="date" value={dia} max={hoje} onChange={(e) => e.target.value && mudarDe(e.target.value)} /></label>
+                <label>Até<input type="date" value={ate} max={hoje} onChange={(e) => e.target.value && mudarAte(e.target.value)} /></label>
+              </div>
+              <p className="note">Até {MAX_DIAS} dias de cada vez. <button type="button" className="link" onClick={() => umDia(ate)}>Só o dia {ate.split("-").reverse().slice(0, 2).join("/")}</button></p>
+            </div>
             {carregando && !trajeto ? (
               <p className="sub">Carregando…</p>
             ) : trajeto && trajeto.pontos.length > 1 ? (
               <dl className="rastreio-resumo">
                 <div><dt>Rodou</dt><dd>{numero(trajeto.km)} km</dd></div>
                 <div><dt>Velocidade máx.</dt><dd>{trajeto.velocidadeMax} km/h</dd></div>
-                <div><dt>Primeiro sinal</dt><dd>{hora(trajeto.inicio)}</dd></div>
-                <div><dt>Saída · último ponto</dt><dd>{trajeto.saida ? hora(trajeto.saida.hora) : "não saiu"} · {hora(trajeto.fim)}</dd></div>
+                <div><dt>Primeiro sinal</dt><dd>{hr(trajeto.inicio)}</dd></div>
+                <div><dt>Saída · último ponto</dt><dd>{trajeto.saida ? hr(trajeto.saida.hora) : "não saiu"} · {hr(trajeto.fim)}</dd></div>
                 <div><dt>Diesel (CAN)</dt><dd>{trajeto.litros != null ? `${numero(trajeto.litros)} L` : "–"}</dd></div>
-                <div className="largo"><dt>Alertas</dt><dd>{trajeto.eventos.length ? trajeto.eventos.map((e) => `${EVENTO[e.tipo] ?? e.tipo} ${hora(e.hora)}`).join(" · ") : "nenhum"}</dd></div>
+                <div className="largo"><dt>Alertas</dt><dd>{trajeto.eventos.length ? listaEventos(trajeto.eventos, hr) : "nenhum"}</dd></div>
               </dl>
             ) : (
-              <p className="sub">Nenhum trajeto registrado neste dia.</p>
+              <p className="sub">{periodo ? "Nenhum trajeto registrado neste período." : "Nenhum trajeto registrado neste dia."}</p>
             )}
             {!todos && (
-              <a className="rastreio-relatorio" href={`/telemetria?de=${dia}&ate=${dia}`} target={outraTela ? "_blank" : undefined}>
-                Telemetria do dia: diesel, km/l, tanque e horas de motor
+              <a className="rastreio-relatorio" href={`/telemetria?de=${dia}&ate=${ate}`} target={outraTela ? "_blank" : undefined}>
+                {periodo ? "Telemetria do período: diesel, km/l, tanque e horas de motor" : "Telemetria do dia: diesel, km/l, tanque e horas de motor"}
               </a>
             )}
           </div>
