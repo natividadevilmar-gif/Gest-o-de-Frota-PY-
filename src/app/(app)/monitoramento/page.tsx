@@ -8,6 +8,7 @@ import { ehImei } from "@/lib/telemetria/posicoes";
 import { Central } from "./Central";
 import { PainelCusat } from "./PainelCusat";
 import { PainelWialon } from "./PainelWialon";
+import { NOME_APRESENTACAO } from "@/lib/apresentacao";
 
 export const dynamic = "force-dynamic";
 // A rodada de histórico do Wialon trabalha até 40 segundos.
@@ -30,7 +31,7 @@ export default async function Monitoramento({ searchParams }: { searchParams: Pr
         <h1>Central de monitoramento</h1>
         {admin && <FiltroCliente clientes={await db.cliente.findMany({ orderBy: { nome: "asc" }, select: { id: true, nome: true } })} atual={cliente.id} todos={todos} caminho="/monitoramento" />}
       </div>
-      {admin && !todos && (!!cred || !cliente.gpswoxHash) && (
+      {admin && !todos && cliente.nome !== NOME_APRESENTACAO && (!!cred || !cliente.gpswoxHash) && (
         <PainelWialon
           cliente={cliente.nome}
           conectado={!!cred}
@@ -41,7 +42,7 @@ export default async function Monitoramento({ searchParams }: { searchParams: Pr
           demo={demo}
         />
       )}
-      {admin && !todos && (!cred || !!cliente.gpswoxHash) && (
+      {admin && !todos && cliente.nome !== NOME_APRESENTACAO && (!cred || !!cliente.gpswoxHash) && (
         <PainelCusat
           cliente={cliente.nome}
           conectado={!!cliente.gpswoxHash}

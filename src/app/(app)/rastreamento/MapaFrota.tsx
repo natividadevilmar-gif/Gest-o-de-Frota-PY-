@@ -159,8 +159,10 @@ function listaDoGrupo(itens: CaminhaoMapa[], todos: boolean, abrir: (id: string)
   return lista;
 }
 
-export function MapaFrota({ inicial, hoje, todos = false, outraTela = false }: {
+export function MapaFrota({ inicial, hoje, todos = false, outraTela = false, semTagDemo = false }: {
   inicial: CaminhaoMapa[]; hoje: string; todos?: boolean;
+  /** Empresa de apresentação: os caminhões simulados aparecem como se fossem de verdade. */
+  semTagDemo?: boolean;
   /** Janela própria (só o mapa e a lista), para arrastar a outro monitor. */
   outraTela?: boolean;
 }) {
@@ -523,7 +525,7 @@ export function MapaFrota({ inicial, hoje, todos = false, outraTela = false }: {
               <button type="button" className={c.id === sel ? "ativo" : ""} onClick={() => escolher(c)} disabled={c.lat == null}>
                 <i className={`ponto ponto-${c.situacao}`} />
                 <span className="rastreio-item">
-                  <b>{c.placa}{c.demo && <span className="tag-demo">demonstração</span>}{c.wialon && <span className="tag-demo tag-wialon" title="Posições trazidas do Wialon">Wialon</span>}</b>
+                  <b>{c.placa}{c.demo && !semTagDemo && <span className="tag-demo">demonstração</span>}{c.wialon && <span className="tag-demo tag-wialon" title="Posições trazidas do Wialon">Wialon</span>}</b>
                   <small>{todos ? `${c.cliente} · ` : ""}{c.motorista ?? "sem motorista"} · {situacaoTexto(c)}</small>
                 </span>
                 <span className="quando">

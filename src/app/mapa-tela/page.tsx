@@ -2,6 +2,7 @@ import { MapaFrota } from "@/app/(app)/rastreamento/MapaFrota";
 import { clienteAtual } from "@/lib/acesso";
 import { frotaNoMapa } from "@/lib/rastreio/dados";
 import { diaNoParaguai } from "@/lib/rastreio/rotas";
+import { NOME_APRESENTACAO } from "@/lib/apresentacao";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Mapa ao vivo · KM Cero" };
@@ -14,7 +15,7 @@ export default async function MapaEmOutraTela({ searchParams }: { searchParams: 
   const hoje = diaNoParaguai(new Date()).toISOString().slice(0, 10);
   return (
     <main className="tela-mapa">
-      <MapaFrota key={todos ? "todos" : cliente.id} inicial={frota} hoje={hoje} todos={todos} outraTela />
+      <MapaFrota key={todos ? "todos" : cliente.id} inicial={frota} hoje={hoje} todos={todos} outraTela semTagDemo={!todos && cliente.nome === NOME_APRESENTACAO} />
     </main>
   );
 }

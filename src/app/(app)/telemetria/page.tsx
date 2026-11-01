@@ -1,6 +1,7 @@
 import { RolagemFixa } from "@/components/RolagemFixa";
 import { Placa } from "@/components/ui";
 import { clienteAtual } from "@/lib/acesso";
+import { NOME_APRESENTACAO } from "@/lib/apresentacao";
 import { dataBr, num } from "@/lib/formato";
 import { MAX_DIAS_RELATORIO, relatorioDaFrota } from "@/lib/rastreio/relatorio";
 import { diaNoParaguai } from "@/lib/rastreio/rotas";
@@ -109,7 +110,7 @@ export default async function Telemetria({ searchParams }: { searchParams: Promi
             <tbody>
               {linhas.map(({ id, placa, modelo, motorista, demo, relatorio: r }) => (
                 <tr key={id}>
-                  <td><Placa placa={placa} /><br /><small className="muted">{modelo}{motorista ? ` · ${motorista}` : ""}{demo ? " · demonstração" : ""}</small></td>
+                  <td><Placa placa={placa} /><br /><small className="muted">{modelo}{motorista ? ` · ${motorista}` : ""}{demo && cliente.nome !== NOME_APRESENTACAO ? " · demonstração" : ""}</small></td>
                   {r ? (
                     <>
                       <td className="n">{saidaBr(r.primeiroSinal, iso(de) !== iso(ate))}</td>

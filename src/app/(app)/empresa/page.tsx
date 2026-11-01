@@ -11,6 +11,8 @@ import { Bandeira } from "@/components/Bandeira";
 import { temaDoPais, TEMAS } from "@/lib/temas";
 import { atualizarAtraso, atualizarPais, escolherCliente, salvarCotacao } from "./actions";
 import { NovoCliente } from "./NovoCliente";
+import { Apresentacao } from "./Apresentacao";
+import { NOME_APRESENTACAO } from "@/lib/apresentacao";
 import { AcessosGestores } from "./AcessosGestores";
 
 // Ponto de equilíbrio do ano 1 no plano de negócio.
@@ -62,14 +64,16 @@ export default async function Empresa() {
     }),
   );
 
-  const caminhoes = linhas.reduce((a, l) => a + l.planos.length, 0);
-  const mrr = linhas.reduce((a, l) => a + l.mrr, 0);
-  const atraso = linhas.filter((l) => l.situacao !== "em_dia").reduce((a, l) => a + l.mrr, 0);
-  const mix = PLANOS.map((p) => linhas.reduce((a, l) => a + l.planos.filter((x) => x === p).length, 0));
-  const conta = (s: string) => agora.filter((f) => f.situacao === s).length;
-  const kmMes = linhas.reduce((a, l) => a + l.km, 0);
+  // A empresa de apresentação aparece na lista para abrir, mas fica fora dos números e alertas da KM Cero.
+  const reais = linhas.filter((l) => l.c.nome !== NOME_APRESENTACAO);
+  const caminhoes = reais.reduce((a, l) => a + l.planos.length, 0);
+  const mrr = reais.reduce((a, l) => a + l.mrr, 0);
+  const atraso = reais.filter((l) => l.situacao !== "em_dia").reduce((a, l) => a + l.mrr, 0);
+  const mix = PLANOS.map((p) => reais.reduce((a, l) => a + l.planos.filter((x) => x === p).length, 0));
+  const conta = (s: string) => agora.filter((f) => f.situacao === s && f.cliente !== NOME_APRESENTACAO).length;
+  const kmMes = reais.reduce((a, l) => a + l.km, 0);
 
-  const alertas: Alerta[] = linhas.flatMap((l) => [
+  const alertas: Alerta[] = reais.flatMap((l) => [
     ...(l.situacao !== "em_dia"
       ? [{ sev: l.situacao === "bloqueado" ? "bad" : "warn", cliente: l.c.nome, clienteId: l.c.id, titulo: l.situacao === "bloqueado" ? "Acesso bloqueado por falta de pagamento" : "Mensalidade em atraso", detalhe: `${l.c.diasEmAtraso} dias de atraso · ${usd(l.mrr)} por mês`, tela: "/painel" } as Alerta]
       : []),
@@ -199,6 +203,10 @@ export default async function Empresa() {
       <div className="card" id="acessos">
         <div className="card-h"><h2>Acessos dos gestores</h2><p>Login de cada cliente na KM Cero. Crie mais um acesso ou troque a senha de quem esqueceu.</p></div>
         <AcessosGestores clientes={clientes.map((c) => ({ id: c.id, nome: c.nome }))} gestores={gestores.map((g) => ({ id: g.id, nome: g.nome, email: g.email, cliente: g.cliente?.nome ?? "–" }))} />
+      </div>
+      <div className="card" id="apresentacao">
+        <div className="card-h"><h2>Empresa de apresentação</h2><p>Transportadora de exemplo para mostrar a KM Cero a clientes novos, sem usar dados de cliente</p></div>
+        <Apresentacao existe={clientes.some((c) => c.nome === NOME_APRESENTACAO)} />
       </div>
       <div className="card" id="novo-cliente">
         <div className="card-h"><h2>Cadastrar cliente</h2><p>Cria a transportadora e o acesso do gestor.</p></div>

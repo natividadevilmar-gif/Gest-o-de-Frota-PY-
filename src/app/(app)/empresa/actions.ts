@@ -10,6 +10,7 @@ import { definirCotacao } from "@/lib/cotacao";
 import { db } from "@/lib/db";
 import { COOKIE_CLIENTE } from "@/lib/sessao";
 import { TEMAS } from "@/lib/temas";
+import { LOGIN_APRESENTACAO, recriarApresentacao } from "@/lib/apresentacao";
 
 const pais = z.string().refine((v) => Object.hasOwn(TEMAS, v));
 
@@ -132,4 +133,16 @@ export async function removerGestor(form: FormData) {
   await exigirAdmin();
   await db.usuario.deleteMany({ where: { id: String(form.get("id") ?? ""), papel: "GESTOR" } });
   revalidatePath("/empresa");
+}
+
+/**
+ * Cria (ou recria, com as datas de hoje) a empresa de apresentação e já abre o painel dela.
+ * Devolve o login de gestor para mostrar no celular do cliente.
+ */
+export async function recriarEmpresaApresentacao(_: Resultado): Promise<Resultado> {
+  await exigirAdmin();
+  const { senha, clienteId } = await recriarApresentacao();
+  (await cookies()).set(COOKIE_CLIENTE, clienteId, { httpOnly: true, sameSite: "lax", path: "/" });
+  revalidatePath("/", "layout");
+  return { ok: true, msg: `Pronta! Ela já está escolhida no seletor do topo. Login para mostrar no celular do cliente: ${LOGIN_APRESENTACAO} · senha ${senha}` };
 }
