@@ -12,6 +12,7 @@ import { leitorConfigurado } from "@/lib/leitorDespesa";
 import { TEXTOS } from "@/lib/textosDespesa";
 import { excluirDespesa } from "../custos/actions";
 import { LancarDespesa } from "../custos/LancarDespesa";
+import { RegistrarCarga } from "./RegistrarCarga";
 
 export default async function Despesas({ searchParams }: { searchParams: Promise<{ mes?: string }> }) {
   const { sessao, cliente } = await clienteAtual();
@@ -35,6 +36,11 @@ export default async function Despesas({ searchParams }: { searchParams: Promise
   const pode = podeEditarCadastros(sessao);
   // O motorista vê quanto ainda tem do dinheiro que levou para a viagem.
   const caixa = motoristaId ? (await caixasMotoristas(cliente.id, { motoristaId })).find((c) => c.aberto) : undefined;
+  // O motorista vê os próprios envios de foto e vídeo da carga.
+  const envios = motoristaId !== null
+    ? await db.registroCarga.findMany({ where: { clienteId: cliente.id, usuarioId: sessao.usuarioId }, orderBy: { criadoEm: "desc" }, take: 6, select: { id: true, tipo: true, criadoEm: true, caminhao: { select: { placa: true } } } })
+    : [];
+  const quando = (d: Date) => d.toLocaleString(es ? "es-PY" : "pt-BR", { timeZone: "America/Asuncion", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 
   return (
     <>
@@ -53,6 +59,21 @@ export default async function Despesas({ searchParams }: { searchParams: Promise
           </div>
         </div>
       )}
+
+      <div className="card" id="carga">
+        <div className="card-h">
+          <h2>{es ? "Foto y video de la carga" : "Foto e vídeo da carga"}</h2>
+          <p>{es ? "Quedan guardados con la fecha, la hora y el lugar del envío." : "Ficam guardados com a data, a hora e o local do envio."}{motoristaId === null && <> · <Link href="/cargas">ver todos</Link></>}</p>
+        </div>
+        <RegistrarCarga caminhoes={caminhoes.map((c) => ({ id: c.id, placa: c.placa }))} idioma={idioma} />
+        {envios.length > 0 && (
+          <ul className="registro-envios">
+            {envios.map((e) => (
+              <li key={e.id}><a href={`/carga/${e.id}`} target="_blank" rel="noopener">{e.tipo === "foto" ? "📷" : "🎥"} {e.caminhao.placa} · {quando(e.criadoEm)}</a></li>
+            ))}
+          </ul>
+        )}
+      </div>
 
       <div className="card">
         <div className="card-h"><h2>{es ? "Nuevo gasto" : "Nova despesa"}</h2><p>{es ? "Saque foto de la factura, hable o complete." : "Tire foto do recibo, fale ou preencha. O custo por km recalcula na hora."}</p></div>
