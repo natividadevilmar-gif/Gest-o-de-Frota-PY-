@@ -20,3 +20,12 @@ export function nomeMes(mes: string): string {
 export function mesValido(mes: string | undefined, padrao: string): string {
   return mes && /^\d{4}-(0[1-9]|1[0-2])$/.test(mes) ? mes : padrao;
 }
+
+/** Lê um valor digitado no jeito brasileiro/paraguaio ("1.234,56") ou com ponto decimal ("1234.56"). */
+export function lerValor(texto: string): number {
+  const s = texto.replace(/[^\d.,-]/g, "");
+  if (s.includes(",")) return Number(s.replace(/\./g, "").replace(",", "."));
+  // Só pontos: "1.234" ou "1.234.567" são milhares; "12.5" é decimal.
+  if (/^-?\d{1,3}(\.\d{3})+$/.test(s)) return Number(s.replace(/\./g, ""));
+  return Number(s);
+}

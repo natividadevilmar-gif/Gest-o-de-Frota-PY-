@@ -563,3 +563,5 @@ label.plano-btn{cursor:pointer}
 .receber-form{flex-wrap:nowrap;gap:6px}
 .receber-form input[name=valor]{width:7.5em}
 .receber-form input[type=date]{width:9.5em}
+.nova-conta{align-items:flex-end}
+.nova-conta label{display:flex;flex-direction:column;gap:4px;min-width:170px;flex:1 1 170px}

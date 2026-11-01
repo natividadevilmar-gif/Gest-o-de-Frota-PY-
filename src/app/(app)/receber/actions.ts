@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { clienteAtual, podeEditarCadastros } from "@/lib/acesso";
 import { db } from "@/lib/db";
+import { lerValor } from "@/lib/formato";
 
 const recebimento = z.object({
   viagemId: z.string().min(1),
@@ -18,7 +19,7 @@ export async function registrarRecebimento(form: FormData) {
   if (!podeEditarCadastros(sessao)) return;
   const p = recebimento.safeParse({
     viagemId: form.get("viagemId"),
-    valor: String(form.get("valor") ?? "").replace(",", "."),
+    valor: lerValor(String(form.get("valor") ?? "")),
     data: form.get("data"),
     observacao: form.get("observacao") || undefined,
   });
