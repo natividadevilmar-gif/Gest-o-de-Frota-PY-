@@ -26,6 +26,7 @@ const MODULOS: { m: Modulo; href: string; rotulo: string; menu?: string }[] = [
   { m: "caminhoes", href: "/caminhoes", rotulo: "Caminhões e planos", menu: "Frota" },
   { m: "caminhoes", href: "/contrato", rotulo: "Contrato", menu: "Frota" },
   { m: "caminhoes", href: "/motoristas", rotulo: "Acesso dos motoristas", menu: "Frota" },
+  { m: "painel", href: "/cargas", rotulo: "Fotos da carga", menu: "Frota" },
   { m: "custos", href: "/custos", rotulo: "Custo por km", menu: "Financeiro" },
   { m: "consumo", href: "/consumo", rotulo: "Consumo e motoristas", menu: "Frota" },
   { m: "revisoes", href: "/revisoes", rotulo: "Revisões", menu: "Frota" },

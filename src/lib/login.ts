@@ -6,4 +6,4 @@ export function normalizarLogin(v: string): string {
 }
 
 /** Páginas que o motorista pode abrir; o resto redireciona para Lançar despesa. */
-export const PAGINAS_MOTORISTA = ["/despesas", "/senha", "/recibos/"];
+export const PAGINAS_MOTORISTA = ["/despesas", "/senha", "/recibos/", "/carga/"];

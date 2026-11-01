@@ -22,6 +22,7 @@ export const GERAL: Linha[] = [
   ["Caminhões e planos", "Camiones y planes", "Trucks and plans", "Lkw und Tarife"],
   ["Contrato", "Contrato", "Contract", "Vertrag"],
   ["Acesso dos motoristas", "Acceso de los choferes", "Driver access", "Fahrerzugang"],
+  ["Fotos da carga", "Fotos de la carga", "Cargo photos", "Ladungsfotos"],
   ["Custo por km", "Costo por km", "Cost per km", "Kosten pro km"],
   ["Consumo e motoristas", "Consumo y choferes", "Fuel use and drivers", "Verbrauch und Fahrer"],
   ["Revisões", "Mantenimientos", "Maintenance", "Wartung"],

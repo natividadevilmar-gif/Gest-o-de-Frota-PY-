@@ -47,20 +47,20 @@ enum Gatilho {
 }
 
 model Cliente {
-  id                   String        @id @default(cuid())
+  id                   String          @id @default(cuid())
   nome                 String
   ruc                  String?
   cidade               String
-  idioma               Idioma        @default(pt)
+  idioma               Idioma          @default(pt)
   // País de origem (ISO 3166, duas letras): define as cores da plataforma para o cliente.
-  pais                 String        @default("PY")
+  pais                 String          @default("PY")
   // Dias desde o vencimento da mensalidade mais antiga em aberto (0 = em dia).
-  diasEmAtraso         Int           @default(0)
+  diasEmAtraso         Int             @default(0)
   // Contrato de prestação de serviço: plano, quantidade, prazo e vencimento.
-  planoContratado      Plano         @default(GESTAO)
-  caminhoesContratados Int           @default(1)
-  prazoMeses           Int           @default(12)
-  diaVencimento        Int           @default(10)
+  planoContratado      Plano           @default(GESTAO)
+  caminhoesContratados Int             @default(1)
+  prazoMeses           Int             @default(12)
+  diaVencimento        Int             @default(10)
   contratoInicio       DateTime?
   endereco             String?
   // Painel do fabricante do MDVR (4 câmeras), aberto pelo menu Vídeo até a integração completa.
@@ -72,7 +72,7 @@ model Cliente {
   gpswoxHost           String?
   gpswoxEmail          String?
   gpswoxHash           String?
-  criadoEm             DateTime      @default(now())
+  criadoEm             DateTime        @default(now())
   usuarios             Usuario[]
   caminhoes            Caminhao[]
   motoristas           Motorista[]
@@ -82,6 +82,7 @@ model Cliente {
   ocorrencias          Ocorrencia[]
   comandos             Comando[]
   midias               Midia[]
+  registrosCarga       RegistroCarga[]
 }
 
 model Usuario {
@@ -102,17 +103,18 @@ model Usuario {
 }
 
 model Motorista {
-  id        String        @id @default(cuid())
-  clienteId String
-  cliente   Cliente       @relation(fields: [clienteId], references: [id], onDelete: Cascade)
-  nome      String
-  documento String?
+  id             String          @id @default(cuid())
+  clienteId      String
+  cliente        Cliente         @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  nome           String
+  documento      String?
   // Código do país do celular (595, 55, 54…) para o WhatsApp; o login continua sendo o número local.
-  ddi       String?
-  caminhoes Caminhao[]
-  acesso    Usuario?
-  viagens   Viagem[]
-  caixas    CaixaViagem[]
+  ddi            String?
+  caminhoes      Caminhao[]
+  acesso         Usuario?
+  viagens        Viagem[]
+  caixas         CaixaViagem[]
+  registrosCarga RegistroCarga[]
 }
 
 model Caminhao {
@@ -139,7 +141,7 @@ model Caminhao {
   ultimaDirecao     Int?
   // Unidade que é a base de abastecimento do cliente (ex.: "Surtidor" no Wialon), não um caminhão:
   // fica fora do mapa, dos alertas e do relatório, e aparece no quadro próprio da Telemetria.
-  baseCombustivel   Boolean   @default(false)
+  baseCombustivel   Boolean         @default(false)
   ultimaIgnicao     Boolean?
   // Cerca onde o caminhão está agora (para detectar entrada e saída).
   cercaAtualId      String?
@@ -164,6 +166,7 @@ model Caminhao {
   ocorrencias       Ocorrencia[]
   comandos          Comando[]
   midias            Midia[]
+  registrosCarga    RegistroCarga[]
   criadoEm          DateTime        @default(now())
 
   @@unique([clienteId, placa])
@@ -516,4 +519,32 @@ model PrecoDiesel {
   fonte        String
   vigencia     DateTime @db.Date
   atualizadoEm DateTime @default(now()) @updatedAt
+}
+
+// Foto ou vídeo curto da carga feito pelo motorista no celular. A data e a hora são as do
+// servidor na chegada do arquivo (o celular não consegue mudar), com o local do GPS do celular.
+model RegistroCarga {
+  id          String     @id @default(cuid())
+  clienteId   String
+  cliente     Cliente    @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  caminhaoId  String
+  caminhao    Caminhao   @relation(fields: [caminhaoId], references: [id], onDelete: Cascade)
+  motoristaId String?
+  motorista   Motorista? @relation(fields: [motoristaId], references: [id], onDelete: SetNull)
+  usuarioId   String?
+  // "foto" ou "video".
+  tipo        String
+  // image/jpeg, video/webm ou video/mp4.
+  formato     String
+  conteudo    Bytes
+  tamanho     Int
+  duracaoS    Int?
+  lat         Float?
+  lng         Float?
+  precisaoM   Int?
+  observacao  String?
+  criadoEm    DateTime   @default(now())
+
+  @@index([clienteId, criadoEm])
+  @@index([caminhaoId, criadoEm])
 }
