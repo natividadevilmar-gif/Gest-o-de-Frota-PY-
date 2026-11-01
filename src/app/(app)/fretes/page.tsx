@@ -32,7 +32,10 @@ export default async function Fretes({ searchParams }: { searchParams: Promise<{
   const motDe = new Map(caminhoes.map((c) => [c.id, c.motoristaId]));
   const eixosDe = new Map(caminhoes.map((c) => [c.id, c.eixos]));
   const fretes = await viagensCliente(cliente.id, mes, ind);
-  const comMic = new Set((await db.micDta.findMany({ where: { viagemId: { in: fretes.map((f) => f.id) } }, select: { viagemId: true } })).map((m) => m.viagemId));
+  const ids = { viagemId: { in: fretes.map((f) => f.id) } };
+  const [mics, crts] = await Promise.all([db.micDta.findMany({ where: ids, select: { viagemId: true } }), db.crt.findMany({ where: ids, select: { viagemId: true } })]);
+  const comMic = new Set(mics.map((m) => m.viagemId));
+  const comCrt = new Set(crts.map((c) => c.viagemId));
 
   // Pedágio previsto da rota escolhida contra o pedágio lançado pelo motorista entre o carregamento e a entrega.
   const rotaDe = new Map(rotas.map((r) => [r.id, r]));
@@ -151,6 +154,9 @@ export default async function Fretes({ searchParams }: { searchParams: Promise<{
                         </form>
                       </td>
                       <td>
+                        {(f.paisOrigem !== f.paisDestino || comCrt.has(f.id)) && (
+                          <><Link href={`/fretes/${f.id}/crt`}>{comCrt.has(f.id) ? "📄 CRT ✓" : "📄 Gerar CRT"}</Link><br /></>
+                        )}
                         {(f.paisOrigem !== f.paisDestino || comMic.has(f.id)) && (
                           <><Link href={`/fretes/${f.id}/mic`}>{comMic.has(f.id) ? "📄 MIC/DTA ✓" : "📄 Gerar MIC/DTA"}</Link><br /></>
                         )}

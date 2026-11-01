@@ -3,6 +3,7 @@ import { randomBytes } from "node:crypto";
 import bcrypt from "bcryptjs";
 import type { Plano, Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
+import { crtPadrao, numeroCrt } from "@/lib/crt";
 import { micPadrao, numeroMic } from "@/lib/micDta";
 import { datasParcelas } from "@/lib/pagar";
 import { diaNoParaguai, rotaDemoDoCaminhao } from "@/lib/rastreio/rotas";
@@ -10,7 +11,7 @@ import { simulador } from "@/lib/telemetria/simulador";
 
 // Empresa de apresentação: uma transportadora fictícia com caminhões andando no mapa, motoristas,
 // 60 dias de telemetria, despesas, fretes (um com link de rastreio), revisões e alertas na Central,
-// e o financeiro de exemplo (contas a receber e a pagar, MIC/DTA, caixas com acerto de viagem),
+// e o financeiro de exemplo (contas a receber e a pagar, CRT e MIC/DTA, caixas com acerto de viagem),
 // para mostrar a KM Cero a clientes novos sem usar os dados de um cliente de verdade.
 
 export const NOME_APRESENTACAO = "KM Cero Apresentação";
@@ -176,7 +177,7 @@ export async function recriarApresentacao(agora = new Date()): Promise<{ senha: 
 
 type FreteCriado = Awaited<ReturnType<typeof db.viagem.createManyAndReturn>>[number];
 
-/** Recebimentos dos fretes pagos (e um pago em parte), contas a pagar do mês e MIC/DTA dos fretes internacionais. */
+/** Recebimentos dos fretes pagos (e um pago em parte), contas a pagar do mês e CRT e MIC/DTA dos fretes internacionais. */
 async function financeiroDeExemplo(
   cliente: { id: string; nome: string; ruc: string | null; endereco: string | null; cidade: string; pais: string },
   caminhoes: { id: string; placa: string; motoristaId: string }[],
@@ -237,16 +238,26 @@ async function financeiroDeExemplo(
   conta({ descricao: "Retífica do cabeçote", categoria: "OFICINA", fornecedor: "Taller Diesel Naranjal", valorUsd: 1800, vencimento: dia(12), caminhaoId: caminhoes[2].id }, false);
   await db.contaPagar.createMany({ data: contas });
 
-  // MIC/DTA dos últimos fretes internacionais (no máximo quatro), numerados no ano.
+  // CRT e MIC/DTA dos últimos fretes internacionais (no máximo quatro), numerados no ano.
   const ano = hoje.getUTCFullYear();
   const internacionais = fretes.filter((f) => f.paisOrigem !== f.paisDestino).sort((a, b) => +b.data - +a.data).slice(0, 4).reverse();
   const cams = await db.caminhao.findMany({ where: { clienteId: cliente.id }, select: { id: true, placa: true, modelo: true, ano: true } });
   const fixos = { permiso: "PY-ATIT 0815/2025", capacidad: "45", remolque: "KMR 210" };
+  const destinatario = (f: FreteCriado) => `Cargill Agrícola S.A.\n${f.destino}`;
+  await db.crt.createMany({
+    data: internacionais.map((f, k) => {
+      const d = crtPadrao({ viagem: f, cliente, numero: numeroCrt(cliente.pais, fixos.permiso, k + 1, f.documento), permisoMic: fixos.permiso });
+      return {
+        clienteId: cliente.id, viagemId: f.id, sequencia: k + 1,
+        dados: { ...d, destinatario: destinatario(f), consignatario: "Cargill Agrícola S.A.", valor: arred(f.toneladas * 410).toFixed(2), incoterm: "FCA", seguro: arred(f.freteUsd * 0.003).toFixed(2), documentosAnexos: "Factura comercial, certificado de origen, certificado fitosanitario" },
+      };
+    }),
+  });
   await db.micDta.createMany({
     data: internacionais.map((f, k) => {
       const c = cams.find((x) => x.id === f.caminhaoId)!;
       const dados = micPadrao({ viagem: f, caminhao: c, cliente, numero: numeroMic(cliente.pais, ano, k + 1), anteriorEmpresa: fixos, anteriorCaminhao: { ...fixos, remolque: `KMR ${210 + k}` } });
-      return { clienteId: cliente.id, viagemId: f.id, caminhaoId: f.caminhaoId, ano, sequencia: k + 1, dados: { ...dados, destinatario: `Cargill Agrícola S.A.\n${f.destino}`, consignatario: "Cargill Agrícola S.A.", valorFot: arred(f.toneladas * 410).toFixed(2), seguro: arred(f.freteUsd * 0.003).toFixed(2), cantidadBultos: "1", precintos: `PY${ano % 100}-${String(30411 + k * 7)}` } };
+      return { clienteId: cliente.id, viagemId: f.id, caminhaoId: f.caminhaoId, ano, sequencia: k + 1, dados: { ...dados, destinatario: destinatario(f), consignatario: "Cargill Agrícola S.A.", valorFot: arred(f.toneladas * 410).toFixed(2), seguro: arred(f.freteUsd * 0.003).toFixed(2), cantidadBultos: "1", precintos: `PY${ano % 100}-${String(30411 + k * 7)}` } };
     }),
   });
 }

@@ -21,6 +21,7 @@ export default async function MicDoFrete({ params }: { params: Promise<{ id: str
         <h1>MIC/DTA · {v.caminhao.placa} · {v.origem} → {v.destino}</h1>
         <div className="form">
           <Link className="btn" href={`/fretes?mes=${v.data.toISOString().slice(0, 7)}`}>← Fretes</Link>
+          <Link className="btn" href={`/fretes/${v.id}/crt`}>{v.crt ? "CRT ✓" : "Gerar CRT"}</Link>
           {m.salvo && <Imprimir />}
         </div>
       </div>
