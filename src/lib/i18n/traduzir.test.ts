@@ -6,6 +6,7 @@ describe("tradutor das telas", () => {
   const es = criarTradutor(FRASES, "es");
   const en = criarTradutor(FRASES, "en");
   const de = criarTradutor(FRASES, "de");
+  const it_ = criarTradutor(FRASES, "it");
 
   it("traduz frases inteiras mantendo os espaços em volta", () => {
     expect(en("Caminhões e planos")).toBe("Trucks and plans");
@@ -43,5 +44,20 @@ describe("tradutor das telas", () => {
     expect(en("12 caminhões")).toBe("12 trucks");
     expect(de("Mensal · Pagamento")).toBe("Monatlich · Zahlung");
     expect(en(". Ele digita o celular e o PIN.")).toBe(". They type their mobile number and PIN.");
+  });
+
+  it("traduz para o italiano", () => {
+    expect(it_("Caminhões e planos")).toBe("Camion e piani");
+    expect(it_("+ Lançar frete")).toBe("+ Registra nolo");
+    expect(it_("Faltam 1.200 km.")).toBe("Mancano 1.200 km.");
+    expect(it_("Custo por km · dezembro de 2026")).toBe("Costo per km · dicembre 2026");
+  });
+
+  it("toda frase tem as cinco colunas e os mesmos {n} do português", () => {
+    const marcas = (s: string) => (s.match(/\{\d\}/g) ?? []).sort().join();
+    for (const l of FRASES) {
+      expect(l).toHaveLength(5);
+      for (const t of l.slice(1)) expect(marcas(t), `${l[0]} → ${t}`).toBe(marcas(l[0]));
+    }
   });
 });

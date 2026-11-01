@@ -5,8 +5,8 @@ import { trocarIdioma } from "@/lib/i18n/acoes";
 import { IDIOMAS, NOME_IDIOMA, SIGLA_IDIOMA, type Idioma } from "@/lib/i18n/idiomas";
 
 // Rótulo do botão em todos os idiomas, para quem não lê o atual achar o seletor.
-const ROTULO: Record<Idioma, string> = { pt: "Idioma", es: "Idioma", en: "Language", de: "Sprache" };
-const PADRAO: Record<Idioma, string> = { pt: "padrão", es: "predeterminado", en: "default", de: "Standard" };
+const ROTULO: Record<Idioma, string> = { pt: "Idioma", es: "Idioma", en: "Language", de: "Sprache", it: "Lingua" };
+const PADRAO: Record<Idioma, string> = { pt: "padrão", es: "predeterminado", en: "default", de: "Standard", it: "predefinita" };
 
 /** Botão de idioma da barra do topo (e da tela de login). */
 export function SeletorIdioma({ atual, claro = false }: { atual: Idioma; claro?: boolean }) {

@@ -1,17 +1,18 @@
 // Tradução das telas a partir do texto em português: cada frase do dicionário
-// é [português, espanhol, inglês, alemão]. Frases com {0}, {1}… são modelos
+// é [português, espanhol, inglês, alemão, italiano]. Frases com {0}, {1}… são modelos
 // para textos montados com valores (placas, números, nomes).
 import type { IdiomaTraduzido } from "./idiomas";
 
-export type Linha = readonly [pt: string, es: string, en: string, de: string];
+export type Linha = readonly [pt: string, es: string, en: string, de: string, it: string];
 
-const COLUNA: Record<IdiomaTraduzido, 1 | 2 | 3> = { es: 1, en: 2, de: 3 };
+const COLUNA: Record<IdiomaTraduzido, 1 | 2 | 3 | 4> = { es: 1, en: 2, de: 3, it: 4 };
 
 const MESES_PT = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
 const MESES: Record<IdiomaTraduzido, string[]> = {
   es: ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"],
   en: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
   de: ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"],
+  it: ["gennaio", "febbraio", "marzo", "aprile", "maggio", "giugno", "luglio", "agosto", "settembre", "ottobre", "novembre", "dicembre"],
 };
 const RE_MES = new RegExp(`^(${MESES_PT.join("|")}) de (\\d{4})$`);
 

@@ -190,7 +190,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
       <div className="card-h">
         <h1>Dashboard{cam ? ` · ${cam.placa}` : ""}</h1>
         <nav className="dash-periodo" aria-label="Período">
-          {PERIODOS.map((p) => <Link key={p} href={url(f, { dias: p })} aria-current={p === dias ? "true" : undefined}>Últimos {p} dias</Link>)}
+          {PERIODOS.map((p) => <Link key={p} href={url(f, { dias: p })} aria-current={p === dias ? "true" : undefined}>{`Últimos ${p} dias`}</Link>)}
         </nav>
       </div>
       <nav className="dash-chips" aria-label="Caminhão">

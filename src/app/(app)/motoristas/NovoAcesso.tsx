@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
+import type { Idioma } from "@/lib/i18n/idiomas";
 import { PAISES_DDI } from "@/lib/whatsapp";
 import { criarAcesso } from "./actions";
 
@@ -9,7 +10,7 @@ type Props = {
   caminhoes: { id: string; placa: string; motorista: string | null; lanca: boolean }[];
 };
 
-export function NovoAcesso({ motoristas, caminhoes, idioma, pais }: Props & { idioma: "pt" | "es" | "en" | "de"; pais: string }) {
+export function NovoAcesso({ motoristas, caminhoes, idioma, pais }: Props & { idioma: Idioma; pais: string }) {
   const [r, acao, enviando] = useActionState(criarAcesso, null);
   const [quem, setQuem] = useState(motoristas[0]?.id ?? "novo");
   // Depois de criar, o motorista sai da lista: volta a seleção para um que ainda não tem acesso.
@@ -40,7 +41,7 @@ export function NovoAcesso({ motoristas, caminhoes, idioma, pais }: Props & { id
       <label htmlFor="celular">Celular (login)<input id="celular" name="celular" inputMode="tel" placeholder="celular do motorista, ex.: 09XX XXX XXX" required /></label>
       <label htmlFor="pin">PIN (6 a 8 números)<input id="pin" name="pin" inputMode="numeric" pattern="\d{6,8}" maxLength={8} required /></label>
       <label htmlFor="idioma">Idioma do motorista
-        <select id="idioma" name="idioma" defaultValue={idioma}><option value="pt">Português</option><option value="es">Español</option><option value="en">English</option><option value="de">Deutsch</option></select>
+        <select id="idioma" name="idioma" defaultValue={idioma}><option value="pt">Português</option><option value="es">Español</option><option value="en">English</option><option value="de">Deutsch</option><option value="it">Italiano</option></select>
       </label>
       <button className="pri" type="submit" disabled={enviando}>Criar acesso</button>
       {r && <p className={`msg ${r.ok ? "ok" : "bad"}`} role="status">{r.msg}</p>}

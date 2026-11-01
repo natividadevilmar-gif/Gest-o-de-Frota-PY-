@@ -7,6 +7,7 @@ import { z } from "zod";
 import { clienteAtual, podeEditarCadastros } from "@/lib/acesso";
 import { db } from "@/lib/db";
 import { lerPlanilhaFrota, placaChave, type LinhaFrota } from "@/lib/importarFrota";
+import { IDIOMAS } from "@/lib/i18n/idiomas";
 import { normalizarLogin } from "@/lib/login";
 
 export type Resultado = { ok: boolean; msg: string } | null;
@@ -17,7 +18,7 @@ const acesso = z.object({
   caminhaoId: z.string().optional(),
   celular: z.string().transform(normalizarLogin).pipe(z.string().regex(/^\d{8,15}$/)),
   pin: z.string().regex(/^\d{6,8}$/),
-  idioma: z.enum(["pt", "es", "en", "de"]),
+  idioma: z.enum(IDIOMAS),
   ddi: z.enum(["595", "55", "54", "598", "591", "56"]),
 });
 
@@ -87,7 +88,7 @@ export async function removerAcesso(form: FormData) {
 export async function mudarIdioma(form: FormData) {
   const { sessao, cliente } = await clienteAtual();
   if (!podeEditarCadastros(sessao)) return;
-  const idioma = z.enum(["pt", "es", "en", "de"]).safeParse(form.get("idioma"));
+  const idioma = z.enum(IDIOMAS).safeParse(form.get("idioma"));
   if (!idioma.success) return;
   await db.usuario.updateMany({ where: { id: String(form.get("id")), clienteId: cliente.id, papel: "MOTORISTA" }, data: { idioma: idioma.data } });
   revalidatePath("/motoristas");
