@@ -570,3 +570,6 @@ label.plano-btn{cursor:pointer}
 .fluxo-barra{width:28%;min-width:90px}
 .fluxo-barra span{display:block;height:10px;border-radius:5px;background:var(--ok,#2f9e5b);opacity:.75}
 .fluxo-barra span.neg{background:var(--bad)}
+.dre td{padding:7px 10px}
+.dre .dre-forte td{font-weight:700;border-top:1.5px solid var(--line)}
+.dre-ajuda{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:8px;font-size:14px;line-height:1.45}
