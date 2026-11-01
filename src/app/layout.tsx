@@ -19,9 +19,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const idioma = await idiomaAtual();
   return (
     // data-traduzindo esconde a página até os textos estarem no idioma escolhido (no máximo 1,5 s).
-    // translate="no": a KM Cero tem o próprio tradutor; o do Chrome trocava "Frota" por "Esfregar".
-    <html lang={LANG_HTML[idioma]} translate="no" data-traduzindo={idioma !== "pt" ? "" : undefined} suppressHydrationWarning>
+    <html lang={LANG_HTML[idioma]} data-traduzindo={idioma !== "pt" ? "" : undefined} suppressHydrationWarning>
       <head>
+        {/* A KM Cero tem o próprio tradutor; o do Chrome trocava "Frota" por "Esfregar". Sem translate="no" no html, que o nosso Tradutor pularia. */}
         <meta name="google" content="notranslate" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link
