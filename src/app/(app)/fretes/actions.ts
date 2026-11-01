@@ -99,7 +99,18 @@ export async function marcarRecebido(form: FormData) {
   const { sessao, cliente } = await clienteAtual();
   if (!podeEditarCadastros(sessao)) return;
   const id = String(form.get("id"));
-  await db.viagem.updateMany({ where: { id, caminhao: { clienteId: cliente.id } }, data: { recebido: form.get("recebido") === "1" } });
+  const v = await db.viagem.findFirst({ where: { id, caminhao: { clienteId: cliente.id } }, select: { id: true, freteUsd: true, recebimentos: { select: { valorUsd: true } } } });
+  if (!v) return;
+  const recebido = form.get("recebido") === "1";
+  if (recebido) {
+    // Quita o que faltava hoje, para entrar em "Recebido no mês" das Contas a receber.
+    const falta = Math.round((v.freteUsd - v.recebimentos.reduce((t, r) => t + r.valorUsd, 0)) * 100) / 100;
+    const hoje = new Date(new Date().toISOString().slice(0, 10) + "T00:00:00Z");
+    if (falta > 0) await db.recebimento.create({ data: { viagemId: v.id, data: hoje, valorUsd: falta, observacao: "marcado como recebido", usuarioId: sessao.usuarioId } });
+  } else {
+    await db.recebimento.deleteMany({ where: { viagemId: v.id } });
+  }
+  await db.viagem.update({ where: { id: v.id }, data: { recebido } });
   revalidatePath("/", "layout");
 }
 

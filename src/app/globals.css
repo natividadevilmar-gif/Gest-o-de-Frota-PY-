@@ -560,3 +560,6 @@ label.plano-btn{cursor:pointer}
   .mic-doc{border:0;padding:0;margin:0;max-width:none}
   @page{size:A4;margin:10mm}
 }
+.receber-form{flex-wrap:nowrap;gap:6px}
+.receber-form input[name=valor]{width:7.5em}
+.receber-form input[type=date]{width:9.5em}
