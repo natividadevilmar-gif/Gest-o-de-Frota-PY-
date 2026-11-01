@@ -46,3 +46,14 @@ describe("agrupar por cliente", () => {
     expect(m).toContain("Total: USD 800,00");
   });
 });
+
+import { lerValor } from "./formato";
+describe("lerValor", () => {
+  it("entende vírgula decimal, ponto de milhar e ponto decimal", () => {
+    expect(lerValor("1.234,56")).toBe(1234.56);
+    expect(lerValor("410,00")).toBe(410);
+    expect(lerValor("1.234")).toBe(1234);
+    expect(lerValor("1234.5")).toBe(1234.5);
+    expect(lerValor("₲ 7.000.000")).toBe(7000000);
+  });
+});

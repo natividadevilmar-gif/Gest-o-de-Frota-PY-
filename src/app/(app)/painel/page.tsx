@@ -17,14 +17,23 @@ export default async function Painel() {
   const viagens = (await viagensCliente(cliente.id, mes, ind)).filter((v) => v.margem);
   const frete = viagens.reduce((a, v) => a + v.freteUsd, 0);
   const margem = viagens.reduce((a, v) => a + (v.margem?.margemUsd ?? 0), 0);
-  const [saldo, historico, motoristas] = await Promise.all([
+  const hojeUtc = new Date(new Date().toISOString().slice(0, 10) + "T00:00:00Z");
+  const em3dias = new Date(hojeUtc.getTime() + 3 * 86_400_000);
+  const [saldo, historico, motoristas, pagarVencido, pagarLogo, receberVencido] = await Promise.all([
     saldoEmpresa(cliente.id, mes),
     saldoPorMes(cliente.id, mes),
     db.motorista.findMany({ where: { clienteId: cliente.id }, select: { id: true, nome: true }, orderBy: { nome: "asc" } }),
+    db.contaPagar.aggregate({ where: { clienteId: cliente.id, pagoEm: null, vencimento: { lt: hojeUtc } }, _sum: { valorUsd: true }, _count: true }),
+    db.contaPagar.aggregate({ where: { clienteId: cliente.id, pagoEm: null, vencimento: { gte: hojeUtc, lte: em3dias } }, _sum: { valorUsd: true }, _count: true }),
+    db.viagem.aggregate({ where: { caminhao: { clienteId: cliente.id }, recebido: false, vencimento: { lt: hojeUtc } }, _sum: { freteUsd: true }, _count: true }),
   ]);
+  const plural = (n: number, um: string, varios: string) => `${n} ${n === 1 ? um : varios}`;
 
   type Alerta = { sev: "bad" | "warn" | "info"; titulo: string; detalhe: string; href: string };
   const alertas: Alerta[] = [
+    ...(pagarVencido._count > 0 ? [{ sev: "bad" as const, titulo: `${plural(pagarVencido._count, "conta vencida", "contas vencidas")} a pagar`, detalhe: `${usd(pagarVencido._sum.valorUsd ?? 0)} em atraso.`, href: "/pagar" }] : []),
+    ...(pagarLogo._count > 0 ? [{ sev: "warn" as const, titulo: `${plural(pagarLogo._count, "conta vence", "contas vencem")} em até 3 dias`, detalhe: `${usd(pagarLogo._sum.valorUsd ?? 0)} a pagar.`, href: "/pagar" }] : []),
+    ...(receberVencido._count > 0 ? [{ sev: "warn" as const, titulo: `${plural(receberVencido._count, "frete vencido", "fretes vencidos")} sem receber`, detalhe: `${usd(receberVencido._sum.freteUsd ?? 0)} para cobrar.`, href: "/receber" }] : []),
     ...revisoes
       .filter((r) => r.status.situacao !== "em_dia")
       .map<Alerta>((r) => ({

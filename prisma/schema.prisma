@@ -84,6 +84,7 @@ model Cliente {
   midias               Midia[]
   registrosCarga       RegistroCarga[]
   mics                 MicDta[]
+  contasPagar          ContaPagar[]
 }
 
 model Usuario {
@@ -168,6 +169,7 @@ model Caminhao {
   comandos          Comando[]
   midias            Midia[]
   registrosCarga    RegistroCarga[]
+  contasPagar       ContaPagar[]
   criadoEm          DateTime        @default(now())
 
   @@unique([clienteId, placa])
@@ -585,4 +587,29 @@ model Recebimento {
 
   @@index([viagemId])
   @@index([data])
+}
+
+// Conta a pagar da transportadora (parcela do caminhão, seguro, salário, oficina...). É o caixa:
+// não entra no custo por km, que vem das despesas lançadas e dos custos fixos do caminhão.
+model ContaPagar {
+  id            String    @id @default(cuid())
+  clienteId     String
+  cliente       Cliente   @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  caminhaoId    String?
+  caminhao      Caminhao? @relation(fields: [caminhaoId], references: [id], onDelete: SetNull)
+  descricao     String
+  categoria     String
+  fornecedor    String?
+  moeda         String    @default("USD")
+  valorOriginal Float
+  valorUsd      Float
+  vencimento    DateTime  @db.Date
+  pagoEm        DateTime? @db.Date
+  // Parcelas criadas juntas: mesmo grupo, número da parcela e total.
+  grupo         String?
+  parcela       Int?
+  parcelas      Int?
+  criadoEm      DateTime  @default(now())
+
+  @@index([clienteId, vencimento])
 }
