@@ -14,6 +14,7 @@ import { sair } from "../login/actions";
 /** menu: em qual menu da barra do topo o item fica; sem menu, fica à vista na barra. */
 const MODULOS: { m: Modulo; href: string; rotulo: string; menu?: string }[] = [
   { m: "painel", href: "/painel", rotulo: "Painel" },
+  { m: "painel", href: "/dashboard", rotulo: "Dashboard" },
   { m: "painel", href: "/rastreamento", rotulo: "Mapa ao vivo" },
   { m: "painel", href: "/monitoramento", rotulo: "Central de monitoramento" },
   { m: "painel", href: "/telemetria", rotulo: "Telemetria" },
