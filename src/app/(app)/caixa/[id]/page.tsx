@@ -50,12 +50,15 @@ export default async function CaixaDoMotorista({ params }: { params: Promise<{ i
             <Kpi rotulo="Gasto" valor={fmt(gasto)} sub={`${linhas.length} despesas`} />
             <Kpi rotulo={atual.aberto ? "Ainda com o motorista" : "Sobrou"} valor={fmt(atual.valorOriginal - gasto)} sub={moeda === "USD" ? undefined : `≈ ${usd(atual.saldoUsd)}`} />
           </div>
-          {atual.aberto && (
-            <form action={fecharCaixa} className="form" style={{ marginBottom: 12 }}>
-              <input type="hidden" name="id" value={atual.id} />
-              <button type="submit">Fechar caixa (motorista prestou contas)</button>
-            </form>
-          )}
+          <div className="form" style={{ marginBottom: 12 }}>
+            <Link className="btn pri" href={`/caixa/acerto/${atual.id}`}>Acerto de viagem (recibo para assinar)</Link>
+            {atual.aberto && (
+              <form action={fecharCaixa}>
+                <input type="hidden" name="id" value={atual.id} />
+                <button type="submit">Fechar caixa (motorista prestou contas)</button>
+              </form>
+            )}
+          </div>
           <div className="card">
             <div className="card-h"><h2>Despesas que saíram do caixa</h2><p>{atual.observacao ?? ""}</p></div>
             {linhas.length === 0 ? <p className="note">Nenhuma despesa lançada desde a entrega do dinheiro.</p> : (
@@ -87,7 +90,7 @@ export default async function CaixaDoMotorista({ params }: { params: Promise<{ i
           <div className="card-h"><h2>Caixas anteriores</h2></div>
           <div className="tw">
             <table>
-              <thead><tr><th>Entregue em</th><th className="n">Recebido</th><th className="n">Gasto</th><th className="n">Sobrou</th><th>Encerrado</th></tr></thead>
+              <thead><tr><th>Entregue em</th><th className="n">Recebido</th><th className="n">Gasto</th><th className="n">Sobrou</th><th>Encerrado</th><th /></tr></thead>
               <tbody>
                 {caixas.filter((c) => c.id !== atual?.id).map((c) => (
                   <tr key={c.id}>
@@ -96,6 +99,7 @@ export default async function CaixaDoMotorista({ params }: { params: Promise<{ i
                     <td className="n">{usd(c.gastoUsd)}</td>
                     <td className="n"><span className={c.saldoUsd < 0 ? "t-bad" : "t-ok"}>{usd(c.saldoUsd)}</span></td>
                     <td>{c.fechadoEm ? dataBr(c.fechadoEm) : "com novo caixa"}</td>
+                    <td><Link href={`/caixa/acerto/${c.id}`}>acerto</Link></td>
                   </tr>
                 ))}
               </tbody>
