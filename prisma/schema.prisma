@@ -84,6 +84,7 @@ model Cliente {
   midias               Midia[]
   registrosCarga       RegistroCarga[]
   mics                 MicDta[]
+  crts                 Crt[]
   contasPagar          ContaPagar[]
 }
 
@@ -293,6 +294,7 @@ model Viagem {
   linkToken       String?       @unique
   linkExpiraEm    DateTime?
   mic             MicDta?
+  crt             Crt?
   recebimentos    Recebimento[]
   criadoEm        DateTime      @default(now())
 
@@ -571,6 +573,23 @@ model MicDta {
 
   @@unique([clienteId, ano, sequencia])
   @@index([caminhaoId, atualizadoEm])
+}
+
+// CRT (Conhecimento de Transporte Internacional / Carta de Porte Internacional por Carretera) do frete.
+// A sequência numera os CRTs da transportadora; os campos do documento ficam em `dados`.
+model Crt {
+  id           String   @id @default(cuid())
+  clienteId    String
+  cliente      Cliente  @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  viagemId     String   @unique
+  viagem       Viagem   @relation(fields: [viagemId], references: [id], onDelete: Cascade)
+  sequencia    Int
+  dados        Json
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  @@unique([clienteId, sequencia])
+  @@index([clienteId, atualizadoEm])
 }
 
 // Pagamento recebido de um frete (pode ser em parcelas). Quando a soma cobre o frete,

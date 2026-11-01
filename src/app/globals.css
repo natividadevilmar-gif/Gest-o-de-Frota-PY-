@@ -581,3 +581,12 @@ label.plano-btn{cursor:pointer}
 .acerto-lista tfoot td{font-weight:600}
 .acerto-saldo td{font-size:16px;font-weight:700;border-top:2px solid #333}
 .acerto-nota{font-size:12px;color:#666}
+/* CRT: usa a grade do MIC/DTA, com a tabela de despesas do campo 15. */
+.crt-aviso{font-size:8.5px !important;line-height:1.25 !important;margin-top:4px;color:#333}
+.crt-pilha small{margin-top:2px}
+.crt-pilha p{min-height:16px}
+.crt-sub{font-weight:400}
+.crt-gastos{width:100%;min-width:0;table-layout:fixed;border-collapse:collapse;font-size:11px;margin-top:2px}
+.crt-gastos th{font-size:8.5px;font-weight:400;color:#333;text-align:left;padding:1px 4px;border-bottom:1px solid #111;text-transform:none;letter-spacing:0;white-space:normal;background:none}
+.crt-gastos td{padding:2px 4px;font-weight:600;border-bottom:1px solid #ccc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.crt-gastos tr:last-child td{border-bottom:0;font-weight:800}

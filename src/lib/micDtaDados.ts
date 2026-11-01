@@ -1,5 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
+import { esquemaCrt } from "@/lib/crt";
 import { esquemaMic, micPadrao, numeroMic, type DadosMic } from "@/lib/micDta";
 
 /** Próxima sequência do ano para o número do MIC da transportadora. */
@@ -17,7 +18,7 @@ const ler = (j: unknown): DadosMic | null => {
 export async function carregarMic(clienteId: string, viagemId: string) {
   const viagem = await db.viagem.findFirst({
     where: { id: viagemId, caminhao: { clienteId } },
-    include: { caminhao: { select: { id: true, placa: true, modelo: true, ano: true } }, motorista: { select: { nome: true } }, mic: true },
+    include: { caminhao: { select: { id: true, placa: true, modelo: true, ano: true } }, motorista: { select: { nome: true } }, mic: true, crt: { select: { id: true, dados: true } } },
   });
   if (!viagem) return null;
   const cliente = await db.cliente.findUniqueOrThrow({ where: { id: clienteId }, select: { nome: true, ruc: true, endereco: true, cidade: true, pais: true } });
@@ -38,5 +39,13 @@ export async function carregarMic(clienteId: string, viagemId: string) {
     anteriorCaminhao: anteriorCaminhao ? ler(anteriorCaminhao.dados) : null,
     anteriorEmpresa: anteriorEmpresa ? ler(anteriorEmpresa.dados) : null,
   });
+  // Com o CRT feito, número, remetente, destinatário, consignatário, seguro e valor vêm dele.
+  const crt = viagem.crt ? esquemaCrt.safeParse(viagem.crt.dados).data : undefined;
+  if (crt) {
+    dados.crt = crt.numero || dados.crt;
+    for (const k of ["remitente", "destinatario", "consignatario"] as const) if (crt[k]) dados[k] = crt[k];
+    if (crt.seguro) dados.seguro = crt.seguro;
+    if (crt.valor) dados.valorFot = crt.valor;
+  }
   return { viagem, cliente, dados, salvo: false };
 }
