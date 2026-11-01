@@ -1,5 +1,6 @@
 "use server";
 
+import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { salvarRota } from "@/lib/monitoramento";
@@ -9,6 +10,7 @@ import { paraUsd, type Moeda } from "@/lib/cambio";
 import { cotacaoDoDia } from "@/lib/cotacao";
 import { db } from "@/lib/db";
 import { num, usd } from "@/lib/formato";
+import { VALIDADE_DIAS } from "@/lib/rastreio/linkRastreio";
 
 export type Resultado = { ok: boolean; msg: string } | null;
 
@@ -114,5 +116,29 @@ export async function recalcularRota(form: FormData) {
   const id = String(form.get("id") ?? "");
   if (!(await db.viagem.findFirst({ where: { id, caminhao: { clienteId: cliente.id } }, select: { id: true } }))) return;
   await salvarRota(id);
+  revalidatePath("/fretes");
+}
+
+/**
+ * Gera (ou renova) o link público do frete para quem vai receber a carga acompanhar o caminhão.
+ * Devolve o endereço relativo (/r/...); a tela monta o endereço completo com o domínio.
+ */
+export async function gerarLinkRastreio(id: string): Promise<{ caminho: string; expira: string } | null> {
+  const { sessao, cliente } = await clienteAtual();
+  if (sessao.papel === "MOTORISTA") return null;
+  const v = await db.viagem.findFirst({ where: { id, caminhao: { clienteId: cliente.id } }, select: { id: true, linkToken: true } });
+  if (!v) return null;
+  const token = v.linkToken ?? randomBytes(18).toString("base64url");
+  const expira = new Date(Date.now() + VALIDADE_DIAS * 86400_000);
+  await db.viagem.update({ where: { id: v.id }, data: { linkToken: token, linkExpiraEm: expira } });
+  revalidatePath("/fretes");
+  return { caminho: `/r/${token}`, expira: expira.toISOString() };
+}
+
+/** Desliga o link: quem tiver o endereço passa a ver "link encerrado". */
+export async function encerrarLinkRastreio(id: string) {
+  const { sessao, cliente } = await clienteAtual();
+  if (sessao.papel === "MOTORISTA") return;
+  await db.viagem.updateMany({ where: { id, caminhao: { clienteId: cliente.id } }, data: { linkToken: null, linkExpiraEm: null } });
   revalidatePath("/fretes");
 }

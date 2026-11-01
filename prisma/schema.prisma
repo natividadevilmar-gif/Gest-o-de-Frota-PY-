@@ -283,6 +283,9 @@ model Viagem {
   rotaKm          Float?
   // Por que a rota não saiu (cidade não achada, sem conexão...); null quando deu certo.
   rotaErro        String?
+  // Link público para quem vai receber a carga acompanhar o caminhão (sem login), até expirar.
+  linkToken       String?      @unique
+  linkExpiraEm    DateTime?
   criadoEm        DateTime     @default(now())
 
   @@index([caminhaoId, data])
