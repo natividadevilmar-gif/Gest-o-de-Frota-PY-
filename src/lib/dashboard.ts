@@ -96,3 +96,12 @@ export function kmPorLitroDia(itens: { data: Date; km: number; litros: number | 
   const l = porDia(itens.filter((x) => x.litros).map((x) => ({ data: x.data, valor: x.litros ?? 0 })), inicio, dias);
   return km.map((p, i) => ({ dia: p.dia, valor: l[i].valor > 0 ? r2(p.valor / l[i].valor) : 0 }));
 }
+
+/**
+ * Mês para os links do Dashboard às telas mensais (custo por km, consumo, resultado, fretes):
+ * nos primeiros 7 dias o mês atual quase não tem dados, então abre o mês anterior, já completo.
+ */
+export function mesDosLinks(hoje: Date): string {
+  const d = new Date(diaUtc(hoje) - 7 * DIA);
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+}

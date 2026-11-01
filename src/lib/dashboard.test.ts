@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { faixaDe, faixasReceber, kmPorLitroDia, inicioJanela, mediaMovel, periodoValido, porDia, porSemana, somaPor } from "./dashboard";
+import { faixaDe, faixasReceber, kmPorLitroDia, inicioJanela, mediaMovel, mesDosLinks, periodoValido, porDia, porSemana, somaPor } from "./dashboard";
 
 const hoje = new Date("2026-11-10T15:00:00Z");
 const d = (s: string) => new Date(`${s}T00:00:00Z`);
@@ -48,5 +48,13 @@ describe("séries", () => {
     expect(faixasReceber([{ vencimento: d("2026-11-11"), saldo: 5 }, { vencimento: d("2026-11-12"), saldo: 5 }], hoje)[2]).toMatchObject({ valor: 10, qtd: 2 });
     const k = kmPorLitroDia([{ data: d("2026-11-08"), km: 500, litros: 200 }, { data: d("2026-11-09"), km: 300, litros: null }], d("2026-11-08"), 2);
     expect(k.map((p) => p.valor)).toEqual([2.5, 0]);
+  });
+});
+
+describe("mesDosLinks", () => {
+  it("nos primeiros 7 dias abre o mês anterior", () => {
+    expect(mesDosLinks(new Date("2026-11-01T22:00:00Z"))).toBe("2026-10");
+    expect(mesDosLinks(new Date("2026-01-05T12:00:00Z"))).toBe("2025-12");
+    expect(mesDosLinks(new Date("2026-11-08T12:00:00Z"))).toBe("2026-11");
   });
 });

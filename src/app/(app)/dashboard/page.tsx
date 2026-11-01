@@ -3,7 +3,7 @@ import { FiltroLinks } from "@/components/FiltroLinks";
 import { BarrasH, GraficoLinha, GraficoSemanas } from "@/components/Graficos";
 import { Kpi } from "@/components/ui";
 import { clienteAtual } from "@/lib/acesso";
-import { FAIXAS, faixaDe, faixasReceber, inicioJanela, kmPorLitroDia, mediaMovel, PERIODOS, periodoValido, porDia, porSemana, somaPor } from "@/lib/dashboard";
+import { FAIXAS, faixaDe, faixasReceber, inicioJanela, kmPorLitroDia, mediaMovel, mesDosLinks, PERIODOS, periodoValido, porDia, porSemana, somaPor } from "@/lib/dashboard";
 import { db } from "@/lib/db";
 import { dataBr, num, usd } from "@/lib/formato";
 import { NOME_CATEGORIA } from "@/lib/indicadores";
@@ -60,6 +60,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   const sp = await searchParams;
   const dias = periodoValido(sp.dias);
   const hoje = new Date();
+  const mesLink = mesDosLinks(hoje);
   const inicio = inicioJanela(hoje, dias);
 
   const caminhoes = await db.caminhao.findMany({
@@ -216,19 +217,19 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         <Grafico titulo="Km rodado por dia" sub={`${cam ? cam.placa : "Frota inteira"}; tracejado é a média de 7 dias`} link={["/telemetria", "Telemetria"]}>
           <GraficoLinha pontos={kmDia} media={mediaMovel(kmDia)} fmt={km0} nome="Km rodado por dia" />
         </Grafico>
-        <Grafico titulo="Fretes e despesas por semana" sub="Semanas que terminam hoje" link={["/resultado", "Resultado do mês"]}>
+        <Grafico titulo="Fretes e despesas por semana" sub="Semanas que terminam hoje" link={[`/resultado?mes=${mesLink}`, "Resultado do mês"]}>
           <GraficoSemanas semanas={semanas.map((s) => ({ inicio: s.inicio, fim: s.fim, valores: [s.fretes, s.despesas] }))} series={["Fretes", "Despesas lançadas"]} fmt={usd0} />
         </Grafico>
 
         {cam ? (
           <>
-            <Grafico titulo="Consumo por dia" sub={`km/l lido na rede CAN · referência ${num(cam.consumoRefKmL, 2)} km/l`} link={["/consumo", "Consumo e motoristas"]}>
+            <Grafico titulo="Consumo por dia" sub={`km/l lido na rede CAN · referência ${num(cam.consumoRefKmL, 2)} km/l`} link={[`/consumo?mes=${mesLink}`, "Consumo e motoristas"]}>
               {consumoDia.some((p) => p.valor > 0) ? <GraficoLinha pontos={consumoDia} fmt={(n) => `${num(n, 2)} km/l`} nome="Consumo por dia" /> : <p className="note">Sem leitura de consumo no período.</p>}
             </Grafico>
-            <Grafico titulo="Excessos e freadas por dia" sub="Eventos lidos pelo rastreador" link={["/consumo", "Ranking dos motoristas"]}>
+            <Grafico titulo="Excessos e freadas por dia" sub="Eventos lidos pelo rastreador" link={[`/consumo?mes=${mesLink}`, "Ranking dos motoristas"]}>
               <GraficoLinha pontos={eventosDia} fmt={(n) => `${num(n)} eventos`} nome="Excessos e freadas por dia" />
             </Grafico>
-            <Grafico titulo="Fretes do período" sub={`${fretes.length} fretes · ${usd0(faturamento)}`} link={["/fretes", "Fretes e margem"]}>
+            <Grafico titulo="Fretes do período" sub={`${fretes.length} fretes · ${usd0(faturamento)}`} link={[`/fretes?mes=${mesLink}`, "Fretes e margem"]}>
               {fretes.length === 0 ? <p className="note">Nenhum frete no período.</p> : (
                 <div className="tw"><table>
                   <thead><tr><th>Data</th><th>Rota</th><th>Cliente</th><th className="n">Frete</th></tr></thead>
@@ -239,10 +240,10 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
           </>
         ) : (
           <>
-            <Grafico titulo="Resultado por caminhão" sub="Fretes menos despesas e custos fixos · toque para abrir o caminhão" link={["/fretes", "Fretes e margem"]}>
+            <Grafico titulo="Resultado por caminhão" sub="Fretes menos despesas e custos fixos · toque para abrir o caminhão" link={[`/fretes?mes=${mesLink}`, "Fretes e margem"]}>
               <BarrasH itens={ordena(porCaminhao, (c) => c.resultado).map((c) => ({ nome: c.placa, valor: Math.round(c.resultado), detalhe: `${c.fretes} fretes · ${usd0(c.fat)}`, href: doCaminhao(c.id) }))} fmt={usd0} />
             </Grafico>
-            <Grafico titulo="Consumo por caminhão" sub="km/l comparado com a referência de cada caminhão" link={["/consumo", "Consumo e motoristas"]}>
+            <Grafico titulo="Consumo por caminhão" sub="km/l comparado com a referência de cada caminhão" link={[`/consumo?mes=${mesLink}`, "Consumo e motoristas"]}>
               <BarrasH
                 itens={ordena(porCaminhao.filter((c) => c.kmL !== null && c.ref > 0), (c) => (c.kmL ?? 0) / c.ref).map((c) => ({
                   nome: c.placa,
@@ -258,7 +259,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
             <Grafico titulo="Km rodado por caminhão" sub={`Últimos ${dias} dias · toque para abrir o caminhão`}>
               <BarrasH itens={ordena(porCaminhao, (c) => c.km).map((c) => ({ nome: c.placa, valor: Math.round(c.km), detalhe: `${num(c.km / dias)} km/dia`, href: doCaminhao(c.id) }))} fmt={km0} />
             </Grafico>
-            <Grafico titulo="Direção: excessos e freadas" sub="Eventos lidos pelo rastreador" link={["/consumo", "Ranking dos motoristas"]}>
+            <Grafico titulo="Direção: excessos e freadas" sub="Eventos lidos pelo rastreador" link={[`/consumo?mes=${mesLink}`, "Ranking dos motoristas"]}>
               <BarrasH
                 itens={ordena(porCaminhao.filter((c) => c.excessos + c.freadas > 0), (c) => c.excessos + c.freadas).map((c) => ({ nome: c.placa, valor: c.excessos + c.freadas, detalhe: `${c.excessos} excessos · ${c.freadas} freadas`, href: doCaminhao(c.id) }))}
                 fmt={(n) => `${num(n)} eventos`}
@@ -268,7 +269,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
           </>
         )}
 
-        <Grafico titulo="Despesas por tipo" sub="Lançadas no período · toque para ver os lançamentos" link={["/custos", "Custo por km"]}>
+        <Grafico titulo="Despesas por tipo" sub="Lançadas no período · toque para ver os lançamentos" link={[`/custos?mes=${mesLink}`, "Custo por km"]}>
           <BarrasH
             itens={porTipo.map((t) => ({ nome: nomeTipo(t.nome), valor: Math.round(t.valor), detalhe: gasto > 0 ? `${num((t.valor / gasto) * 100)}% do total` : undefined, href: url(f, { tipo: t.nome }, true), ativo: f.tipo === t.nome }))}
             fmt={usd0}
